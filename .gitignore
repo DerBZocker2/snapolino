@@ -1,0 +1,12 @@
+box.ini
+.venv/
+venv/
+__pycache__/
+*.pyc
+cache/
+ausgabe/
+dist/
+build/
+*.spec
+*.log
+.idea/
