@@ -27,6 +27,9 @@ backend/
 nicht auf `backend/`. So sind `includes/`, `sql/`, `storage/` und `bin/`
 grundsaetzlich nicht ueber HTTP erreichbar.
 
+Fuer die konkrete Einrichtung auf dem Raspberry Pi (Apache, MariaDB,
+Cloudflare-DNS/TLS) siehe `deploy/RASPBERRY_PI.md`.
+
 ## Einrichtung
 
 1. Datenbank anlegen und Schema importieren:
