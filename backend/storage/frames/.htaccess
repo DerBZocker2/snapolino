@@ -1,0 +1,6 @@
+# Rahmen-PNGs liegen ausserhalb des Webroots (backend/public), diese Datei
+# ist eine zusaetzliche Absicherung falls das Verzeichnis doch einmal direkt
+# erreichbar gemacht wird: keinerlei Skriptausfuehrung, kein Directory-Listing.
+php_flag engine off
+AddType text/plain .php .php3 .php4 .php5 .phtml
+Options -Indexes -ExecCGI

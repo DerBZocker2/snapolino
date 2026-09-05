@@ -10,3 +10,9 @@ build/
 *.spec
 *.log
 .idea/
+
+# Cloud-Backend: echte Zugangsdaten und hochgeladene Rahmen nicht im Repo
+backend/includes/config.php
+backend/storage/frames/*
+!backend/storage/frames/.gitkeep
+!backend/storage/frames/.htaccess

@@ -42,11 +42,23 @@ zur Buchung dazugekauft hat.
 - Dateien atomar schreiben (`os.replace`), kein halber Zustand nach Stromausfall.
 
 ## Cloud-Backend
-PHP 8 + MySQL auf snapolino.de. Panel zum Anlegen von Layouts (Rahmen-PNG,
-Leinwandgröße, Slot-Koordinaten) und Zuordnung zu Boxen.
-- `api.php?box=<key>` mit Header `X-API-Key` → Konfigurations-JSON
-- `frame.php?file=<name>.png` → Rahmen-Download
-Jede Änderung erhöht `config_version`.
+PHP 8 + MySQL auf snapolino.de, liegt in `backend/` (siehe `backend/README.md`
+für Deployment). Docroot ist `backend/public`, alles andere
+(`includes/`, `sql/`, `storage/`, `bin/`) ist nicht über HTTP erreichbar.
+Panel (`backend/public/admin/`, Login-geschützt) zum Anlegen von Layouts
+(Rahmen-PNG, Leinwandgröße, Slot-Koordinaten per Hand) und Zuordnung zu
+Boxen. Jede Box bekommt beim Anlegen automatisch das Standard-Layout
+(4er-Collage), zusätzliche Formate werden pro Box angehakt (Aufpreis wird
+im Panel angezeigt).
+- `api.php?box=<box_key>` mit Header `X-API-Key` → Konfigurations-JSON
+  (Layouts inkl. Slot-Koordinaten). Optional `?since=<config_version>` für
+  einen günstigen Preflight-Check (`304` wenn unverändert).
+- `frame.php?file=<name>.png` mit Header `X-API-Key` → Rahmen-Download,
+  nur wenn die Box das Layout mit dieser Datei zugeordnet hat.
+- Jede Änderung an einer Box-Layout-Zuordnung oder an einem Layout selbst
+  erhöht `config_version` der betroffenen Box(en).
+- DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
+  `config.php.example`), analog zu `box.ini` auf der Box.
 
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch

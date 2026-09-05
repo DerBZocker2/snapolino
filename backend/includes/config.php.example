@@ -1,0 +1,13 @@
+<?php
+// Zugangsdaten fuer die Datenbank und Basis-Einstellungen.
+// Diese Datei als "config.php" (ohne .example) kopieren und mit echten
+// Werten fuellen. config.php selbst gehoert NICHT ins Repository.
+
+return [
+    'db_host'     => 'localhost',
+    'db_name'     => 'snapolino',
+    'db_user'     => 'snapolino',
+    'db_pass'     => 'bitte_aendern',
+    'storage_dir' => __DIR__ . '/../storage/frames',
+    'base_url'    => 'https://snapolino.de',
+];
