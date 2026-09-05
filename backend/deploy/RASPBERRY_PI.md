@@ -140,29 +140,41 @@ Im Cloudflare-Dashboard fuer snapolino.de unter **DNS**:
 Proxy "An" (oranges Wolkensymbol) verbirgt die private Heim-IP hinter
 Cloudflare.
 
-## 6. TLS: Cloudflare Origin-Zertifikat
+## 6. TLS: Cloudflare "Flexible" (kein Zertifikat auf dem Pi noetig)
+
+Standardweg dieser Anleitung: Cloudflare spricht TLS mit dem Besucher,
+zum Pi geht nur einfaches HTTP. Kein Zertifikat auf dem Pi zu verwalten.
+**Nachteil:** Die Strecke Cloudflare -> Pi ueber die oeffentliche IP ist
+unverschluesselt, auch die Login-Formulardaten des Panels laufen darueber
+im Klartext. Wer das nicht will, siehe Kasten am Ende dieses Abschnitts.
 
 Im Cloudflare-Dashboard:
-1. **SSL/TLS -> Overview**: Modus auf **Full (strict)** stellen.
-2. **SSL/TLS -> Origin Server -> Create Certificate**: Hostnamen
-   `snapolino.de` und `*.snapolino.de` eintragen, RSA 2048, Gueltigkeit
-   15 Jahre. Cloudflare zeigt dann ein Zertifikat + privaten Schluessel an.
+1. **SSL/TLS -> Overview**: Modus auf **Flexible** stellen.
+2. **SSL/TLS -> Edge Certificates**: **Always Use HTTPS** aktivieren
+   (Cloudflare leitet Besucher dann selbst von http auf https um -
+   eine Umleitung im vhost selbst wuerde bei "Flexible" sonst eine
+   Redirect-Schleife erzeugen).
 
-Auf dem Pi ablegen:
-
-```bash
-sudo mkdir -p /etc/ssl/cloudflare
-sudo nano /etc/ssl/cloudflare/snapolino.de.pem   # Zertifikat einfuegen
-sudo nano /etc/ssl/cloudflare/snapolino.de.key   # privaten Schluessel einfuegen
-sudo chmod 600 /etc/ssl/cloudflare/snapolino.de.key
-```
+> **Sicherer, aber mit mehr Aufwand:** Cloudflare-Modus **Full (strict)**
+> plus ein Cloudflare-Origin-Zertifikat auf dem Pi verschluesselt auch die
+> Strecke Cloudflare -> Pi. Zertifikat erzeugen unter **SSL/TLS -> Origin
+> Server -> Create Certificate** (Hostnamen `snapolino.de` und
+> `*.snapolino.de`), danach:
+> ```bash
+> sudo mkdir -p /etc/ssl/cloudflare
+> sudo nano /etc/ssl/cloudflare/snapolino.de.pem   # Origin Certificate einfuegen
+> sudo nano /etc/ssl/cloudflare/snapolino.de.key   # Private Key einfuegen
+> sudo chmod 600 /etc/ssl/cloudflare/snapolino.de.key
+> ```
+> und in Schritt 7 `apache-snapolino.de-full-strict.conf` statt
+> `apache-snapolino.de.conf` verwenden (zusaetzlich `sudo a2enmod ssl`).
 
 ## 7. Apache-vhost einrichten
 
 ```bash
 sudo cp /var/www/snapolino.de/backend/deploy/apache-snapolino.de.conf \
         /etc/apache2/sites-available/snapolino.de.conf
-sudo a2enmod ssl headers
+sudo a2enmod headers
 sudo a2ensite snapolino.de
 sudo apachectl configtest
 sudo systemctl reload apache2
