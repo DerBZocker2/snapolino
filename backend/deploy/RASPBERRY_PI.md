@@ -2,14 +2,26 @@
 
 Diese Anleitung geht von folgendem Setup aus:
 - Apache mit PHP (mod_php) laeuft schon fuer andere Seiten auf dem Pi.
-- Feste oeffentliche IP, Port 80/443 werden bereits per Port-Forwarding
-  im Router an den Pi weitergeleitet (fuer die anderen Seiten).
+- Feste oeffentliche IP, die externen Ports werden bereits per
+  Port-Forwarding im Router an den Pi weitergeleitet (fuer die anderen
+  Seiten).
 - MariaDB laeuft bereits auf dem Pi.
 - Die Domain `snapolino.de` liegt bei Cloudflare (DNS + Proxy).
 
-Da Apache mehrere Domains ueber denselben Port 80/443 per Name-based
-Virtual Hosting bedient, ist **kein zusaetzliches Port-Forwarding**
-noetig - nur ein neuer vhost.
+**Achtung Port 80/443:** Laeuft auf dem Pi zusaetzlich Pi-hole, belegt
+dessen eigener Webserver (`pihole-FTL`) typischerweise genau die Ports
+80 und 443 fuer die Pi-hole-Oberflaeche. Apache laeuft dann meist auf
+einem Ausweichport wie **8080** (pruefen mit `cat /etc/apache2/ports.conf`
+und `sudo ss -tlnp | grep ':80\|:443\|:8080'`). Der Router leitet in dem
+Fall extern 80 (und ggf. 443) bereits auf Pi-Port 8080 weiter, damit die
+bestehenden Seiten erreichbar sind - die vhost-Vorlagen unten sind
+bereits auf `*:8080` eingestellt. Laeuft bei dir kein Pi-hole und Apache
+haengt tatsaechlich an Port 80, `*:8080` in den vhost-Dateien einfach
+durch `*:80` ersetzen.
+
+Da Apache mehrere Domains ueber denselben Port per Name-based Virtual
+Hosting bedient, ist fuer eine zusaetzliche Domain **kein weiteres
+Port-Forwarding** noetig - nur ein neuer vhost.
 
 ## 0. Mit PuTTY auf den Pi verbinden
 
@@ -180,10 +192,11 @@ sudo apachectl configtest
 sudo systemctl reload apache2
 ```
 
-Prueft der `configtest`, ob sich der neue vhost nicht mit einem
-bestehenden `*:443`-Default-vhost auf dem Pi in die Quere kommt (Apache
-waehlt sonst per SNI/ServerName den richtigen aus - bei Problemen die
-anderen vhost-Dateien auf doppelte `ServerName`-Eintraege pruefen).
+`snapolino.de` teilt sich Port 8080 mit den anderen Seiten auf dem Pi
+(z.B. `derbzocker2.de`) - das ist normal und gewollt, Apache waehlt die
+richtige Seite anhand des `ServerName`/Host-Headers. `configtest` warnt
+nur, falls es doppelte `ServerName`-Eintraege zwischen den vhost-Dateien
+gibt.
 
 ## 8. Testen
 
