@@ -182,6 +182,35 @@ curl -I https://snapolino.de/admin/login.php
 Sollte `200 OK` liefern. Danach im Browser `https://snapolino.de/admin/`
 oeffnen und mit dem in Schritt 3 angelegten Login einloggen.
 
+## 9. Updates einspielen (nach jedem Merge in main)
+
+Auf dem Pi im Projektverzeichnis:
+
+```bash
+cd /var/www/snapolino.de
+git pull origin main
+```
+
+`includes/config.php` und die Rahmen in `storage/frames/` sind in
+`.gitignore`, `git pull` fasst sie nicht an - eigene Zugangsdaten und
+hochgeladene Rahmen bleiben also erhalten.
+
+Danach je nach Art der Aenderung noch pruefen:
+- **Neue Spalten/Tabellen in `sql/schema.sql`**: werden durch `git pull`
+  NICHT automatisch in die laufende Datenbank uebernommen. Den Diff
+  anschauen (`git log -p -- backend/sql/schema.sql`) und die noetigen
+  `ALTER TABLE`/`CREATE TABLE`-Befehle von Hand in MariaDB ausfuehren.
+- **Neue Eintraege in `includes/config.php.example`**: die eigene
+  `includes/config.php` von Hand um die neuen Schluessel ergaenzen.
+- **Aenderungen an `backend/deploy/apache-snapolino.de.conf`**: werden
+  ebenfalls nicht automatisch uebernommen (ist nur eine Vorlage, keine
+  live genutzte Datei). Manuell mit der Datei unter
+  `/etc/apache2/sites-available/snapolino.de.conf` abgleichen und danach
+  `sudo apachectl configtest && sudo systemctl reload apache2`.
+
+Reine Aenderungen an `.php`-Dateien unter `backend/public/` wirken sofort,
+ohne dass Apache neu gestartet werden muss.
+
 ## Danach
 
 - Erste Box im Panel anlegen (siehe `backend/README.md`).
