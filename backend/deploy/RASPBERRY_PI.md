@@ -11,6 +11,64 @@ Da Apache mehrere Domains ueber denselben Port 80/443 per Name-based
 Virtual Hosting bedient, ist **kein zusaetzliches Port-Forwarding**
 noetig - nur ein neuer vhost.
 
+## 0. Mit PuTTY auf den Pi verbinden
+
+Alle Befehle unten werden direkt auf dem Pi ausgefuehrt, per SSH ueber
+PuTTY von einem Windows-Rechner aus.
+
+1. **SSH auf dem Pi pruefen/aktivieren** (falls noch nicht aktiv, z.B.
+   ueber ein an Bildschirm+Tastatur angeschlossenes Terminal):
+   ```bash
+   sudo raspi-config
+   ```
+   Dort `Interface Options -> SSH -> Yes` waehlen. (Laeuft bereits eine
+   andere Seite auf dem Pi, ist SSH sehr wahrscheinlich schon aktiv.)
+
+2. **Pi-IP-Adresse herausfinden.** Entweder direkt am Pi:
+   ```bash
+   hostname -I
+   ```
+   oder in der Client-Liste des Routers nachsehen (meist unter
+   "Angeschlossene Geraete"/"DHCP-Clients", Geraetename z.B. `raspberrypi`).
+
+3. **PuTTY herunterladen und installieren**, falls noch nicht vorhanden:
+   https://www.putty.org/ (Download-Seite, "putty.exe" oder MSI-Installer).
+
+4. **PuTTY oeffnen** und im Startfenster ("PuTTY Configuration"):
+   - *Host Name (or IP address)*: die IP aus Schritt 2 eintragen, z.B.
+     `192.168.1.50`
+   - *Port*: `22`
+   - *Connection type*: `SSH`
+   - Optional unter *Session* einen *Saved Sessions*-Namen vergeben
+     (z.B. `snapolino-pi`) und auf **Save** klicken, dann muss man die
+     IP beim naechsten Mal nicht erneut eintippen.
+   - Auf **Open** klicken.
+
+5. Beim allerersten Verbindungsaufbau erscheint eine Sicherheitswarnung
+   ("PuTTY Security Alert") mit dem Host-Key des Pi. Mit **Accept**
+   bestaetigen (das ist normal und passiert nur beim ersten Mal).
+
+6. Im sich oeffnenden schwarzen Terminalfenster einloggen:
+   ```
+   login as: pi
+   pi@192.168.1.50's password:
+   ```
+   Benutzername und Passwort des Pi eingeben (Standard-Benutzername ist
+   oft `pi`, kann aber beim Ersteinrichten geaendert worden sein).
+
+7. Nach erfolgreichem Login steht ein normales Bash-Prompt bereit, z.B.
+   `pi@raspberrypi:~ $`. Ab hier koennen die Befehle aus den folgenden
+   Abschnitten eins zu eins eingegeben werden.
+
+**Nuetzlich in PuTTY:**
+- *Text markieren* kopiert automatisch in die Windows-Zwischenablage.
+- *Rechtsklick* fuegt den Inhalt der Zwischenablage ein (z.B. um ein
+  Cloudflare-Zertifikat in `nano` einzufuegen, siehe Schritt 6 unten).
+- In `nano` speichert `Strg+O` (dann Enter) und `Strg+X` verlaesst den
+  Editor.
+- Session friert ein/keine Reaktion mehr: Fenster schliessen und mit dem
+  gespeicherten Profil neu verbinden.
+
 ## 1. Code auf den Pi bringen
 
 ```bash
