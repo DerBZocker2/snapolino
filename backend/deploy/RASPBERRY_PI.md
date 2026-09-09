@@ -10,14 +10,14 @@ Diese Anleitung geht von folgendem Setup aus:
 
 **Achtung Port 80/443:** Laeuft auf dem Pi zusaetzlich Pi-hole, belegt
 dessen eigener Webserver (`pihole-FTL`) typischerweise genau die Ports
-80 und 443 fuer die Pi-hole-Oberflaeche. Apache laeuft dann meist auf
-einem Ausweichport wie **8080** (pruefen mit `cat /etc/apache2/ports.conf`
-und `sudo ss -tlnp | grep ':80\|:443\|:8080'`). Der Router leitet in dem
-Fall extern 80 (und ggf. 443) bereits auf Pi-Port 8080 weiter, damit die
-bestehenden Seiten erreichbar sind - die vhost-Vorlagen unten sind
-bereits auf `*:8080` eingestellt. Laeuft bei dir kein Pi-hole und Apache
-haengt tatsaechlich an Port 80, `*:8080` in den vhost-Dateien einfach
-durch `*:80` ersetzen.
+80 und 443 fuer die Pi-hole-Oberflaeche - Apache laeuft dann meist auf
+einem Ausweichport wie 8080, und man muesste `*:80` in den vhost-Dateien
+unten durch `*:8080` ersetzen sowie die Router-Portweiterleitung auf
+diesen Port zeigen lassen (pruefen mit `cat /etc/apache2/ports.conf` und
+`sudo ss -tlnp | grep ':80\|:443'`). Deutlich einfacher: Falls Pi-hole
+nicht mehr gebraucht wird, komplett deinstallieren (`pihole uninstall`)
+und Apache ganz normal auf Port 80/443 laufen lassen - das setzt diese
+Anleitung ab hier voraus.
 
 Da Apache mehrere Domains ueber denselben Port per Name-based Virtual
 Hosting bedient, ist fuer eine zusaetzliche Domain **kein weiteres
@@ -192,7 +192,7 @@ sudo apachectl configtest
 sudo systemctl reload apache2
 ```
 
-`snapolino.de` teilt sich Port 8080 mit den anderen Seiten auf dem Pi
+`snapolino.de` teilt sich Port 80 mit den anderen Seiten auf dem Pi
 (z.B. `derbzocker2.de`) - das ist normal und gewollt, Apache waehlt die
 richtige Seite anhand des `ServerName`/Host-Headers. `configtest` warnt
 nur, falls es doppelte `ServerName`-Eintraege zwischen den vhost-Dateien
