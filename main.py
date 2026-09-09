@@ -7,13 +7,14 @@ from logging.handlers import RotatingFileHandler
 
 import cv2
 from PIL import Image
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton,
     QVBoxLayout, QHBoxLayout, QStackedWidget,
 )
 
+import cloudsync
 import config
 import hardware
 from camera import CameraThread
@@ -22,6 +23,12 @@ from output import OutputWorker
 ES_CONTINUOUS = 0x80000000
 ES_SYSTEM_REQUIRED = 0x00000001
 ES_DISPLAY_REQUIRED = 0x00000002
+
+PAGE_READY = 0
+PAGE_LAYOUT = 1
+PAGE_LIVE = 2
+PAGE_SINGLE = 3
+PAGE_COLLAGE = 4
 
 
 def setup_logging():
@@ -49,14 +56,10 @@ def release_awake():
     ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
 
 
-def resource_path(rel):
-    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, rel)
-
-
-def crop_to_ratio(frame, ratio=config.RATIO):
+def crop_to_ratio(frame, ratio):
+    """Schneidet mittig auf das Seitenverhaeltnis zu (Breite/Hoehe als Zahl)."""
     h, w = frame.shape[:2]
-    target = ratio[0] / ratio[1]
+    target = ratio[0] / ratio[1] if isinstance(ratio, tuple) else ratio
     if w / h > target:
         new_w = int(h * target)
         x0 = (w - new_w) // 2
@@ -84,15 +87,29 @@ def pil_to_pixmap(img, max_w, max_h):
     )
 
 
-def compose(frame_bgr, overlay_path):
-    cropped = crop_to_ratio(frame_bgr)
-    rgb = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
-    photo = Image.fromarray(rgb).convert("RGBA")
-    if os.path.exists(overlay_path):
-        overlay = Image.open(overlay_path).convert("RGBA")
-        photo = photo.resize(overlay.size, Image.LANCZOS)
-        photo = Image.alpha_composite(photo, overlay)
-    return photo.convert("RGB")
+def compose_collage(slot_frames, layout):
+    """Setzt die aufgenommenen Einzelbilder in die Slots des Rahmens ein.
+
+    Erst werden alle Fotos auf eine leere Leinwand an ihre Slot-Position
+    gesetzt, danach kommt die Rahmen-PNG obendrauf - so liegen Rahmen und
+    Dekoration ueber den Fotokanten, nicht darunter.
+    """
+    canvas_size = (layout["canvas_width"], layout["canvas_height"])
+    photo_layer = Image.new("RGBA", canvas_size, (255, 255, 255, 255))
+
+    for slot, frame_bgr in zip(layout["slots"], slot_frames):
+        w, h = slot["width"], slot["height"]
+        cropped = crop_to_ratio(frame_bgr, w / h)
+        rgb = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
+        photo = Image.fromarray(rgb).convert("RGBA").resize((w, h), Image.LANCZOS)
+        photo_layer.paste(photo, (slot["x"], slot["y"]))
+
+    frame_path = layout["frame_path"]
+    if os.path.exists(frame_path):
+        frame_img = Image.open(frame_path).convert("RGBA").resize(canvas_size)
+        photo_layer = Image.alpha_composite(photo_layer, frame_img)
+
+    return photo_layer.convert("RGB")
 
 
 class StatusDot(QWidget):
@@ -114,6 +131,16 @@ class StatusDot(QWidget):
         self.text.setText(f"{self.caption}{': ' + detail if detail else ''}")
 
 
+class CloudSyncThread(QThread):
+    """Fragt im Hintergrund die Cloud ab, ohne die GUI zu blockieren."""
+
+    finished_sync = Signal(list)
+
+    def run(self):
+        cloudsync.sync()
+        self.finished_sync.emit(cloudsync.get_layouts())
+
+
 class Fotobox(QWidget):
     def __init__(self):
         super().__init__()
@@ -122,20 +149,28 @@ class Fotobox(QWidget):
         self.setContextMenuPolicy(Qt.NoContextMenu)
         self.setCursor(Qt.BlankCursor)
 
-        self.overlay_path = resource_path("assets/rahmen.png")
         os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
+        self.layouts = cloudsync.get_layouts()
+        self.pending_layouts = None
+        self.selected_layout = None
+        self.slot_frames = []
+        self.current_slot = 0
+        self._pending_shot = None
+        self.collage_result = None
+
         self.countdown = 0
-        self.captured = None
         self.busy = False          # Doppelklick-Schutz
         self.allow_close = False   # Alt+F4-Sperre
         self.cam_ok = False
+        self.sync_thread = None
 
         self._build_ui()
         self._start_camera()
         self._start_worker()
 
         QShortcut(QKeySequence("Ctrl+Shift+Q"), self, activated=self.request_exit)
+        QShortcut(QKeySequence("Ctrl+Shift+S"), self, activated=self.trigger_resync)
 
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.refresh_status)
@@ -146,7 +181,7 @@ class Fotobox(QWidget):
         self.tick.setInterval(1000)
         self.tick.timeout.connect(self._on_tick)
 
-        log.info("Fotobox gestartet")
+        log.info("Fotobox gestartet mit %d Layout(s)", len(self.layouts))
 
     # ---------- Aufbau ----------
 
@@ -183,43 +218,97 @@ class Fotobox(QWidget):
         l0.addWidget(self.btn_start)
         self.pages.addWidget(p0)
 
-        # Seite 1: LIVE + COUNTDOWN
+        # Seite 1: LAYOUTWAHL (nur bei mehr als einem Layout sichtbar)
         p1 = QWidget()
-        l1 = QVBoxLayout(p1)
-        self.live_view = QLabel()
-        self.live_view.setAlignment(Qt.AlignCenter)
-        l1.addWidget(self.live_view, 1)
+        self.layout_choice_box = QVBoxLayout(p1)
+        self.layout_choice_box.addWidget(QLabel("Welches Format?"))
         self.pages.addWidget(p1)
 
-        # Seite 2: ANSICHT
+        # Seite 2: LIVE + COUNTDOWN
         p2 = QWidget()
         l2 = QVBoxLayout(p2)
-        self.result_view = QLabel()
-        self.result_view.setAlignment(Qt.AlignCenter)
-        row = QHBoxLayout()
-        self.btn_again = QPushButton("Wiederholen")
-        self.btn_next = QPushButton("Fortfahren")
-        for b, col in ((self.btn_again, "#7f8c8d"), (self.btn_next, "#27ae60")):
+        self.live_view = QLabel()
+        self.live_view.setAlignment(Qt.AlignCenter)
+        l2.addWidget(self.live_view, 1)
+        self.pages.addWidget(p2)
+
+        # Seite 3: EINZELANSICHT (ein aufgenommenes Bild, Wiederholen/Weiter)
+        p3 = QWidget()
+        l3 = QVBoxLayout(p3)
+        self.single_view = QLabel()
+        self.single_view.setAlignment(Qt.AlignCenter)
+        row3 = QHBoxLayout()
+        self.btn_retake = QPushButton("Wiederholen")
+        self.btn_accept = QPushButton("Weiter")
+        for b, col in ((self.btn_retake, "#7f8c8d"), (self.btn_accept, "#27ae60")):
             b.setFixedHeight(80)
             b.setStyleSheet(
                 f"font-size: 26px; background: {col}; color: white; border-radius: 12px;"
             )
-            row.addWidget(b)
-        self.btn_again.clicked.connect(self.start_session)
-        self.btn_next.clicked.connect(self.finish_session)
-        l2.addWidget(self.result_view, 1)
-        l2.addLayout(row)
-        self.pages.addWidget(p2)
+            row3.addWidget(b)
+        self.btn_retake.clicked.connect(self.retake_slot)
+        self.btn_accept.clicked.connect(self.accept_slot)
+        l3.addWidget(self.single_view, 1)
+        l3.addLayout(row3)
+        self.pages.addWidget(p3)
 
+        # Seite 4: COLLAGE + Druckfrage
+        p4 = QWidget()
+        l4 = QVBoxLayout(p4)
+        self.collage_view = QLabel()
+        self.collage_view.setAlignment(Qt.AlignCenter)
+        row4 = QHBoxLayout()
+        self.btn_restart = QPushButton("Neu starten")
+        self.btn_print = QPushButton("Drucken")
+        for b, col in ((self.btn_restart, "#7f8c8d"), (self.btn_print, "#27ae60")):
+            b.setFixedHeight(80)
+            b.setStyleSheet(
+                f"font-size: 26px; background: {col}; color: white; border-radius: 12px;"
+            )
+            row4.addWidget(b)
+        self.btn_restart.clicked.connect(self._reset)
+        self.btn_print.clicked.connect(self.finish_session)
+        l4.addWidget(self.collage_view, 1)
+        l4.addLayout(row4)
+        self.pages.addWidget(p4)
+
+        self._refresh_layout_choices()
         self._load_frame_preview()
 
+    def _default_layout(self):
+        for layout in self.layouts:
+            if layout.get("is_default"):
+                return layout
+        return self.layouts[0]
+
     def _load_frame_preview(self):
-        if os.path.exists(self.overlay_path):
+        frame_path = self._default_layout()["frame_path"]
+        if os.path.exists(frame_path):
             self.frame_preview.setPixmap(
-                QPixmap(self.overlay_path).scaled(
+                QPixmap(frame_path).scaled(
                     900, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation
                 )
             )
+        else:
+            self.frame_preview.setText("Kein Rahmen gefunden")
+
+    def _refresh_layout_choices(self):
+        while self.layout_choice_box.count() > 1:
+            item = self.layout_choice_box.takeAt(1)
+            if item.widget():
+                item.widget().deleteLater()
+
+        for layout in self.layouts:
+            label = layout["name"]
+            if layout.get("surcharge_cents"):
+                label += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
+            btn = QPushButton(label)
+            btn.setFixedHeight(70)
+            btn.setStyleSheet(
+                "font-size: 22px; background: #2980b9; color: white; border-radius: 10px;"
+            )
+            btn.clicked.connect(lambda checked=False, ly=layout: self.choose_layout(ly))
+            self.layout_choice_box.addWidget(btn)
 
     def _start_camera(self):
         names = hardware.find_cameras()
@@ -258,12 +347,37 @@ class Fotobox(QWidget):
             log.warning("Kamerastatus: %s", "OK" if ok else "kein Bild")
         self.cam_ok = ok
 
+    # ---------- Cloud-Resync (nur zwischen Sessions) ----------
+
+    def trigger_resync(self):
+        if self.sync_thread is not None and self.sync_thread.isRunning():
+            return
+        log.info("Manueller Cloud-Resync angestossen")
+        self.sync_thread = CloudSyncThread(self)
+        self.sync_thread.finished_sync.connect(self._on_cloud_synced)
+        self.sync_thread.start()
+
+    def _on_cloud_synced(self, layouts):
+        idle = self.pages.currentIndex() == PAGE_READY and not self.busy
+        if idle:
+            self._apply_layouts(layouts)
+            log.info("Cloud-Konfiguration sofort uebernommen (Box war im Leerlauf)")
+        else:
+            self.pending_layouts = layouts
+            log.info("Cloud-Konfiguration wird erst nach der laufenden Session uebernommen")
+
+    def _apply_layouts(self, layouts):
+        self.layouts = layouts
+        self._refresh_layout_choices()
+        self._load_frame_preview()
+
     # ---------- Ablauf ----------
 
     def _on_frame(self, frame):
-        if self.pages.currentIndex() != 1:
+        if self.pages.currentIndex() != PAGE_LIVE or self.selected_layout is None:
             return
-        shown = crop_to_ratio(frame)
+        slot = self.selected_layout["slots"][self.current_slot]
+        shown = crop_to_ratio(frame, slot["width"] / slot["height"])
         if config.MIRROR_PREVIEW:
             shown = cv2.flip(shown, 1)
         if self.countdown > 0:
@@ -285,10 +399,22 @@ class Fotobox(QWidget):
             return
         self.busy = True
         self._set_buttons(False)
+        if len(self.layouts) > 1:
+            self.pages.setCurrentIndex(PAGE_LAYOUT)
+        else:
+            self.choose_layout(self.layouts[0])
+
+    def choose_layout(self, layout):
+        self.selected_layout = layout
+        self.slot_frames = []
+        self.current_slot = 0
+        log.info("Layout gewaehlt: %s (%d Bilder)", layout["name"], layout["slot_count"])
+        self._start_slot_capture()
+
+    def _start_slot_capture(self):
         self.countdown = config.COUNTDOWN_START
-        self.pages.setCurrentIndex(1)
+        self.pages.setCurrentIndex(PAGE_LIVE)
         self.tick.start()
-        log.info("Session gestartet")
 
     def _on_tick(self):
         self.countdown -= 1
@@ -303,40 +429,75 @@ class Fotobox(QWidget):
             self.hint.setText("Aufnahme fehlgeschlagen")
             self._reset()
             return
-        self.captured = compose(frame, self.overlay_path)
-        self.result_view.setPixmap(
+        self._pending_shot = frame
+        slot = self.selected_layout["slots"][self.current_slot]
+        shown = crop_to_ratio(frame, slot["width"] / slot["height"])
+        self.single_view.setPixmap(
+            to_pixmap(shown, self.single_view.width(), self.single_view.height())
+        )
+        self.pages.setCurrentIndex(PAGE_SINGLE)
+        log.info(
+            "Bild %d/%d aufgenommen",
+            self.current_slot + 1, self.selected_layout["slot_count"],
+        )
+
+    def retake_slot(self):
+        self._pending_shot = None
+        self._start_slot_capture()
+
+    def accept_slot(self):
+        self.slot_frames.append(self._pending_shot)
+        self._pending_shot = None
+        if len(self.slot_frames) < self.selected_layout["slot_count"]:
+            self.current_slot += 1
+            self._start_slot_capture()
+        else:
+            self._build_collage()
+
+    def _build_collage(self):
+        self.collage_result = compose_collage(self.slot_frames, self.selected_layout)
+        self.collage_view.setPixmap(
             pil_to_pixmap(
-                self.captured, self.result_view.width(), self.result_view.height()
+                self.collage_result, self.collage_view.width(), self.collage_view.height()
             )
         )
-        self.pages.setCurrentIndex(2)
-        self.busy = False
+        self.pages.setCurrentIndex(PAGE_COLLAGE)
         self._set_buttons(True)
-        log.info("Foto aufgenommen")
+        log.info("Collage fertig")
 
         if config.RESULT_SECONDS > 0:
             QTimer.singleShot(config.RESULT_SECONDS * 1000, self.finish_session)
 
     def finish_session(self):
-        if self.captured is None:
+        if self.collage_result is None:
             self._reset()
             return
         name = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
-        self.worker.submit(self.captured, name, do_print=True)
+        self.worker.submit(self.collage_result, name, do_print=True)
         self.hint.setText("Wird gespeichert und gedruckt …")
-        self.captured = None
+        self.collage_result = None
         self._reset()
 
     def _reset(self):
         self.busy = False
         self.countdown = 0
+        self.selected_layout = None
+        self.slot_frames = []
+        self.current_slot = 0
+        self._pending_shot = None
+        self.collage_result = None
         self._set_buttons(True)
-        self.pages.setCurrentIndex(0)
+        self.pages.setCurrentIndex(PAGE_READY)
+
+        if self.pending_layouts is not None:
+            self._apply_layouts(self.pending_layouts)
+            self.pending_layouts = None
+            log.info("Zwischenzeitlich synchronisierte Cloud-Konfiguration uebernommen")
 
     def _set_buttons(self, enabled):
         self.btn_start.setEnabled(enabled)
-        self.btn_again.setEnabled(enabled)
-        self.btn_next.setEnabled(enabled)
+        self.btn_restart.setEnabled(enabled)
+        self.btn_print.setEnabled(enabled)
 
     # ---------- Beenden ----------
 
@@ -360,6 +521,7 @@ class Fotobox(QWidget):
 if __name__ == "__main__":
     setup_logging()
     keep_awake()
+    cloudsync.sync()
     app = QApplication(sys.argv)
     win = Fotobox()
     if config.FULLSCREEN:
