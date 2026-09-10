@@ -1,11 +1,21 @@
 <?php
 declare(strict_types=1);
 
-// Oeffentliche Startseite. Bewusst statisch (keine Datenbankabfragen) -
-// Buchung/Online-Designer/Layout-Upload sind noch nicht gebaut, das hier
-// ist erstmal die Vermarktung dieser drei geplanten Wege, ein Design fuer
-// die Fotobox auszuwaehlen.
+// Oeffentliche Startseite. Zeigt den echten Basispreis aus den
+// Einstellungen an (kein erfundener Rabattpreis). Buchung/Online-Designer/
+// Layout-Upload: siehe backend/README.md fuer den aktuellen Baustand.
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
+
 $pageTitle = 'Snapolino Fotobox – Design-Optionen';
+
+try {
+    $priceCents = base_price_cents();
+    $priceLabel = base_price_label();
+} catch (PDOException $e) {
+    $priceCents = 0;
+    $priceLabel = '';
+}
 ?>
 <!doctype html>
 <html lang="de">
@@ -25,16 +35,22 @@ $pageTitle = 'Snapolino Fotobox – Design-Optionen';
 </header>
 
 <section class="hero">
-    <h1>Fotobox-Vermietung für deine Veranstaltung</h1>
+    <h1>Fotobox-Vermietung für deine <span class="accent-text">Veranstaltung</span></h1>
     <p>
         Selbstbedienungs-Fotobox mit Sofortdruck – wir schicken sie dir bequem
         zu, du stellst sie auf, deine Gäste machen die Fotos selbst.
     </p>
+    <?php if ($priceCents > 0): ?>
+        <p class="muted" style="margin-top:-16px;">
+            ab <strong><?= money_from_cents($priceCents) ?></strong>
+            <?= $priceLabel ? '· ' . htmlspecialchars($priceLabel, ENT_QUOTES) : '' ?>
+        </p>
+    <?php endif; ?>
     <a class="button" href="buchen.php">Jetzt buchen</a>
 </section>
 
 <section class="section" id="design-optionen">
-    <h2>So gestaltest du deine Fotobox</h2>
+    <h2>So gestaltest du deine <span class="accent-text">Fotobox</span></h2>
     <p class="lead">
         Für jeden Anlass das passende Layout – drei Wege, wie du dein
         Design festlegst.

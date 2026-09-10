@@ -32,6 +32,19 @@ function money_from_cents(int $cents): string
     return number_format($cents / 100, 2, ',', '.') . ' EUR';
 }
 
+// DateTime::format('l') liefert immer englische Wochentagsnamen, unabhaengig
+// von setlocale() - deshalb hier per Hand uebersetzt statt ueber Locale.
+function german_weekday(DateTimeInterface $date): string
+{
+    $names = [
+        'Monday' => 'Montag', 'Tuesday' => 'Dienstag', 'Wednesday' => 'Mittwoch',
+        'Thursday' => 'Donnerstag', 'Friday' => 'Freitag', 'Saturday' => 'Samstag',
+        'Sunday' => 'Sonntag',
+    ];
+
+    return $names[$date->format('l')] ?? $date->format('l');
+}
+
 // Laedt ein Layout inkl. seiner Slot-Koordinaten (sortiert nach slot_index).
 function fetch_layout_with_slots(int $layoutId): ?array
 {
@@ -59,9 +72,16 @@ function fetch_all_layouts(): array
 // Eventtag selbst. Fester Puffer vor und nach dem Eventdatum.
 const BOOKING_BUFFER_DAYS = 3;
 
-const BOOKING_STATUSES = ['angefragt', 'bestaetigt', 'abgelehnt', 'storniert'];
+// Solange eine Reservierung nicht durch den ganzen Assistenten bis
+// "angefragt" gelaufen ist, faellt sie nach dieser Frist wieder aus dem
+// Kalender - ganz ohne Cronjob, einfach beim Abfragen der Sperrtage
+// ignoriert (siehe fetch_blocked_dates).
+const RESERVATION_HOLD_DAYS = 14;
+
+const BOOKING_STATUSES = ['reserviert', 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'];
 
 const BOOKING_STATUS_LABELS = [
+    'reserviert' => 'Reserviert (unvollständig)',
     'angefragt'  => 'Angefragt',
     'bestaetigt' => 'Bestätigt',
     'abgelehnt'  => 'Abgelehnt',
@@ -83,12 +103,21 @@ function booking_block_range(string $eventDate): array
     ];
 }
 
-// Alle Tage, die aktuell durch bestaetigte Buchungen blockiert sind
-// (inkl. Puffer). Nur "bestaetigt" blockiert den Kalender - eine blosse
-// Anfrage reserviert noch nichts, das entscheidet der Admin.
+// Alle Tage, die aktuell blockiert sind (inkl. Puffer): vollstaendige
+// Anfragen und bestaetigte Buchungen halten den Termin dauerhaft, eine
+// blosse Reservierung (Schritt 2 des Assistenten) nur fuer
+// RESERVATION_HOLD_DAYS - danach ist sie einfach verfallen.
 function fetch_blocked_dates(): array
 {
-    $stmt = db()->query("SELECT event_date FROM bookings WHERE status = 'bestaetigt'");
+    $stmt = db()->prepare(
+        "SELECT event_date FROM bookings
+         WHERE status IN ('angefragt', 'bestaetigt')
+            OR (status = 'reserviert' AND created_at >= ?)"
+    );
+    $stmt->execute([
+        (new DateTimeImmutable('-' . RESERVATION_HOLD_DAYS . ' days'))->format('Y-m-d H:i:s'),
+    ]);
+
     $blocked = [];
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $eventDate) {
         [$start, $end] = booking_block_range($eventDate);
@@ -105,4 +134,72 @@ function fetch_blocked_dates(): array
 function is_date_blocked(string $eventDate): bool
 {
     return in_array($eventDate, fetch_blocked_dates(), true);
+}
+
+// ---------- Einstellungen ----------
+
+function get_setting(string $name, ?string $default = null): ?string
+{
+    $stmt = db()->prepare('SELECT value FROM settings WHERE name = ?');
+    $stmt->execute([$name]);
+    $value = $stmt->fetchColumn();
+    return $value !== false ? $value : $default;
+}
+
+function set_setting(string $name, string $value): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO settings (name, value) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE value = VALUES(value)'
+    );
+    $stmt->execute([$name, $value]);
+}
+
+function base_price_cents(): int
+{
+    return (int) get_setting('base_price_cents', '0');
+}
+
+function base_price_label(): string
+{
+    return (string) get_setting('base_price_label', '');
+}
+
+// ---------- Extras ----------
+
+function fetch_active_extras(): array
+{
+    return db()->query('SELECT * FROM extras WHERE is_active = 1 ORDER BY sort_order, name')->fetchAll();
+}
+
+function fetch_all_extras(): array
+{
+    return db()->query('SELECT * FROM extras ORDER BY sort_order, name')->fetchAll();
+}
+
+// Gesamtpreis: Basispreis + Aufpreis der gewuenschten Layouts + gewaehlte
+// Extras (Menge * Preis, Extra-Preise duerfen negativ sein). Wird beim
+// finalen Absenden serverseitig neu berechnet, nie der Client-Wert
+// uebernommen. $extraSelections: [extra_id => quantity].
+function calc_booking_total(array $layoutIds, array $extraSelections): int
+{
+    $total = base_price_cents();
+
+    if ($layoutIds) {
+        $placeholders = implode(',', array_fill(0, count($layoutIds), '?'));
+        $stmt = db()->prepare("SELECT COALESCE(SUM(surcharge_cents), 0) FROM layouts WHERE id IN ($placeholders)");
+        $stmt->execute(array_map('intval', $layoutIds));
+        $total += (int) $stmt->fetchColumn();
+    }
+
+    foreach ($extraSelections as $extraId => $quantity) {
+        $stmt = db()->prepare('SELECT price_cents FROM extras WHERE id = ? AND is_active = 1');
+        $stmt->execute([(int) $extraId]);
+        $price = $stmt->fetchColumn();
+        if ($price !== false) {
+            $total += (int) $price * max(1, (int) $quantity);
+        }
+    }
+
+    return max(0, $total);
 }

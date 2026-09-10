@@ -63,13 +63,13 @@ $statusFilter = (string) ($_GET['status'] ?? '');
 if ($statusFilter !== '' && in_array($statusFilter, BOOKING_STATUSES, true)) {
     $stmt = db()->prepare(
         "SELECT * FROM bookings WHERE status = ?
-         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
+         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'reserviert', 'abgelehnt', 'storniert'), event_date"
     );
     $stmt->execute([$statusFilter]);
 } else {
     $stmt = db()->query(
         "SELECT * FROM bookings
-         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
+         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'reserviert', 'abgelehnt', 'storniert'), event_date"
     );
 }
 $bookings = $stmt->fetchAll();
@@ -97,6 +97,7 @@ $layoutStmt = db()->prepare(
             <th>Eventdatum</th>
             <th>Kunde</th>
             <th>Layouts</th>
+            <th>Preis</th>
             <th>Status</th>
             <th>Box</th>
             <th></th>
@@ -126,6 +127,7 @@ $layoutStmt = db()->prepare(
                     <?php endif; ?>
                 </td>
                 <td><?= htmlspecialchars(implode(', ', $layoutNames), ENT_QUOTES) ?></td>
+                <td><?= $booking['total_price_cents'] !== null ? money_from_cents((int) $booking['total_price_cents']) : '—' ?></td>
                 <td><span class="status-pill status-<?= htmlspecialchars($booking['status'], ENT_QUOTES) ?>">
                     <?= htmlspecialchars(booking_status_label($booking['status']), ENT_QUOTES) ?>
                 </span></td>
@@ -165,7 +167,7 @@ $layoutStmt = db()->prepare(
             </tr>
         <?php endforeach; ?>
         <?php if (!$bookings): ?>
-            <tr><td colspan="6">Keine Buchungen gefunden.</td></tr>
+            <tr><td colspan="7">Keine Buchungen gefunden.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>

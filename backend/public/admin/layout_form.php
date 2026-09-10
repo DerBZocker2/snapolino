@@ -24,6 +24,7 @@ $errors = [];
 // Formularwerte: aus POST bei erneuter Anzeige nach Fehler, sonst aus DB
 // bzw. sinnvollen Standardwerten fuer ein neues Layout.
 $name          = (string) ($_POST['name'] ?? $layout['name'] ?? '');
+$category      = trim((string) ($_POST['category'] ?? $layout['category'] ?? ''));
 $slotCount     = (int) ($_POST['slot_count'] ?? $layout['slot_count'] ?? 4);
 $canvasWidth   = (int) ($_POST['canvas_width'] ?? $layout['canvas_width'] ?? 1800);
 $canvasHeight  = (int) ($_POST['canvas_height'] ?? $layout['canvas_height'] ?? 1200);
@@ -118,16 +119,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resize'])) {
 
         if ($layoutId > 0) {
             $stmt = db()->prepare(
-                'UPDATE layouts SET name = ?, slot_count = ?, canvas_width = ?, canvas_height = ?,
+                'UPDATE layouts SET name = ?, category = ?, slot_count = ?, canvas_width = ?, canvas_height = ?,
                  frame_file = ?, is_default = ?, surcharge_cents = ? WHERE id = ?'
             );
-            $stmt->execute([$name, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $surchargeCents, $layoutId]);
+            $stmt->execute([$name, $category ?: null, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $surchargeCents, $layoutId]);
         } else {
             $stmt = db()->prepare(
-                'INSERT INTO layouts (name, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$name, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $surchargeCents]);
+            $stmt->execute([$name, $category ?: null, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $surchargeCents]);
             $layoutId = (int) db()->lastInsertId();
         }
 
@@ -170,9 +171,14 @@ if (!$slotRows) {
             <input type="hidden" name="id" value="<?= $layoutId ?>">
         <?php endif; ?>
 
-        <label>Name
-            <input type="text" name="name" required value="<?= htmlspecialchars($name, ENT_QUOTES) ?>">
-        </label>
+        <div class="grid3">
+            <label>Name
+                <input type="text" name="name" required value="<?= htmlspecialchars($name, ENT_QUOTES) ?>">
+            </label>
+            <label>Kategorie (fuer die Galerie-Filter, z.B. "Hochzeit")
+                <input type="text" name="category" value="<?= htmlspecialchars($category, ENT_QUOTES) ?>">
+            </label>
+        </div>
 
         <div class="grid3">
             <label>Leinwandbreite (px)

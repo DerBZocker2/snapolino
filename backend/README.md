@@ -20,13 +20,16 @@ backend/
     frames/                  hochgeladene Rahmen-PNGs (nicht im Repo)
   public/                   Docroot fuer den Webserver
     index.php                Oeffentliche Startseite
-    buchen.php               Oeffentliches Buchungsformular mit Kalender
+    buchen.php               Oeffentlicher Buchungsassistent (5 Schritte)
     booking_availability.php JSON-Endpunkt: blockierte Tage fuer den Kalender
+    layout_preview.php       Oeffentliche Vorschau-PNG fuer die Design-Galerie
     api.php                  Konfigurations-Endpunkt fuer die Box
-    frame.php                Liefert eine Rahmen-PNG aus
+    frame.php                Liefert eine Rahmen-PNG aus (API-Key, fuer die Box)
     admin/                   Verwaltungs-Panel (Login-geschuetzt, Sidebar-Layout)
       bookings.php             Buchungsanfragen bestaetigen/ablehnen/stornieren
-      booking_detail.php       Details + interne Notiz zu einer Buchung
+      booking_detail.php       Details, Extras, Gesamtpreis + interne Notiz
+      extras.php, extra_form.php   Zusatzoptionen verwalten (Preis, Ein/Aus/Menge)
+      settings.php             Basispreis + Beschriftung fuer den Assistenten
 ```
 
 **Wichtig:** Das Document Root des vhosts muss auf `backend/public` zeigen,
@@ -70,12 +73,34 @@ Cloudflare-DNS/TLS) siehe `deploy/RASPBERRY_PI.md`.
 
 ## Buchungssystem
 
-Kunden buchen oeffentlich unter `/buchen.php`: Kalender (zeigt nur durch
-**bestaetigte** Buchungen blockierte Tage, inkl. `BOOKING_BUFFER_DAYS`
-Puffer vor/nach dem Event fuer Hin- und Ruecksand), Kontakt-/Adressdaten,
-Auswahl zusaetzlicher Layouts gegen Aufpreis. Eine Anfrage legt eine Zeile
-in `bookings` mit Status `angefragt` an, das Standard-Layout und alle
-gewaehlten Zusatzlayouts landen in `booking_layouts`.
+Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
+
+1. **Datum waehlen** - Kalender zeigt nur wirklich blockierte Tage (siehe
+   unten), inkl. `BOOKING_BUFFER_DAYS` Puffer vor/nach dem Event fuer Hin-
+   und Ruecksand.
+2. **Reservieren** - Name/E-Mail legen eine Zeile in `bookings` mit Status
+   `reserviert` an (das Standard-Layout landet direkt in `booking_layouts`)
+   und vergeben einen `edit_token`, mit dem der Assistent die Buchung ueber
+   alle weiteren Schritte hinweg wiederfindet (Token steht in der URL, keine
+   PHP-Session noetig - der Kunde kann die Seite also schliessen und mit dem
+   Link aus der Bestaetigungsmail spaeter weitermachen).
+3. **Design waehlen** - "Fertige Vorlage" zeigt eine nach Kategorie
+   filterbare Galerie der echten Layouts aus der Datenbank (Vorschaubilder
+   ueber `layout_preview.php`, oeffentlich ohne API-Key). "Online-Designer"
+   und "Eigenes hochladen" sind als "Bald verfuegbar" markiert - siehe
+   `## Offen`.
+4. **Extras** - admin-verwaltete Zusatzoptionen (`extras`-Tabelle), je nach
+   Typ als Ein/Aus-Schalter oder mit Mengenauswahl, Preis kann auch negativ
+   sein (Rabatt, z.B. "Ohne Druck").
+5. **Zusammenfassung** - Telefon/Versandadresse, optional "schriftliches
+   Angebot gewuenscht" (`wants_quote`), Versand-Zeitplan und Preisuebersicht.
+   Erst hier wird `total_price_cents` (`calc_booking_total()`) berechnet und
+   der Status auf `angefragt` gesetzt - vorher ist die Reservierung
+   unverbindlich.
+
+Eine `reserviert`-Buchung, die **nicht** innerhalb von `RESERVATION_HOLD_DAYS`
+(14 Tage) zu `angefragt` wird, blockiert den Kalender danach nicht mehr
+(`fetch_blocked_dates()` prueft das per Zeitfenster, kein Cron noetig).
 
 Im Panel unter **Buchungen**:
 - **Bestaetigen** weist der Buchung eine Box zu (bei nur einer Box
@@ -84,10 +109,22 @@ Im Panel unter **Buchungen**:
   muss also vor dem Versand einmal online sein, um sie abzuholen.
 - **Ablehnen**/**Stornieren** setzen den Status, eine stornierte oder
   abgelehnte Buchung blockiert den Kalender nicht mehr.
+- Die Liste zeigt den Gesamtpreis (leer, solange die Buchung noch bei
+  `reserviert` haengt), das Detail zusaetzlich die gewaehlten Extras und ob
+  ein schriftliches Angebot gewuenscht wurde.
 
 Serverseitig wird das Eventdatum beim Absenden nochmal gegen blockierte
 Tage geprueft (nicht nur im Kalender per JavaScript), damit das nicht per
 manuellem POST umgangen werden kann.
+
+**Wichtig fuer eigene Aenderungen an `buchen.php`:** `start_session()` wird
+ganz am Anfang der Datei aufgerufen, vor jeder HTML-Ausgabe. Wuerde die
+Session erst spaeter (z.B. beim ersten `csrf_field()` mitten im Template)
+gestartet, kann PHP bei laengeren Seiten (wie der Zusammenfassung) die
+Header schon automatisch geflushed haben, bevor der Session-Cookie gesetzt
+wird - `session_start()` schlaegt dann still fehl und jedes Formular auf
+der Seite bekommt ein neues CSRF-Token, das nicht mehr zum vorher
+ausgelieferten passt ("Ungueltiges Formular"-Fehler beim Absenden).
 
 ## Schnittstelle fuer die Box
 
@@ -146,13 +183,21 @@ guenstig pruefen, ob ein neuer Abgleich noetig ist.
 ## Bestehende Installation aktualisieren
 
 Neue Tabellen kommen nicht automatisch per `git pull` in die laufende
-Datenbank (siehe `deploy/RASPBERRY_PI.md`). Fuers Buchungssystem einmalig:
+Datenbank (siehe `deploy/RASPBERRY_PI.md`). Der Reihe nach einspielen:
 
 ```bash
 mysql -u snapolino -p snapolino < backend/sql/migrations/0002_bookings.sql
+mysql -u snapolino -p snapolino < backend/sql/migrations/0003_extras_and_wizard.sql
 ```
 
-Ist die Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
+Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
+`wants_quote`, macht `customer_address` optional (erst ab Schritt 5
+Pflicht), fuegt `layouts.category` hinzu und legt `extras`,
+`booking_extras` sowie `settings` (inkl. Basispreis) neu an - mit den
+gleichen Beispiel-Extras, die `schema.sql` auch bei einer Neuinstallation
+seedet.
+
+Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
 
 ## Offen (siehe auch CLAUDE.md)
@@ -161,5 +206,8 @@ meldung statt abzustuerzen.
   `admin/layout_form.php`).
 - E-Mail-Benachrichtigung bei neuer Buchung/Bestaetigung (aktuell nur im
   Panel sichtbar, kein Mailversand).
-- Online-Designer und 64 Preset-Layouts (auf der Startseite schon
-  beworben, technisch noch nicht gebaut).
+- Online-Designer und "Eigenes Design hochladen" im Buchungsassistenten
+  (Schritt 3 zeigt beide Optionen schon als "Bald verfuegbar" an, aber ohne
+  Funktion dahinter - nur "Fertige Vorlage" ist echt).
+- Admin-Panel-Design ist funktional, aber optisch noch nicht an die
+  bunte/freundliche Optik der oeffentlichen Seite angeglichen.

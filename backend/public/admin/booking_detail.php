@@ -33,6 +33,13 @@ $stmt = db()->prepare(
 $stmt->execute([$bookingId]);
 $layouts = $stmt->fetchAll();
 
+$stmt = db()->prepare(
+    'SELECT e.name, e.icon, e.unit_label, e.price_cents, be.quantity FROM booking_extras be
+     INNER JOIN extras e ON e.id = be.extra_id WHERE be.booking_id = ?'
+);
+$stmt->execute([$bookingId]);
+$extras = $stmt->fetchAll();
+
 $boxName = null;
 if ($booking['box_id']) {
     $stmt = db()->prepare('SELECT name FROM boxes WHERE id = ?');
@@ -61,6 +68,24 @@ if ($booking['box_id']) {
                 <?php if ($layout['surcharge_cents']): ?>(+<?= money_from_cents((int) $layout['surcharge_cents']) ?>)<?php endif; ?><br>
             <?php endforeach; ?>
         </td></tr>
+        <tr><th>Extras</th><td>
+            <?php if (!$extras): ?>
+                —
+            <?php else: ?>
+                <?php foreach ($extras as $extra): ?>
+                    <?= htmlspecialchars((string) $extra['icon'], ENT_QUOTES) ?>
+                    <?= htmlspecialchars($extra['name'], ENT_QUOTES) ?>
+                    <?php if ((int) $extra['quantity'] > 1): ?>
+                        (<?= (int) $extra['quantity'] ?><?= $extra['unit_label'] ? ' ' . htmlspecialchars($extra['unit_label'], ENT_QUOTES) : '' ?>)
+                    <?php endif; ?>
+                    – <?= money_from_cents((int) $extra['price_cents'] * (int) $extra['quantity']) ?><br>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </td></tr>
+        <tr><th>Gesamtpreis</th><td>
+            <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>
+        </td></tr>
+        <tr><th>Schriftliches Angebot gewünscht</th><td><?= $booking['wants_quote'] ? 'Ja' : 'Nein' ?></td></tr>
         <tr><th>Nachricht</th><td><?= $booking['message'] ? nl2br(htmlspecialchars($booking['message'], ENT_QUOTES)) : '—' ?></td></tr>
         <tr><th>Zugeordnete Box</th><td><?= $boxName ? htmlspecialchars($boxName, ENT_QUOTES) : '—' ?></td></tr>
         <tr><th>Angefragt am</th><td><?= htmlspecialchars($booking['created_at'], ENT_QUOTES) ?></td></tr>

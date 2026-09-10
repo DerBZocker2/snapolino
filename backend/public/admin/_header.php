@@ -20,9 +20,9 @@ try {
     $openBookings = 0;
 }
 
-function nav_class(string $page, string $current): string
+function nav_class(array $pages, string $current): string
 {
-    return $page === $current ? 'active' : '';
+    return in_array($current, $pages, true) ? 'active' : '';
 }
 ?>
 <!doctype html>
@@ -38,20 +38,26 @@ function nav_class(string $page, string $current): string
     <aside class="sidebar">
         <div class="sidebar-brand">Snapolino</div>
         <nav class="sidebar-nav">
-            <a class="<?= nav_class('dashboard.php', $currentPage) ?>" href="dashboard.php">
+            <a class="<?= nav_class(['dashboard.php'], $currentPage) ?>" href="dashboard.php">
                 <span class="nav-icon">📊</span> Übersicht
             </a>
-            <a class="<?= nav_class('bookings.php', $currentPage) ?>" href="bookings.php">
+            <a class="<?= nav_class(['bookings.php', 'booking_detail.php'], $currentPage) ?>" href="bookings.php">
                 <span class="nav-icon">📅</span> Buchungen
                 <?php if ($openBookings > 0): ?>
                     <span class="nav-badge"><?= $openBookings ?></span>
                 <?php endif; ?>
             </a>
-            <a class="<?= nav_class('boxes.php', $currentPage) ?>" href="boxes.php">
+            <a class="<?= nav_class(['boxes.php', 'box_layouts.php'], $currentPage) ?>" href="boxes.php">
                 <span class="nav-icon">📦</span> Boxen
             </a>
-            <a class="<?= nav_class('layouts.php', $currentPage) ?>" href="layouts.php">
+            <a class="<?= nav_class(['layouts.php', 'layout_form.php'], $currentPage) ?>" href="layouts.php">
                 <span class="nav-icon">🖼️</span> Layouts
+            </a>
+            <a class="<?= nav_class(['extras.php', 'extra_form.php'], $currentPage) ?>" href="extras.php">
+                <span class="nav-icon">✨</span> Extras
+            </a>
+            <a class="<?= nav_class(['settings.php'], $currentPage) ?>" href="settings.php">
+                <span class="nav-icon">⚙️</span> Einstellungen
             </a>
         </nav>
         <div class="sidebar-footer">
