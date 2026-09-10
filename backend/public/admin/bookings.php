@@ -7,7 +7,7 @@ require __DIR__ . '/_header.php';
 try {
     db()->query('SELECT 1 FROM bookings LIMIT 1');
 } catch (PDOException $e) {
-    echo '<p class="error">Die Buchungstabellen fehlen noch. Einmalig ausfuehren: '
+    echo '<p class="error">Die Buchungstabellen fehlen noch. Einmalig ausführen: '
         . '<code>mysql -u snapolino -p snapolino &lt; backend/sql/migrations/0002_bookings.sql</code></p>';
     require __DIR__ . '/_footer.php';
     exit;
@@ -24,10 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $booking = $stmt->fetch();
 
     if ($booking) {
-        if ($action === 'confirm') {
-            $boxId = (int) ($_POST['box_id'] ?? 0);
-            assign_box_and_confirm($bookingId, $boxId);
-        } elseif ($action === 'reject') {
+        if ($action === 'reject') {
             $stmt = db()->prepare("UPDATE bookings SET status = 'abgelehnt' WHERE id = ?");
             $stmt->execute([$bookingId]);
         } elseif ($action === 'cancel') {
@@ -116,20 +113,7 @@ $layoutStmt = db()->prepare(
                 <td class="actions">
                     <a href="booking_detail.php?id=<?= (int) $booking['id'] ?>">Details</a>
                     <?php if ($booking['status'] === 'angefragt'): ?>
-                        <form method="post" action="bookings.php">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
-                            <input type="hidden" name="action" value="confirm">
-                            <?php if (count($boxes) > 1): ?>
-                                <select name="box_id" required>
-                                    <option value="">Box wählen…</option>
-                                    <?php foreach ($boxes as $box): ?>
-                                        <option value="<?= (int) $box['id'] ?>"><?= htmlspecialchars($box['name'], ENT_QUOTES) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            <?php endif; ?>
-                            <button type="submit" <?= count($boxes) === 0 ? 'disabled title="Erst eine Box anlegen"' : '' ?>>Bestätigen</button>
-                        </form>
+                        <a href="boxes.php" class="muted-text" title="Auf der Boxen-Seite per Drag &amp; Drop einer Box zuordnen, um zu bestätigen">→ Box zuordnen</a>
                         <form method="post" action="bookings.php">
                             <?= csrf_field() ?>
                             <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
@@ -137,21 +121,8 @@ $layoutStmt = db()->prepare(
                             <button type="submit" class="danger">Ablehnen</button>
                         </form>
                     <?php elseif ($booking['status'] === 'bestaetigt'): ?>
-                        <?php if (!$booking['box_id'] && count($boxes) > 0): ?>
-                            <form method="post" action="bookings.php">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
-                                <input type="hidden" name="action" value="confirm">
-                                <?php if (count($boxes) > 1): ?>
-                                    <select name="box_id" required>
-                                        <option value="">Box wählen…</option>
-                                        <?php foreach ($boxes as $box): ?>
-                                            <option value="<?= (int) $box['id'] ?>"><?= htmlspecialchars($box['name'], ENT_QUOTES) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                <?php endif; ?>
-                                <button type="submit">Box zuweisen</button>
-                            </form>
+                        <?php if (!$booking['box_id']): ?>
+                            <a href="boxes.php" class="muted-text" title="Auf der Boxen-Seite per Drag &amp; Drop zuordnen">→ Box zuordnen</a>
                         <?php endif; ?>
                         <form method="post" action="bookings.php" onsubmit="return confirm('Buchung wirklich stornieren?');">
                             <?= csrf_field() ?>

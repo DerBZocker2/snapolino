@@ -72,7 +72,7 @@ $box = $stmt->fetch();
     <?php if ($error !== ''): ?>
         <p class="error"><?= htmlspecialchars($error, ENT_QUOTES) ?></p>
     <?php endif; ?>
-    <p>Diese Werte gehoeren in die <code>box.ini</code> auf der Box, bevor sie versendet wird:</p>
+    <p>Diese Werte gehören in die <code>box.ini</code> auf der Box, bevor sie versendet wird:</p>
     <table class="key-table">
         <tr><th>box_key</th><td><code><?= htmlspecialchars($box['box_key'], ENT_QUOTES) ?></code></td></tr>
         <tr><th>api_key</th><td><code><?= htmlspecialchars($box['api_key'], ENT_QUOTES) ?></code></td></tr>
@@ -80,8 +80,8 @@ $box = $stmt->fetch();
     </table>
 
     <h3>Admin-PIN (auf der Box)</h3>
-    <p class="muted-text">Schuetzt das Admin-Menue direkt auf der Box (Programm beenden, Buchungsinfos
-        ansehen) - wird per Sync auf die Box uebertragen, gilt also erst nach dem naechsten
+    <p class="muted-text">Schützt das Admin-Menü direkt auf der Box (Programm beenden, Buchungsinfos
+        ansehen) - wird per Sync auf die Box übertragen, gilt also erst nach dem nächsten
         erfolgreichen Sync im Vorbereitungsmodus.</p>
     <form method="post" action="box_layouts.php" class="inline-form">
         <?= csrf_field() ?>
@@ -97,7 +97,7 @@ $box = $stmt->fetch();
 
 <section class="panel">
     <h2>Zugeordnete Layouts</h2>
-    <p>Standardmaessig ist die 4er-Collage aktiv. Weitere Formate nur ankreuzen,
+    <p>Standardmäßig ist die 4er-Collage aktiv. Weitere Formate nur ankreuzen,
         wenn der Kunde sie bei der Buchung dazugebucht hat.</p>
     <form method="post" action="box_layouts.php">
         <?= csrf_field() ?>
@@ -137,6 +137,6 @@ $box = $stmt->fetch();
     </form>
 </section>
 
-<p><a href="boxes.php">&larr; zurueck zur Boxenliste</a></p>
+<p><a href="boxes.php">&larr; zurück zur Boxenübersicht</a></p>
 
 <?php require __DIR__ . '/_footer.php'; ?>

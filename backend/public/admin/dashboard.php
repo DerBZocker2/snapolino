@@ -1,16 +1,20 @@
 <?php
 declare(strict_types=1);
 
-$pageTitle = 'Uebersicht';
+$pageTitle = 'Übersicht';
 require __DIR__ . '/_header.php';
 
 $boxCount = (int) db()->query('SELECT COUNT(*) FROM boxes')->fetchColumn();
 $layoutCount = (int) db()->query('SELECT COUNT(*) FROM layouts')->fetchColumn();
 try {
     $openBookingCount = (int) db()->query("SELECT COUNT(*) FROM bookings WHERE status = 'angefragt'")->fetchColumn();
+    $unassignedCount = (int) db()->query(
+        "SELECT COUNT(*) FROM bookings WHERE status = 'bestaetigt' AND box_id IS NULL"
+    )->fetchColumn();
     $bookingsAvailable = true;
 } catch (PDOException $e) {
     $openBookingCount = 0;
+    $unassignedCount = 0;
     $bookingsAvailable = false;
 }
 ?>
@@ -18,6 +22,10 @@ try {
     <a class="card" href="bookings.php">
         <span class="card-number"><?= $openBookingCount ?></span>
         <span class="card-label">Neue Buchungsanfragen</span>
+    </a>
+    <a class="card" href="boxes.php">
+        <span class="card-number"><?= $unassignedCount ?></span>
+        <span class="card-label">Buchungen ohne Box</span>
     </a>
     <a class="card" href="boxes.php">
         <span class="card-number"><?= $boxCount ?></span>
@@ -31,18 +39,17 @@ try {
 
 <?php if (!$bookingsAvailable): ?>
     <p class="error">
-        Die Buchungstabellen fehlen noch in der Datenbank. Einmalig ausfuehren:
+        Die Buchungstabellen fehlen noch in der Datenbank. Einmalig ausführen:
         <code>mysql -u snapolino -p snapolino &lt; backend/sql/migrations/0002_bookings.sql</code>
     </p>
 <?php endif; ?>
 
 <p>
-    Neue Buchungsanfragen unter <a href="bookings.php">Buchungen</a> bestaetigen
-    oder ablehnen, Boxen unter <a href="boxes.php">Boxen</a> anlegen,
-    Collagen-Vorlagen unter <a href="layouts.php">Layouts</a> pflegen. Bevor
-    eine Box versendet wird, muss sie mit dem hier angezeigten Box-Key und
-    API-Key in ihrer lokalen <code>box.ini</code> versorgt werden und einmalig
-    online sein, um die Konfiguration und Rahmen-PNGs abzuholen.
+    Neue Buchungsanfragen unter <a href="bookings.php">Buchungen</a> annehmen
+    oder ablehnen, dann unter <a href="boxes.php">Boxen</a> per Drag &amp; Drop
+    einer Box zuordnen - erst dadurch bekommt die Box beim nächsten Sync die
+    Kundendaten und die gebuchten Layouts. Collagen-Vorlagen werden unter
+    <a href="layouts.php">Layouts</a> gepflegt.
 </p>
 
 <?php require __DIR__ . '/_footer.php'; ?>

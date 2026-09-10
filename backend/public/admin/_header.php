@@ -16,8 +16,12 @@ $currentPage = basename($_SERVER['SCRIPT_NAME']);
 // eingespielt) - Panel soll deswegen nicht komplett ausfallen.
 try {
     $openBookings = (int) db()->query("SELECT COUNT(*) FROM bookings WHERE status = 'angefragt'")->fetchColumn();
+    $unassignedBookings = (int) db()->query(
+        "SELECT COUNT(*) FROM bookings WHERE status = 'angefragt' OR (status = 'bestaetigt' AND box_id IS NULL)"
+    )->fetchColumn();
 } catch (PDOException $e) {
     $openBookings = 0;
+    $unassignedBookings = 0;
 }
 
 function nav_class(array $pages, string $current): string
@@ -49,6 +53,9 @@ function nav_class(array $pages, string $current): string
             </a>
             <a class="<?= nav_class(['boxes.php', 'box_layouts.php'], $currentPage) ?>" href="boxes.php">
                 <span class="nav-icon">📦</span> Boxen
+                <?php if ($unassignedBookings > 0): ?>
+                    <span class="nav-badge"><?= $unassignedBookings ?></span>
+                <?php endif; ?>
             </a>
             <a class="<?= nav_class(['layouts.php', 'layout_form.php'], $currentPage) ?>" href="layouts.php">
                 <span class="nav-icon">🖼️</span> Layouts

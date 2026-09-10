@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $note = trim((string) ($_POST['note'] ?? ''));
 
     if ($name === '') {
-        $error = 'Bitte einen Namen fuer die Box angeben.';
+        $error = 'Bitte einen Namen für die Box angeben.';
     } else {
         $boxKey = random_key(8);
         $apiKey = random_key(24);
@@ -44,6 +44,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $boxes = db()->query('SELECT * FROM boxes ORDER BY created_at DESC')->fetchAll();
+
+// Fuer jede Box dieselbe "naechste bestaetigte Buchung"-Auswahl wie
+// api.php, damit die Karte hier zeigt, was die Box beim naechsten Sync
+// tatsaechlich bekommt.
+$currentBookingStmt = db()->prepare(
+    "SELECT customer_name, event_date FROM bookings
+     WHERE box_id = ? AND status = 'bestaetigt' AND event_date >= CURDATE()
+     ORDER BY event_date ASC LIMIT 1"
+);
+foreach ($boxes as &$box) {
+    $currentBookingStmt->execute([$box['id']]);
+    $box['current_booking'] = $currentBookingStmt->fetch() ?: null;
+}
+unset($box);
+
+// Buchungen ohne Box: frische Anfragen sowie bereits bestaetigte
+// Buchungen, denen (z.B. bei 0 oder mehreren Boxen) noch keine Box
+// automatisch zugewiesen werden konnte.
+$pendingBookings = db()->query(
+    "SELECT * FROM bookings
+     WHERE status = 'angefragt' OR (status = 'bestaetigt' AND box_id IS NULL)
+     ORDER BY event_date"
+)->fetchAll();
+
+$layoutStmt = db()->prepare(
+    'SELECT l.name FROM booking_layouts bl INNER JOIN layouts l ON l.id = bl.layout_id WHERE bl.booking_id = ?'
+);
 ?>
 
 <section class="panel">
@@ -54,7 +81,7 @@ $boxes = db()->query('SELECT * FROM boxes ORDER BY created_at DESC')->fetchAll()
     <form method="post" action="boxes.php" class="inline-form">
         <?= csrf_field() ?>
         <label>Name
-            <input type="text" name="name" required placeholder="z.B. Box 3 - Hochzeit Mueller">
+            <input type="text" name="name" required placeholder="z.B. Box 3 - Hochzeit Müller">
         </label>
         <label>Notiz
             <input type="text" name="note" placeholder="optional">
@@ -64,41 +91,128 @@ $boxes = db()->query('SELECT * FROM boxes ORDER BY created_at DESC')->fetchAll()
 </section>
 
 <section class="panel">
-    <h2>Vorhandene Boxen</h2>
-    <table>
-        <thead>
-        <tr>
-            <th>Name</th>
-            <th>Box-Key</th>
-            <th>Version</th>
-            <th>Notiz</th>
-            <th>Angelegt</th>
-            <th></th>
-        </tr>
-        </thead>
-        <tbody>
+    <h2>Buchungen ohne Box</h2>
+    <p class="muted-text">Karte auf eine Box weiter unten ziehen, um sie zuzuordnen - die Buchung
+        wird dabei bestätigt, und die Box bekommt Kundendaten und gebuchte Layouts beim nächsten Sync.</p>
+
+    <div class="booking-chip-list">
+        <?php foreach ($pendingBookings as $booking): ?>
+            <?php
+            $layoutStmt->execute([$booking['id']]);
+            $layoutNames = $layoutStmt->fetchAll(PDO::FETCH_COLUMN);
+            ?>
+            <div class="booking-chip" draggable="true" data-booking-id="<?= (int) $booking['id'] ?>">
+                <div class="booking-chip-name"><?= htmlspecialchars($booking['customer_name'], ENT_QUOTES) ?></div>
+                <div class="booking-chip-meta">
+                    📅 <?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?>
+                    <span class="status-pill status-<?= htmlspecialchars($booking['status'], ENT_QUOTES) ?>">
+                        <?= htmlspecialchars(booking_status_label($booking['status']), ENT_QUOTES) ?>
+                    </span>
+                </div>
+                <?php if ($layoutNames): ?>
+                    <div class="booking-chip-meta"><?= htmlspecialchars(implode(', ', $layoutNames), ENT_QUOTES) ?></div>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+        <?php if (!$pendingBookings): ?>
+            <p class="muted-text">Alle Buchungen sind einer Box zugeordnet.</p>
+        <?php endif; ?>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Boxen</h2>
+    <?php if (!$boxes): ?>
+        <p class="muted-text">Noch keine Box angelegt.</p>
+    <?php endif; ?>
+    <div class="box-grid">
         <?php foreach ($boxes as $box): ?>
-            <tr>
-                <td><?= htmlspecialchars($box['name'], ENT_QUOTES) ?></td>
-                <td><code><?= htmlspecialchars($box['box_key'], ENT_QUOTES) ?></code></td>
-                <td><?= (int) $box['config_version'] ?></td>
-                <td><?= htmlspecialchars((string) $box['note'], ENT_QUOTES) ?></td>
-                <td><?= htmlspecialchars($box['created_at'], ENT_QUOTES) ?></td>
-                <td class="actions">
+            <div class="box-card">
+                <div class="box-card-head">
+                    <h3><?= htmlspecialchars($box['name'], ENT_QUOTES) ?></h3>
+                    <span class="muted-text">v<?= (int) $box['config_version'] ?></span>
+                </div>
+                <div class="box-card-drop" data-box-id="<?= (int) $box['id'] ?>">
+                    <?php if ($box['current_booking']): ?>
+                        <div class="box-card-booking">
+                            <strong><?= htmlspecialchars($box['current_booking']['customer_name'], ENT_QUOTES) ?></strong>
+                            <span class="muted-text">📅 <?= htmlspecialchars($box['current_booking']['event_date'], ENT_QUOTES) ?></span>
+                        </div>
+                    <?php else: ?>
+                        <div class="box-card-empty">Buchung hierher ziehen</div>
+                    <?php endif; ?>
+                </div>
+                <?php if ($box['note']): ?>
+                    <p class="muted-text"><?= htmlspecialchars($box['note'], ENT_QUOTES) ?></p>
+                <?php endif; ?>
+                <div class="box-card-actions">
                     <a href="box_layouts.php?id=<?= (int) $box['id'] ?>">Layouts &amp; Zugang</a>
-                    <form method="post" action="box_delete.php" onsubmit="return confirm('Box wirklich loeschen?');">
+                    <form method="post" action="box_delete.php" onsubmit="return confirm('Box wirklich löschen?');">
                         <?= csrf_field() ?>
                         <input type="hidden" name="id" value="<?= (int) $box['id'] ?>">
-                        <button type="submit" class="danger">Loeschen</button>
+                        <button type="submit" class="danger">Löschen</button>
                     </form>
-                </td>
-            </tr>
+                </div>
+            </div>
         <?php endforeach; ?>
-        <?php if (!$boxes): ?>
-            <tr><td colspan="6">Noch keine Box angelegt.</td></tr>
-        <?php endif; ?>
-        </tbody>
-    </table>
+    </div>
 </section>
+
+<script>
+(function () {
+    var csrfToken = <?= json_encode(csrf_token()) ?>;
+
+    document.querySelectorAll('.booking-chip').forEach(function (chip) {
+        chip.addEventListener('dragstart', function (e) {
+            e.dataTransfer.setData('text/plain', chip.dataset.bookingId);
+            e.dataTransfer.effectAllowed = 'move';
+            chip.classList.add('dragging');
+        });
+        chip.addEventListener('dragend', function () {
+            chip.classList.remove('dragging');
+        });
+    });
+
+    document.querySelectorAll('.box-card-drop').forEach(function (dropZone) {
+        dropZone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', function () {
+            dropZone.classList.remove('drag-over');
+        });
+        dropZone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            var bookingId = e.dataTransfer.getData('text/plain');
+            var boxId = dropZone.dataset.boxId;
+            if (!bookingId || !boxId) {
+                return;
+            }
+
+            var body = 'booking_id=' + encodeURIComponent(bookingId)
+                + '&box_id=' + encodeURIComponent(boxId)
+                + '&csrf_token=' + encodeURIComponent(csrfToken);
+
+            fetch('assign_box.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body,
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.ok) {
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Zuordnung fehlgeschlagen');
+                    }
+                })
+                .catch(function () {
+                    alert('Zuordnung fehlgeschlagen (Netzwerkfehler)');
+                });
+        });
+    });
+})();
+</script>
 
 <?php require __DIR__ . '/_footer.php'; ?>
