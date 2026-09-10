@@ -17,7 +17,9 @@ backend/
   bin/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
   storage/
-    frames/                  hochgeladene Rahmen-PNGs (nicht im Repo)
+    frames/                  Rahmen-PNGs: preset_*.png sind mitgelieferte
+                             Design-Vorlagen (im Repo), alles andere sind
+                             echte Uploads/Kundendesigns (nicht im Repo)
   public/                   Docroot fuer den Webserver
     index.php                Oeffentliche Startseite
     buchen.php               Oeffentlicher Buchungsassistent (5 Schritte)
@@ -84,11 +86,32 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
    alle weiteren Schritte hinweg wiederfindet (Token steht in der URL, keine
    PHP-Session noetig - der Kunde kann die Seite also schliessen und mit dem
    Link aus der Bestaetigungsmail spaeter weitermachen).
-3. **Design waehlen** - "Fertige Vorlage" zeigt eine nach Kategorie
-   filterbare Galerie der echten Layouts aus der Datenbank (Vorschaubilder
-   ueber `layout_preview.php`, oeffentlich ohne API-Key). "Online-Designer"
-   und "Eigenes hochladen" sind als "Bald verfuegbar" markiert - siehe
-   `## Offen`.
+3. **Design waehlen** - drei Wege, alle speichern das Ergebnis in
+   `booking_layouts`:
+   - **Fertige Vorlage**: nach Kategorie filterbare Galerie der Layouts aus
+     der Datenbank (Vorschaubilder ueber `layout_preview.php`, oeffentlich
+     ohne API-Key). 18 mitgelieferte Presets plus Standard, siehe
+     `sql/migrations/0004_preset_designs.sql`. Jede Karte hat einen
+     "Anpassen"-Knopf, der dieselbe Vorlage mit ihrer Slot-Geometrie in den
+     Online-Designer laedt.
+   - **Online-Designer**: Canvas-Editor (Hintergrund-/Akzentfarbe, Muster,
+     optionaler Text), rendert clientseitig eine PNG mit der Slot-Geometrie
+     eines gewaehlten Basis-Layouts (die Foto-Slots werden per
+     `globalCompositeOperation = 'destination-out'` transparent
+     ausgeschnitten) und schickt sie als Data-URL ans Formular.
+   - **Eigenes hochladen**: PNG mit transparenten Fotoflaechen hochladen.
+     `detect_transparent_slots()` (includes/functions.php) erkennt die
+     zusammenhaengenden transparenten Bereiche per Connected-Component-
+     Analyse (auf einem verkleinerten Raster fuer Performance) und legt
+     daraus automatisch die `layout_slots` an - keine manuelle
+     Slot-Konfiguration noetig.
+
+   Beide eigenen Wege legen ein Layout mit `is_custom=1` an
+   (`save_custom_layout_for_booking()`), das nur dieser Buchung zugeordnet
+   ist: weder in der oeffentlichen Galerie noch im allgemeinen Panel bei
+   anderen Kunden sichtbar (`fetch_all_layouts()` filtert das standardmaessig
+   raus). Ein zweiter Versuch ersetzt das vorherige eigene Design samt Datei
+   statt es anzuhaeufen.
 4. **Extras** - admin-verwaltete Zusatzoptionen (`extras`-Tabelle), je nach
    Typ als Ein/Aus-Schalter oder mit Mengenauswahl, Preis kann auch negativ
    sein (Rabatt, z.B. "Ohne Druck").
@@ -188,6 +211,7 @@ Datenbank (siehe `deploy/RASPBERRY_PI.md`). Der Reihe nach einspielen:
 ```bash
 mysql -u snapolino -p snapolino < backend/sql/migrations/0002_bookings.sql
 mysql -u snapolino -p snapolino < backend/sql/migrations/0003_extras_and_wizard.sql
+mysql -u snapolino -p snapolino < backend/sql/migrations/0004_preset_designs.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -197,17 +221,21 @@ Pflicht), fuegt `layouts.category` hinzu und legt `extras`,
 gleichen Beispiel-Extras, die `schema.sql` auch bei einer Neuinstallation
 seedet.
 
+Migration 0004 fuegt `layouts.is_custom` hinzu, ersetzt das bisher nur als
+Platzhalter existierende Standarddesign durch ein echtes und legt 18
+mitgelieferte Preset-Designs an (idempotent - ueberschreibt keine
+bestehenden Zeilen mit demselben Namen, z.B. eigene Admin-Layouts).
+
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
 
 ## Offen (siehe auch CLAUDE.md)
 
 - Visueller Slot-Editor im Panel (aktuell Koordinaten per Hand, siehe
-  `admin/layout_form.php`).
+  `admin/layout_form.php`) - fuer eigene Uploads/den Online-Designer
+  braucht es das nicht mehr, da die Slots dort automatisch ermittelt bzw.
+  von einem Basis-Layout uebernommen werden.
 - E-Mail-Benachrichtigung bei neuer Buchung/Bestaetigung (aktuell nur im
   Panel sichtbar, kein Mailversand).
-- Online-Designer und "Eigenes Design hochladen" im Buchungsassistenten
-  (Schritt 3 zeigt beide Optionen schon als "Bald verfuegbar" an, aber ohne
-  Funktion dahinter - nur "Fertige Vorlage" ist echt).
-- Admin-Panel-Design ist funktional, aber optisch noch nicht an die
-  bunte/freundliche Optik der oeffentlichen Seite angeglichen.
+- Online-Designer bietet nur Farbe/Muster/Text, kein Logo-Upload oder frei
+  platzierbare Elemente.

@@ -61,9 +61,211 @@ function fetch_layout_with_slots(int $layoutId): ?array
     return $layout;
 }
 
-function fetch_all_layouts(): array
+// Kundendesigns (Upload/Online-Designer, is_custom=1) sind nur der jeweiligen
+// Buchung zugeordnet und sollen nicht in der oeffentlichen Galerie oder im
+// allgemeinen Panel bei anderen Kunden auftauchen.
+function fetch_all_layouts(bool $includeCustom = false): array
 {
-    return db()->query('SELECT * FROM layouts ORDER BY is_default DESC, name')->fetchAll();
+    $sql = 'SELECT * FROM layouts';
+    if (!$includeCustom) {
+        $sql .= ' WHERE is_custom = 0';
+    }
+    $sql .= ' ORDER BY is_default DESC, name';
+
+    return db()->query($sql)->fetchAll();
+}
+
+// ---------- Eigene Kundendesigns (Upload/Online-Designer) ----------
+
+// Prueft eine hochgeladene Datei aus $_FILES auf Groesse/Format. Liefert
+// null wenn alles passt, sonst eine deutsche Fehlermeldung fuers Formular.
+function validate_custom_design_upload(?array $file): ?string
+{
+    if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return 'Bitte eine Datei auswählen.';
+    }
+    if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
+        return 'Die Datei ist zu groß fuer den Server (siehe upload_max_filesize in php.ini).';
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return 'Der Upload ist fehlgeschlagen. Bitte die Datei erneut auswählen.';
+    }
+    if ($file['size'] > 10 * 1024 * 1024) {
+        return 'Die Datei ist zu groß (maximal 10 MB).';
+    }
+    $info = @getimagesize($file['tmp_name']);
+    if (!$info || $info[2] !== IMAGETYPE_PNG) {
+        return 'Bitte eine PNG-Datei hochladen.';
+    }
+    $ratio = $info[0] / $info[1];
+    if ($ratio < 1.35 || $ratio > 1.7) {
+        return 'Das Bild sollte im Querformat mit Seitenverhaeltnis 3:2 sein (wie ' . $info[0] . '×' . $info[1] . ' passt nicht), damit es zum 10x15cm-Ausdruck passt.';
+    }
+    return null;
+}
+
+// Sucht in einer PNG-Datei zusammenhaengende transparente Bereiche - das
+// sind die Fotoflaechen, die der Kunde beim Gestalten seines Rahmens frei
+// gelassen hat. Arbeitet auf einem verkleinerten Raster (Performance) und
+// skaliert die gefundenen Rechtecke danach wieder auf die echte Aufloesung
+// hoch. Liefert null, wenn keine brauchbaren Bereiche gefunden wurden.
+function detect_transparent_slots(string $path, int $maxSlots = 12): ?array
+{
+    $info = @getimagesize($path);
+    if (!$info || $info[2] !== IMAGETYPE_PNG) {
+        return null;
+    }
+    [$width, $height] = $info;
+
+    $img = @imagecreatefrompng($path);
+    if (!$img) {
+        return null;
+    }
+    imagepalettetotruecolor($img);
+    imagealphablending($img, false);
+    imagesavealpha($img, true);
+
+    $stride = max(1, (int) ceil(max($width, $height) / 400));
+    $gw = (int) ceil($width / $stride);
+    $gh = (int) ceil($height / $stride);
+
+    $transparent = array_fill(0, $gw * $gh, false);
+    for ($gy = 0; $gy < $gh; $gy++) {
+        $py = min($gy * $stride, $height - 1);
+        for ($gx = 0; $gx < $gw; $gx++) {
+            $px = min($gx * $stride, $width - 1);
+            $rgba = imagecolorat($img, $px, $py);
+            $alpha = ($rgba >> 24) & 0x7F; // GD: 0 = deckend, 127 = komplett transparent
+            $transparent[$gy * $gw + $gx] = $alpha >= 100;
+        }
+    }
+    imagedestroy($img);
+
+    $visited = array_fill(0, $gw * $gh, false);
+    $components = [];
+    for ($sy = 0; $sy < $gh; $sy++) {
+        for ($sx = 0; $sx < $gw; $sx++) {
+            $startIdx = $sy * $gw + $sx;
+            if (!$transparent[$startIdx] || $visited[$startIdx]) {
+                continue;
+            }
+
+            $stack = [[$sx, $sy]];
+            $visited[$startIdx] = true;
+            $minX = $maxX = $sx;
+            $minY = $maxY = $sy;
+            $area = 0;
+
+            while ($stack) {
+                [$cx, $cy] = array_pop($stack);
+                $area++;
+                $minX = min($minX, $cx);
+                $maxX = max($maxX, $cx);
+                $minY = min($minY, $cy);
+                $maxY = max($maxY, $cy);
+
+                foreach ([[1, 0], [-1, 0], [0, 1], [0, -1]] as [$dx, $dy]) {
+                    $nx = $cx + $dx;
+                    $ny = $cy + $dy;
+                    if ($nx < 0 || $nx >= $gw || $ny < 0 || $ny >= $gh) {
+                        continue;
+                    }
+                    $nidx = $ny * $gw + $nx;
+                    if ($transparent[$nidx] && !$visited[$nidx]) {
+                        $visited[$nidx] = true;
+                        $stack[] = [$nx, $ny];
+                    }
+                }
+            }
+
+            if ($area < 12) {
+                continue; // Rauschen/Anti-Aliasing-Reste ignorieren
+            }
+            $components[] = [
+                'x' => (int) round($minX * $stride),
+                'y' => (int) round($minY * $stride),
+                'width' => (int) round(($maxX - $minX + 1) * $stride),
+                'height' => (int) round(($maxY - $minY + 1) * $stride),
+                'area' => $area,
+            ];
+        }
+    }
+
+    if (!$components) {
+        return null;
+    }
+
+    usort($components, static fn (array $a, array $b) => $b['area'] <=> $a['area']);
+    $components = array_slice($components, 0, $maxSlots);
+
+    $bucket = max(1, (int) round($height * 0.04));
+    usort($components, static function (array $a, array $b) use ($bucket) {
+        return intdiv((int) $a['y'], $bucket) <=> intdiv((int) $b['y'], $bucket) ?: $a['x'] <=> $b['x'];
+    });
+
+    return ['width' => $width, 'height' => $height, 'slots' => array_values($components)];
+}
+
+// Loescht alle eigenen Kundendesigns (Upload/Online-Designer) einer Buchung
+// samt Rahmen-Datei - genutzt sowohl beim Ersetzen durch ein neues eigenes
+// Design als auch beim Wechsel zurueck auf die Fertige-Vorlage-Galerie,
+// damit keine Karteileichen in storage/frames uebrig bleiben.
+function delete_custom_layouts_for_booking(int $bookingId): void
+{
+    $cfg = backend_config();
+    $storageDir = rtrim($cfg['storage_dir'], '/');
+
+    $stmt = db()->prepare(
+        "SELECT l.id, l.frame_file FROM booking_layouts bl
+         INNER JOIN layouts l ON l.id = bl.layout_id
+         WHERE bl.booking_id = ? AND l.is_custom = 1"
+    );
+    $stmt->execute([$bookingId]);
+    foreach ($stmt->fetchAll() as $row) {
+        db()->prepare('DELETE FROM layouts WHERE id = ?')->execute([(int) $row['id']]);
+        $file = $storageDir . '/' . basename((string) $row['frame_file']);
+        if (is_file($file)) {
+            @unlink($file);
+        }
+    }
+}
+
+// Legt aus einer fertigen PNG-Datei (Upload oder vom Online-Designer
+// exportiert) ein neues Layout an, direkt einer Buchung zugeordnet. Ein
+// vorheriges eigenes Design derselben Buchung wird ersetzt statt
+// angehaeuft (samt Datei), damit beim mehrfachen Ausprobieren keine
+// Karteileichen in storage/frames uebrig bleiben.
+function save_custom_layout_for_booking(int $bookingId, string $sourcePath, array $slots, int $canvasWidth, int $canvasHeight, string $name): int
+{
+    $cfg = backend_config();
+    $storageDir = rtrim($cfg['storage_dir'], '/');
+    $frameFile = 'custom_' . random_key(16) . '.png';
+
+    if (!copy($sourcePath, $storageDir . '/' . $frameFile)) {
+        throw new RuntimeException('Konnte Design nicht speichern.');
+    }
+
+    db()->beginTransaction();
+
+    delete_custom_layouts_for_booking($bookingId);
+
+    $stmt = db()->prepare(
+        'INSERT INTO layouts (name, slot_count, canvas_width, canvas_height, frame_file, is_default, is_custom, surcharge_cents)
+         VALUES (?, ?, ?, ?, ?, 0, 1, 0)'
+    );
+    $stmt->execute([$name, count($slots), $canvasWidth, $canvasHeight, $frameFile]);
+    $layoutId = (int) db()->lastInsertId();
+
+    $slotStmt = db()->prepare('INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height) VALUES (?, ?, ?, ?, ?, ?)');
+    foreach (array_values($slots) as $i => $slot) {
+        $slotStmt->execute([$layoutId, $i, (int) $slot['x'], (int) $slot['y'], (int) $slot['width'], (int) $slot['height']]);
+    }
+
+    db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)')->execute([$bookingId, $layoutId]);
+
+    db()->commit();
+
+    return $layoutId;
 }
 
 // ---------- Buchungen ----------

@@ -12,9 +12,11 @@ $pageTitle = 'Snapolino Fotobox – Design-Optionen';
 try {
     $priceCents = base_price_cents();
     $priceLabel = base_price_label();
+    $presetCount = count(fetch_all_layouts());
 } catch (PDOException $e) {
     $priceCents = 0;
     $priceLabel = '';
+    $presetCount = 0;
 }
 ?>
 <!doctype html>
@@ -58,13 +60,13 @@ try {
     <div class="feature-grid">
         <div class="feature-card">
             <div class="icon">🎨</div>
-            <h3>64 Preset-Designs</h3>
-            <p>Professionell gestaltete Vorlagen für jeden Anlass – sofort einsatzbereit.</p>
+            <h3><?= $presetCount > 0 ? $presetCount . ' Design-Vorlagen' : 'Design-Vorlagen' ?></h3>
+            <p>Vorlagen für jeden Anlass – sofort einsatzbereit, nach Kategorie filterbar.</p>
         </div>
         <div class="feature-card">
             <div class="icon">🖌️</div>
             <h3>Kostenloser Online-Designer</h3>
-            <p>Gestalte dein eigenes Layout mit unserem Editor – Farben, Texte und Logos sind frei anpassbar.</p>
+            <p>Gestalte dein eigenes Layout mit unserem Editor – Farben, Muster und Text sind frei anpassbar.</p>
         </div>
         <div class="feature-card">
             <div class="icon">📤</div>

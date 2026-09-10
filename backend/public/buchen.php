@@ -132,21 +132,69 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // ---------- Schritt 3: Design speichern ----------
 if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
-    $selectedLayoutIds = array_unique(array_merge(
-        [(int) $defaultLayout['id']],
-        array_map('intval', $_POST['layout_ids'] ?? [])
-    ));
+    $designMode = (string) ($_POST['mode'] ?? 'gallery');
 
-    db()->beginTransaction();
-    db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$booking['id']]);
-    $stmt = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
-    foreach ($selectedLayoutIds as $layoutId) {
-        $stmt->execute([$booking['id'], $layoutId]);
+    if ($designMode === 'upload') {
+        $uploadError = validate_custom_design_upload($_FILES['custom_design_file'] ?? null);
+        if ($uploadError !== null) {
+            $errors[] = $uploadError;
+        } else {
+            $slotInfo = detect_transparent_slots($_FILES['custom_design_file']['tmp_name']);
+            if (!$slotInfo) {
+                $errors[] = 'In der Datei wurden keine transparenten Bereiche für Fotos gefunden. Bitte ein PNG mit transparenten Fotoflächen hochladen.';
+            } else {
+                save_custom_layout_for_booking(
+                    (int) $booking['id'], $_FILES['custom_design_file']['tmp_name'],
+                    $slotInfo['slots'], $slotInfo['width'], $slotInfo['height'], 'Eigenes Design (Upload)'
+                );
+                header('Location: buchen.php?step=4&token=' . urlencode($token));
+                exit;
+            }
+        }
+    } elseif ($designMode === 'designer') {
+        $dataUrl = (string) ($_POST['custom_design_data'] ?? '');
+        $baseLayout = fetch_layout_with_slots((int) ($_POST['base_layout_id'] ?? 0));
+        $prefix = 'data:image/png;base64,';
+
+        if (!$baseLayout || strncmp($dataUrl, $prefix, strlen($prefix)) !== 0) {
+            $errors[] = 'Design konnte nicht gespeichert werden. Bitte erneut versuchen.';
+        } else {
+            $binary = base64_decode(substr($dataUrl, strlen($prefix)), true);
+            $tmpPath = tempnam(sys_get_temp_dir(), 'snapdesign');
+            file_put_contents($tmpPath, (string) $binary);
+            $info = @getimagesize($tmpPath);
+            if (!$info || $info[2] !== IMAGETYPE_PNG) {
+                $errors[] = 'Design konnte nicht gespeichert werden. Bitte erneut versuchen.';
+            } else {
+                save_custom_layout_for_booking(
+                    (int) $booking['id'], $tmpPath, $baseLayout['slots'],
+                    (int) $baseLayout['canvas_width'], (int) $baseLayout['canvas_height'],
+                    'Eigenes Design (Online-Designer)'
+                );
+                unlink($tmpPath);
+                header('Location: buchen.php?step=4&token=' . urlencode($token));
+                exit;
+            }
+            unlink($tmpPath);
+        }
+    } else {
+        $selectedLayoutIds = array_unique(array_merge(
+            [(int) $defaultLayout['id']],
+            array_map('intval', $_POST['layout_ids'] ?? [])
+        ));
+
+        db()->beginTransaction();
+        delete_custom_layouts_for_booking((int) $booking['id']);
+        db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$booking['id']]);
+        $stmt = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
+        foreach ($selectedLayoutIds as $layoutId) {
+            $stmt->execute([$booking['id'], $layoutId]);
+        }
+        db()->commit();
+
+        header('Location: buchen.php?step=4&token=' . urlencode($token));
+        exit;
     }
-    db()->commit();
-
-    header('Location: buchen.php?step=4&token=' . urlencode($token));
-    exit;
 }
 
 // ---------- Schritt 4: Extras speichern ----------
@@ -292,30 +340,57 @@ if ($booking) {
             ))));
             sort($categories);
             $hasChoice = (bool) array_intersect($chosenLayoutIds, array_map(static fn ($l) => (int) $l['id'], $extraLayouts));
+
+            $customLayout = null;
+            foreach ($chosenLayoutIds as $clId) {
+                if ($clId === (int) $defaultLayout['id']) {
+                    continue;
+                }
+                $maybe = fetch_layout_with_slots($clId);
+                if ($maybe && $maybe['is_custom']) {
+                    $customLayout = $maybe;
+                    break;
+                }
+            }
+            $startPanel = $customLayout ? 'upload' : 'gallery';
+
+            $designerLayouts = array_merge([$defaultLayout], $extraLayouts);
+            $designerLayoutsJson = json_encode(array_map(static function (array $l) {
+                return [
+                    'id' => (int) $l['id'],
+                    'name' => $l['name'],
+                    'canvas_width' => (int) $l['canvas_width'],
+                    'canvas_height' => (int) $l['canvas_height'],
+                    'slots' => array_map(static fn ($s) => [
+                        'x' => (int) $s['x'], 'y' => (int) $s['y'],
+                        'width' => (int) $s['width'], 'height' => (int) $s['height'],
+                    ], fetch_layout_with_slots((int) $l['id'])['slots']),
+                ];
+            }, $designerLayouts), JSON_UNESCAPED_UNICODE);
             ?>
             <div class="panel-box" style="max-width:760px;margin:0 auto;">
                 <h3>Wähle dein <span class="accent-text">Design</span></h3>
                 <p class="muted">Wie sollen deine Ausdrucke aussehen? Du kannst das später noch ändern.</p>
 
                 <div class="design-options">
-                    <div class="design-option active">
+                    <div class="design-option <?= $startPanel === 'gallery' ? 'active' : '' ?>" data-panel="gallery">
                         <div class="design-icon">🎨</div>
                         <strong>Fertige Vorlage</strong>
                         <span class="muted-text">Aus <?= count($extraLayouts) + 1 ?> Designs wählen</span>
                     </div>
-                    <div class="design-option disabled">
+                    <div class="design-option" data-panel="designer">
                         <div class="design-icon">✏️</div>
                         <strong>Online-Designer</strong>
-                        <span class="badge-soon">Bald verfügbar</span>
+                        <span class="muted-text">Farbe, Muster &amp; Text selbst gestalten</span>
                     </div>
-                    <div class="design-option disabled">
+                    <div class="design-option <?= $startPanel === 'upload' ? 'active' : '' ?>" data-panel="upload">
                         <div class="design-icon">📤</div>
                         <strong>Eigenes hochladen</strong>
-                        <span class="badge-soon">Bald verfügbar</span>
+                        <span class="muted-text">PNG mit transparenten Fotoflächen</span>
                     </div>
                 </div>
 
-                <?php if (!$hasChoice): ?>
+                <?php if (!$hasChoice && !$customLayout): ?>
                     <div class="info-banner">
                         <span class="info-icon">ℹ️</span>
                         <div>
@@ -327,37 +402,103 @@ if ($booking) {
                     </div>
                 <?php endif; ?>
 
-                <form method="post" action="buchen.php?step=3&token=<?= urlencode($token) ?>" id="design-form">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
+                <?php foreach ($errors as $err): ?>
+                    <p class="error"><?= htmlspecialchars($err, ENT_QUOTES) ?></p>
+                <?php endforeach; ?>
 
-                    <?php if ($categories): ?>
-                        <div class="category-tabs">
-                            <button type="button" class="cat-tab active" data-cat="">Alle</button>
-                            <?php foreach ($categories as $cat): ?>
-                                <button type="button" class="cat-tab" data-cat="<?= htmlspecialchars($cat, ENT_QUOTES) ?>"><?= htmlspecialchars($cat, ENT_QUOTES) ?></button>
-                            <?php endforeach; ?>
+                <!-- Panel 1: Fertige Vorlage -->
+                <div class="design-panel" id="panel-gallery" <?= $startPanel === 'gallery' ? '' : 'hidden' ?>>
+                    <form method="post" action="buchen.php?step=3&token=<?= urlencode($token) ?>" id="design-form">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
+                        <input type="hidden" name="mode" value="gallery">
+
+                        <?php if ($categories): ?>
+                            <div class="category-tabs">
+                                <button type="button" class="cat-tab active" data-cat="">Alle</button>
+                                <?php foreach ($categories as $cat): ?>
+                                    <button type="button" class="cat-tab" data-cat="<?= htmlspecialchars($cat, ENT_QUOTES) ?>"><?= htmlspecialchars($cat, ENT_QUOTES) ?></button>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($extraLayouts): ?>
+                            <div class="design-gallery">
+                                <?php foreach ($extraLayouts as $layout): ?>
+                                    <label class="design-card" data-cat="<?= htmlspecialchars((string) ($layout['category'] ?? ''), ENT_QUOTES) ?>">
+                                        <input type="checkbox" name="layout_ids[]" value="<?= (int) $layout['id'] ?>"
+                                            <?= in_array((int) $layout['id'], $chosenLayoutIds, true) ? 'checked' : '' ?>>
+                                        <img src="layout_preview.php?id=<?= (int) $layout['id'] ?>" alt="<?= htmlspecialchars($layout['name'], ENT_QUOTES) ?>" loading="lazy">
+                                        <span class="design-card-name"><?= htmlspecialchars($layout['name'], ENT_QUOTES) ?></span>
+                                        <span class="design-card-price">+<?= money_from_cents((int) $layout['surcharge_cents']) ?></span>
+                                        <button type="button" class="design-card-customize" data-customize="<?= (int) $layout['id'] ?>">Anpassen</button>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="muted">Aktuell nur das Standarddesign verfügbar.</p>
+                        <?php endif; ?>
+
+                        <button type="submit">Weiter</button>
+                    </form>
+                </div>
+
+                <!-- Panel 2: Online-Designer -->
+                <div class="design-panel" id="panel-designer" hidden>
+                    <p class="muted">Wähle Farben, ein Muster und optional einen Text - passt automatisch auf die Foto-Slots deines Basis-Layouts.</p>
+                    <div class="designer-layout">
+                        <canvas id="designer-canvas" width="600" height="400"></canvas>
+                        <div class="designer-controls">
+                            <label>Basis-Layout
+                                <select id="designer-base">
+                                    <?php foreach ($designerLayouts as $l): ?>
+                                        <option value="<?= (int) $l['id'] ?>"><?= htmlspecialchars($l['name'], ENT_QUOTES) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label>Hintergrundfarbe <input type="color" id="designer-bg" value="#fdf6ec"></label>
+                            <label>Akzentfarbe <input type="color" id="designer-accent" value="#ff6f59"></label>
+                            <label>Muster
+                                <select id="designer-pattern">
+                                    <option value="none">Keins</option>
+                                    <option value="confetti">Konfetti</option>
+                                    <option value="stripes">Streifen</option>
+                                </select>
+                            </label>
+                            <label>Text (optional)<input type="text" id="designer-text" maxlength="40" placeholder="z.B. Julia &amp; Tom"></label>
+                            <button type="button" id="designer-save">Design übernehmen</button>
                         </div>
-                    <?php endif; ?>
+                    </div>
+                    <form method="post" action="buchen.php?step=3&token=<?= urlencode($token) ?>" id="designer-form">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
+                        <input type="hidden" name="mode" value="designer">
+                        <input type="hidden" name="base_layout_id" id="designer-base-id">
+                        <input type="hidden" name="custom_design_data" id="designer-data">
+                    </form>
+                </div>
 
-                    <?php if ($extraLayouts): ?>
-                        <div class="design-gallery">
-                            <?php foreach ($extraLayouts as $layout): ?>
-                                <label class="design-card" data-cat="<?= htmlspecialchars((string) ($layout['category'] ?? ''), ENT_QUOTES) ?>">
-                                    <input type="checkbox" name="layout_ids[]" value="<?= (int) $layout['id'] ?>"
-                                        <?= in_array((int) $layout['id'], $chosenLayoutIds, true) ? 'checked' : '' ?>>
-                                    <img src="layout_preview.php?id=<?= (int) $layout['id'] ?>" alt="<?= htmlspecialchars($layout['name'], ENT_QUOTES) ?>" loading="lazy">
-                                    <span class="design-card-name"><?= htmlspecialchars($layout['name'], ENT_QUOTES) ?></span>
-                                    <span class="design-card-price">+<?= money_from_cents((int) $layout['surcharge_cents']) ?></span>
-                                </label>
-                            <?php endforeach; ?>
+                <!-- Panel 3: Eigenes hochladen -->
+                <div class="design-panel" id="panel-upload" <?= $startPanel === 'upload' ? '' : 'hidden' ?>>
+                    <?php if ($customLayout): ?>
+                        <div class="info-banner">
+                            <span class="info-icon">✅</span>
+                            <div>
+                                <strong>Eigenes Design gespeichert</strong>
+                                <p><?= (int) $customLayout['slot_count'] ?> Fotoflächen erkannt. Du kannst es unten ersetzen.</p>
+                            </div>
                         </div>
-                    <?php else: ?>
-                        <p class="muted">Aktuell nur das Standarddesign verfügbar.</p>
+                        <img src="layout_preview.php?id=<?= (int) $customLayout['id'] ?>" alt="Eigenes Design" style="max-width:280px;border:1px solid var(--border);border-radius:8px;">
                     <?php endif; ?>
-
-                    <button type="submit">Weiter</button>
-                </form>
+                    <p class="muted">Lade ein fertiges PNG hoch (Querformat, Seitenverhältnis ca. 3:2). Die Bereiche, die du transparent gelassen hast, werden automatisch als Fotoflächen erkannt.</p>
+                    <form method="post" action="buchen.php?step=3&token=<?= urlencode($token) ?>" enctype="multipart/form-data">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
+                        <input type="hidden" name="mode" value="upload">
+                        <label>PNG-Datei<input type="file" name="custom_design_file" accept="image/png" required></label>
+                        <button type="submit"><?= $customLayout ? 'Design ersetzen' : 'Hochladen' ?></button>
+                    </form>
+                </div>
             </div>
             <script>
             (function () {
@@ -372,6 +513,114 @@ if ($booking) {
                             card.style.display = (!cat || card.getAttribute('data-cat') === cat) ? '' : 'none';
                         });
                     });
+                });
+
+                var options = document.querySelectorAll('.design-option');
+                var panels = { gallery: document.getElementById('panel-gallery'), designer: document.getElementById('panel-designer'), upload: document.getElementById('panel-upload') };
+                function showPanel(name) {
+                    options.forEach(function (o) { o.classList.toggle('active', o.getAttribute('data-panel') === name); });
+                    Object.keys(panels).forEach(function (key) { panels[key].hidden = (key !== name); });
+                }
+                options.forEach(function (opt) {
+                    opt.addEventListener('click', function () { showPanel(opt.getAttribute('data-panel')); });
+                });
+
+                var layouts = <?= $designerLayoutsJson ?>;
+                var canvas = document.getElementById('designer-canvas');
+                var ctx = canvas.getContext('2d');
+                var baseSelect = document.getElementById('designer-base');
+                var bgInput = document.getElementById('designer-bg');
+                var accentInput = document.getElementById('designer-accent');
+                var patternSelect = document.getElementById('designer-pattern');
+                var textInput = document.getElementById('designer-text');
+
+                function layoutById(id) {
+                    for (var i = 0; i < layouts.length; i++) {
+                        if (layouts[i].id === id) { return layouts[i]; }
+                    }
+                    return layouts[0];
+                }
+
+                function drawDesign(targetCtx, w, h, layout, scale) {
+                    targetCtx.clearRect(0, 0, w, h);
+                    targetCtx.fillStyle = bgInput.value;
+                    targetCtx.fillRect(0, 0, w, h);
+
+                    var accent = accentInput.value;
+                    var pattern = patternSelect.value;
+                    if (pattern === 'confetti') {
+                        var rng = 12345;
+                        function rand() { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return (rng % 1000) / 1000; }
+                        for (var i = 0; i < 140; i++) {
+                            targetCtx.fillStyle = (i % 3 === 0) ? accent : (i % 3 === 1 ? '#ffffff' : bgInput.value);
+                            var rx = rand() * w, ry = rand() * h, rr = 2 * scale + rand() * 3 * scale;
+                            targetCtx.beginPath();
+                            targetCtx.arc(rx, ry, rr, 0, Math.PI * 2);
+                            targetCtx.fill();
+                        }
+                    } else if (pattern === 'stripes') {
+                        targetCtx.strokeStyle = accent;
+                        targetCtx.lineWidth = 6 * scale;
+                        for (var sx = -h; sx < w; sx += 24 * scale) {
+                            targetCtx.beginPath();
+                            targetCtx.moveTo(sx, 0);
+                            targetCtx.lineTo(sx + h, h);
+                            targetCtx.stroke();
+                        }
+                    }
+
+                    targetCtx.strokeStyle = accent;
+                    targetCtx.lineWidth = 3 * scale;
+                    targetCtx.strokeRect(10 * scale, 10 * scale, w - 20 * scale, h - 20 * scale);
+
+                    var text = textInput.value.trim();
+                    if (text) {
+                        targetCtx.fillStyle = accent;
+                        targetCtx.font = 'bold ' + Math.round(18 * scale) + 'px "Segoe UI", Arial, sans-serif';
+                        targetCtx.textAlign = 'center';
+                        targetCtx.textBaseline = 'middle';
+                        targetCtx.fillText(text, w / 2, h - 20 * scale);
+                    }
+
+                    // Foto-Slots ausschneiden (transparent), damit die Kamera-Bilder durchscheinen.
+                    targetCtx.save();
+                    targetCtx.globalCompositeOperation = 'destination-out';
+                    layout.slots.forEach(function (s) {
+                        targetCtx.fillRect(s.x * scale, s.y * scale, s.width * scale, s.height * scale);
+                    });
+                    targetCtx.restore();
+                }
+
+                function refreshPreview() {
+                    var layout = layoutById(parseInt(baseSelect.value, 10));
+                    var scale = canvas.width / layout.canvas_width;
+                    drawDesign(ctx, canvas.width, canvas.height, layout, scale);
+                }
+
+                [baseSelect, bgInput, accentInput, patternSelect, textInput].forEach(function (el) {
+                    el.addEventListener('input', refreshPreview);
+                    el.addEventListener('change', refreshPreview);
+                });
+                refreshPreview();
+
+                document.querySelectorAll('[data-customize]').forEach(function (btn) {
+                    btn.addEventListener('click', function (ev) {
+                        ev.preventDefault();
+                        baseSelect.value = btn.getAttribute('data-customize');
+                        refreshPreview();
+                        showPanel('designer');
+                    });
+                });
+
+                document.getElementById('designer-save').addEventListener('click', function () {
+                    var layout = layoutById(parseInt(baseSelect.value, 10));
+                    var full = document.createElement('canvas');
+                    full.width = layout.canvas_width;
+                    full.height = layout.canvas_height;
+                    drawDesign(full.getContext('2d'), full.width, full.height, layout, 1);
+                    document.getElementById('designer-base-id').value = layout.id;
+                    document.getElementById('designer-data').value = full.toDataURL('image/png');
+                    document.getElementById('designer-form').submit();
                 });
             })();
             </script>

@@ -62,13 +62,25 @@ im Panel angezeigt).
 - Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts).
 
 ## Buchungssystem
-Kunden buchen öffentlich unter `/buchen.php` (Kalender + Formular, siehe
-`backend/README.md`). Nur **bestätigte** Buchungen blockieren den Kalender
-(inkl. `BOOKING_BUFFER_DAYS` Tage Puffer vor/nach dem Event für Versand).
+Kunden buchen öffentlich unter `/buchen.php`, ein 5-Schritte-Assistent
+(Datum → Reservierung → Design → Extras → Zusammenfassung, siehe
+`backend/README.md`). Eine Reservierung hält den Termin 14 Tage
+unverbindlich (`RESERVATION_HOLD_DAYS`, Status `reserviert`) und wird erst
+mit der Zusammenfassung zu `angefragt`. Der Kalender blockiert auf
+`angefragt`/`bestätigt` sowie frische `reserviert`-Eintraege, inkl.
+`BOOKING_BUFFER_DAYS` Tage Puffer vor/nach dem Event für Versand.
 Im Panel unter **Buchungen** bestätigen/ablehnen/stornieren - Bestätigen
 weist eine Box zu und überträgt die vom Kunden gewünschten Layouts nach
 `box_layouts` (erhöht `config_version`). Aktuell fest auf eine Box
 ausgelegt (kein Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
+
+Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
+filterbar), Online-Designer (Canvas-Editor für Farbe/Muster/Text, auch um
+eine Vorlage per "Anpassen" umzufärben) oder eigenes PNG mit transparenten
+Fotoflächen hochladen (Server erkennt die Flächen automatisch per
+Connected-Component-Analyse). Beide Wege legen ein `is_custom=1`-Layout an,
+das nur dieser einen Buchung zugeordnet ist und weder in der öffentlichen
+Galerie noch im allgemeinen Panel bei anderen Kunden auftaucht.
 
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
@@ -90,6 +102,6 @@ kann sie nicht abfangen).
 - `printer_ready()` erkennt Papierende noch nicht zuverlässig
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - E-Mail-Benachrichtigung bei neuer/bestätigter Buchung (bisher nur im Panel sichtbar)
-- Online-Designer und 64-Preset-Bibliothek (auf der Startseite schon
-  beworben, technisch noch nicht gebaut - siehe backend/README.md)
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
+- Online-Designer bietet nur Farbe/Muster/Text, kein Logo-Upload oder
+  freie Platzierung von Elementen

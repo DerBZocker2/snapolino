@@ -11,8 +11,11 @@ build/
 *.log
 .idea/
 
-# Cloud-Backend: echte Zugangsdaten und hochgeladene Rahmen nicht im Repo
+# Cloud-Backend: echte Zugangsdaten und hochgeladene Rahmen nicht im Repo.
+# Ausnahme: preset_*.png sind mitgelieferte Design-Vorlagen (siehe
+# backend/sql seed-Daten), keine Kunden-Uploads - die bleiben ignoriert.
 backend/includes/config.php
 backend/storage/frames/*
 !backend/storage/frames/.gitkeep
 !backend/storage/frames/.htaccess
+!backend/storage/frames/preset_*.png

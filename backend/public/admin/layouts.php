@@ -4,7 +4,9 @@ declare(strict_types=1);
 $pageTitle = 'Layouts';
 require __DIR__ . '/_header.php';
 
-$layouts = db()->query('SELECT * FROM layouts ORDER BY is_default DESC, name')->fetchAll();
+// Kundendesigns (Upload/Online-Designer) sind nur der jeweiligen Buchung
+// zugeordnet und tauchen hier bewusst nicht auf - siehe Buchungsdetails.
+$layouts = db()->query('SELECT * FROM layouts WHERE is_custom = 0 ORDER BY is_default DESC, name')->fetchAll();
 ?>
 
 <p><a href="layout_form.php" class="button">+ Neues Layout</a></p>
