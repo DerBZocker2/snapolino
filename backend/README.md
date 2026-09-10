@@ -9,18 +9,24 @@ holt sich diese Konfiguration nur im Vorbereitungsmodus vor dem Versand ab
 
 ```
 backend/
-  sql/schema.sql        Datenbankschema + Beispiel-Standardlayout
-  includes/              PHP-Code, der NICHT direkt aus dem Web erreichbar sein darf
-    config.php.example    Vorlage fuer die Zugangsdaten
-    config.php             (nicht im Repo, siehe Einrichtung unten)
+  sql/schema.sql          Datenbankschema fuer Neuinstallationen
+  sql/migrations/          Einzelne Aenderungen zum Nachziehen auf bestehenden DBs
+  includes/                PHP-Code, der NICHT direkt aus dem Web erreichbar sein darf
+    config.php.example      Vorlage fuer die Zugangsdaten
+    config.php               (nicht im Repo, siehe Einrichtung unten)
   bin/
-    create_admin.php      CLI-Skript zum Anlegen/Aendern eines Admin-Logins
+    create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
   storage/
-    frames/                hochgeladene Rahmen-PNGs (nicht im Repo)
-  public/                 Docroot fuer den Webserver
-    api.php                Konfigurations-Endpunkt fuer die Box
-    frame.php              Liefert eine Rahmen-PNG aus
-    admin/                 Verwaltungs-Panel (Login-geschuetzt)
+    frames/                  hochgeladene Rahmen-PNGs (nicht im Repo)
+  public/                   Docroot fuer den Webserver
+    index.php                Oeffentliche Startseite
+    buchen.php               Oeffentliches Buchungsformular mit Kalender
+    booking_availability.php JSON-Endpunkt: blockierte Tage fuer den Kalender
+    api.php                  Konfigurations-Endpunkt fuer die Box
+    frame.php                Liefert eine Rahmen-PNG aus
+    admin/                   Verwaltungs-Panel (Login-geschuetzt, Sidebar-Layout)
+      bookings.php             Buchungsanfragen bestaetigen/ablehnen/stornieren
+      booking_detail.php       Details + interne Notiz zu einer Buchung
 ```
 
 **Wichtig:** Das Document Root des vhosts muss auf `backend/public` zeigen,
@@ -61,6 +67,27 @@ Cloudflare-DNS/TLS) siehe `deploy/RASPBERRY_PI.md`.
    Konfiguration und Rahmen-PNGs abholt (Preflight vor dem Versand).
    Danach funktioniert die Box komplett offline; ein erneuter Abgleich
    ist nur noetig, wenn sich Layouts oder deren Zuordnung geaendert haben.
+
+## Buchungssystem
+
+Kunden buchen oeffentlich unter `/buchen.php`: Kalender (zeigt nur durch
+**bestaetigte** Buchungen blockierte Tage, inkl. `BOOKING_BUFFER_DAYS`
+Puffer vor/nach dem Event fuer Hin- und Ruecksand), Kontakt-/Adressdaten,
+Auswahl zusaetzlicher Layouts gegen Aufpreis. Eine Anfrage legt eine Zeile
+in `bookings` mit Status `angefragt` an, das Standard-Layout und alle
+gewaehlten Zusatzlayouts landen in `booking_layouts`.
+
+Im Panel unter **Buchungen**:
+- **Bestaetigen** weist der Buchung eine Box zu (bei nur einer Box
+  automatisch, sonst per Auswahl), traegt alle gewuenschten Layouts in
+  `box_layouts` dieser Box ein und erhoeht ihre `config_version` - die Box
+  muss also vor dem Versand einmal online sein, um sie abzuholen.
+- **Ablehnen**/**Stornieren** setzen den Status, eine stornierte oder
+  abgelehnte Buchung blockiert den Kalender nicht mehr.
+
+Serverseitig wird das Eventdatum beim Absenden nochmal gegen blockierte
+Tage geprueft (nicht nur im Kalender per JavaScript), damit das nicht per
+manuellem POST umgangen werden kann.
 
 ## Schnittstelle fuer die Box
 
@@ -116,8 +143,23 @@ ein Layout zugeordnet hat, das genau diese Datei referenziert.
 So kann `cloudsync.py` auf der Box mit `?since=<lokal gespeicherte Version>`
 guenstig pruefen, ob ein neuer Abgleich noetig ist.
 
+## Bestehende Installation aktualisieren
+
+Neue Tabellen kommen nicht automatisch per `git pull` in die laufende
+Datenbank (siehe `deploy/RASPBERRY_PI.md`). Fuers Buchungssystem einmalig:
+
+```bash
+mysql -u snapolino -p snapolino < backend/sql/migrations/0002_bookings.sql
+```
+
+Ist die Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
+meldung statt abzustuerzen.
+
 ## Offen (siehe auch CLAUDE.md)
 
 - Visueller Slot-Editor im Panel (aktuell Koordinaten per Hand, siehe
   `admin/layout_form.php`).
-- Client-seitiges `cloudsync.py`, das diese API tatsaechlich aufruft.
+- E-Mail-Benachrichtigung bei neuer Buchung/Bestaetigung (aktuell nur im
+  Panel sichtbar, kein Mailversand).
+- Online-Designer und 64 Preset-Layouts (auf der Startseite schon
+  beworben, technisch noch nicht gebaut).
