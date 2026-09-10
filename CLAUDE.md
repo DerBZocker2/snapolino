@@ -104,8 +104,9 @@ Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
 
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
 filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos), Online-Designer
-(Canvas-Editor für Farbe/Muster/Text mit per Maus verschiebbaren
-Fotoflächen, auch um eine Vorlage per "Anpassen" umzugestalten) oder
+(Canvas-Editor für Farbe/Muster/Text mit per Maus verschieb- und am
+Eck-Ziehpunkt größenveränderbaren Fotoflächen, auch um eine Vorlage per
+"Anpassen" umzugestalten) oder
 eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
 Flächen automatisch per Connected-Component-Analyse). Alle drei Wege legen
 bei einer Aenderung ein `is_custom=1`-Layout an, das nur dieser einen
@@ -155,8 +156,9 @@ kann sie nicht abfangen).
   Fotodrucker setzen sie granular)
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
-- Online-Designer bietet nur Farbe/Muster/Text plus verschiebbare
-  Fotoflächen, kein Logo-Upload oder frei platzierbare Textelemente
+- Online-Designer bietet nur Farbe/Muster/Text plus verschieb- und
+  größenveränderbare Fotoflächen, kein Logo-Upload oder frei platzierbare
+  Textelemente
 - Stripe-Webhook-Verarbeitung ist synchron (PDF-Erzeugung + Mailversand
   laufen direkt in der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das
   die Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern
