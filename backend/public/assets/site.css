@@ -1,0 +1,140 @@
+:root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #dcdfe4;
+    --text: #222;
+    --muted: #6b7280;
+    --accent: #27ae60;
+    --accent-dark: #1e8449;
+    --dark: #1a1a1a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+a { color: var(--accent-dark); }
+
+.site-header {
+    background: var(--dark);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.site-header .brand {
+    font-weight: 700;
+    font-size: 20px;
+    text-decoration: none;
+    color: #fff;
+}
+
+.site-header nav a {
+    color: #ddd;
+    text-decoration: none;
+    font-size: 14px;
+    margin-left: 20px;
+}
+
+.site-header nav a:hover { color: #fff; }
+
+.hero {
+    text-align: center;
+    padding: 64px 20px 48px;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.hero h1 {
+    font-size: 34px;
+    margin: 0 0 12px;
+}
+
+.hero p {
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
+    margin: 0 0 28px;
+}
+
+.hero .button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 28px;
+    font-size: 16px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.hero .button:hover { background: var(--accent-dark); }
+
+.section {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px 20px 64px;
+}
+
+.section h2 {
+    text-align: center;
+    font-size: 26px;
+    margin-bottom: 8px;
+}
+
+.section .lead {
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0 auto 36px;
+    max-width: 560px;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.feature-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+}
+
+.feature-card .icon { font-size: 34px; margin-bottom: 12px; }
+
+.feature-card h3 {
+    font-size: 18px;
+    margin: 0 0 10px;
+}
+
+.feature-card p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.site-footer {
+    text-align: center;
+    padding: 28px 20px;
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+}
+
+.site-footer a { color: var(--muted); }
+
+@media (max-width: 760px) {
+    .feature-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 26px; }
+}
