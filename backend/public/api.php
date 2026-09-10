@@ -62,6 +62,37 @@ $stmt = db()->prepare(
 $stmt->execute([$box['id']]);
 $layouts = $stmt->fetchAll();
 
+// Die naechste bestaetigte Buchung, die dieser Box zugeordnet ist - fuer
+// den persoenlichen Willkommens-Screen und die gebuchten Extras (z.B.
+// "Einzelne Bilder drucken"/"Mehrfachabzug"). Aenderungen daran erhoehen
+// config_version bereits ueber assign_box_and_confirm()/bump_box_version(),
+// der guenstige ?since-Preflight bleibt also korrekt.
+$stmt = db()->prepare(
+    "SELECT * FROM bookings WHERE box_id = ? AND status = 'bestaetigt' AND event_date >= CURDATE()
+     ORDER BY event_date ASC LIMIT 1"
+);
+$stmt->execute([$box['id']]);
+$currentBooking = $stmt->fetch();
+
+$bookingData = null;
+$extrasData = [];
+if ($currentBooking) {
+    $bookingData = [
+        'customer_name' => $currentBooking['customer_name'],
+        'event_date' => $currentBooking['event_date'],
+    ];
+
+    $stmt = db()->prepare(
+        'SELECT e.name, be.quantity FROM booking_extras be
+         INNER JOIN extras e ON e.id = be.extra_id WHERE be.booking_id = ?'
+    );
+    $stmt->execute([$currentBooking['id']]);
+    $extrasData = array_map(
+        static fn (array $r): array => ['name' => $r['name'], 'quantity' => (int) $r['quantity']],
+        $stmt->fetchAll()
+    );
+}
+
 $cfg = backend_config();
 $slotStmt = db()->prepare('SELECT slot_index AS `index`, x, y, width, height FROM layout_slots WHERE layout_id = ? ORDER BY slot_index');
 
@@ -94,6 +125,9 @@ foreach ($layouts as $layout) {
 echo json_encode([
     'box_key'        => $box['box_key'],
     'box_name'       => $box['name'],
+    'admin_pin'      => $box['admin_pin'],
     'config_version' => $currentVersion,
     'layouts'        => $result,
+    'booking'        => $bookingData,
+    'extras'         => $extrasData,
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

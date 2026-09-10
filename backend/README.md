@@ -256,6 +256,7 @@ Antwort (Auszug):
 {
   "box_key": "...",
   "box_name": "Box 3 - Hochzeit Mueller",
+  "admin_pin": "1234",
   "config_version": 4,
   "layouts": [
     {
@@ -272,9 +273,22 @@ Antwort (Auszug):
         {"index": 0, "x": 40, "y": 40, "width": 850, "height": 550}
       ]
     }
+  ],
+  "booking": {"customer_name": "Julia Mueller", "event_date": "2026-10-03"},
+  "extras": [
+    {"name": "Einzelne Bilder drucken", "quantity": 1},
+    {"name": "Mehrfachabzug", "quantity": 3}
   ]
 }
 ```
+
+`admin_pin` ist der auf der Box lokal ohne Internet nutzbare PIN-Schutz
+fuers On-Box-Admin-Menue (Panel unter **Boxen → Layouts & Zugang**, leer =
+kein Schutz). `booking`/`extras` gehoeren zur naechsten bestaetigten
+Buchung dieser Box (`event_date >= CURDATE()`, sonst `null`/`[]`) - die Box
+matcht Extra-Namen fest gegen "Einzelne Bilder drucken"/"Mehrfachabzug"
+(siehe `main.py::extras_flags()`), ein Umbenennen dieser beiden Extras im
+Panel wuerde die Zuordnung also brechen.
 
 ### `GET /frame.php?file=<name>.png`
 
@@ -310,6 +324,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0005_payments_and_invoices.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0006_format_templates.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0007_coupons_and_billing_address.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0008_box_admin_pin_and_booking_sync.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -338,6 +353,9 @@ Freitext-Adressfeld `bookings.customer_address` durch strukturierte Felder
 (`customer_street`, `customer_zip`, `customer_city`, `customer_company`,
 `invoice_to_company`) sowie `coupon_code`/`discount_cents`. Bestehende
 Freitextadressen werden dabei bestmoeglich in `customer_street` uebernommen.
+
+Migration 0008 ergaenzt `boxes` um `admin_pin` (siehe "Schnittstelle fuer
+die Box" oben) - im Panel unter **Boxen → Layouts & Zugang** pflegbar.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

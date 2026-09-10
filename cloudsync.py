@@ -44,13 +44,16 @@ def _local_version():
         return 0
 
 
-def _load_cached_layouts():
+def _load_cached_data():
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("layouts", [])
+            return json.load(f)
     except (OSError, ValueError):
-        return []
+        return {}
+
+
+def _load_cached_layouts():
+    return _load_cached_data().get("layouts", [])
 
 
 def sync(timeout=5):
@@ -124,6 +127,24 @@ def get_layouts():
         item["frame_path"] = frame_path
         resolved.append(item)
     return resolved or [config.FALLBACK_LAYOUT]
+
+
+def get_booking():
+    """Naechste bestaetigte Buchung dieser Box (customer_name, event_date)
+    aus dem letzten Sync, oder None wenn noch nie synchronisiert oder
+    aktuell keine ansteht."""
+    return _load_cached_data().get("booking")
+
+
+def get_extras():
+    """Zur aktuellen Buchung gebuchte Extras [{"name": ..., "quantity": ...}, ...]."""
+    return _load_cached_data().get("extras") or []
+
+
+def get_admin_pin():
+    """PIN fuers Admin-Menue auf der Box, oder None (= kein Schutz/noch nie
+    synchronisiert)."""
+    return _load_cached_data().get("admin_pin") or None
 
 
 if __name__ == "__main__":
