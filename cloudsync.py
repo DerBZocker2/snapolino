@@ -56,7 +56,13 @@ def sync(timeout=5):
     Fallback-Stand weiter.
     """
     if not config.CLOUD_BOX_KEY or not config.CLOUD_API_KEY:
-        log.info("Kein Box-Key/API-Key in box.ini, Cloud-Sync uebersprungen")
+        if not config.BOX_INI_FOUND:
+            log.info("box.ini nicht gefunden unter %s, Cloud-Sync uebersprungen", config.BOX_INI_PATH)
+        else:
+            log.info(
+                "box.ini gefunden (%s), aber box_key/api_key leer, Cloud-Sync uebersprungen",
+                config.BOX_INI_PATH,
+            )
         return
 
     os.makedirs(FRAMES_DIR, exist_ok=True)

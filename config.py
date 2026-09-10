@@ -19,8 +19,10 @@ def _install_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+BOX_INI_PATH = os.path.join(_install_dir(), "box.ini")
+
 _ini = configparser.ConfigParser()
-_ini.read(os.path.join(_install_dir(), "box.ini"), encoding="utf-8")
+BOX_INI_FOUND = bool(_ini.read(BOX_INI_PATH, encoding="utf-8"))
 
 
 def _get_str(section, key, fallback):
