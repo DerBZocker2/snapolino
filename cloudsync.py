@@ -25,7 +25,14 @@ def _atomic_write_text(path, text):
 
 
 def _fetch(url, timeout):
-    req = urllib.request.Request(url, headers={"X-API-Key": config.CLOUD_API_KEY})
+    # Eigener User-Agent statt "Python-urllib/x.y": Cloudflare (vor
+    # snapolino.de geschaltet, siehe backend/deploy/RASPBERRY_PI.md) blockt
+    # den Standard-User-Agent von urllib per Bot-Erkennung mit HTTP 403,
+    # noch bevor die Anfrage den Server erreicht.
+    req = urllib.request.Request(
+        url,
+        headers={"X-API-Key": config.CLOUD_API_KEY, "User-Agent": "SnapolinoBox/1.0"},
+    )
     return urllib.request.urlopen(req, timeout=timeout)
 
 
