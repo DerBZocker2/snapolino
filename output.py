@@ -76,13 +76,23 @@ class OutputWorker(QThread):
             try:
                 os.makedirs(config.OUTPUT_DIR, exist_ok=True)
                 path = os.path.join(config.OUTPUT_DIR, filename)
-                image.save(path, quality=95)
+                # Erst auf Temp-Datei im selben Ordner schreiben, dann atomar
+                # umbenennen - sonst bleibt bei Stromausfall waehrend des
+                # Schreibens ein halbes JPEG liegen.
+                tmp_path = path + ".tmp"
+                # format explizit angeben: PIL erkennt das Format sonst an
+                # der Dateiendung, ".tmp" waere ihm unbekannt.
+                image.save(tmp_path, format="JPEG", quality=95)
+                os.replace(tmp_path, path)
                 log.info("Gespeichert: %s", path)
 
                 if config.COPY_TO_USB:
                     target = hardware.usb_target_dir()
                     if target:
-                        shutil.copy2(path, os.path.join(target, filename))
+                        usb_path = os.path.join(target, filename)
+                        usb_tmp_path = usb_path + ".tmp"
+                        shutil.copy2(path, usb_tmp_path)
+                        os.replace(usb_tmp_path, usb_path)
                         log.info("Auf USB kopiert: %s", target)
                     else:
                         log.warning("Kein USB-Stick gefunden")

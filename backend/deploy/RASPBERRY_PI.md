@@ -2,14 +2,26 @@
 
 Diese Anleitung geht von folgendem Setup aus:
 - Apache mit PHP (mod_php) laeuft schon fuer andere Seiten auf dem Pi.
-- Feste oeffentliche IP, Port 80/443 werden bereits per Port-Forwarding
-  im Router an den Pi weitergeleitet (fuer die anderen Seiten).
+- Feste oeffentliche IP, die externen Ports werden bereits per
+  Port-Forwarding im Router an den Pi weitergeleitet (fuer die anderen
+  Seiten).
 - MariaDB laeuft bereits auf dem Pi.
 - Die Domain `snapolino.de` liegt bei Cloudflare (DNS + Proxy).
 
-Da Apache mehrere Domains ueber denselben Port 80/443 per Name-based
-Virtual Hosting bedient, ist **kein zusaetzliches Port-Forwarding**
-noetig - nur ein neuer vhost.
+**Achtung Port 80/443:** Laeuft auf dem Pi zusaetzlich Pi-hole, belegt
+dessen eigener Webserver (`pihole-FTL`) typischerweise genau die Ports
+80 und 443 fuer die Pi-hole-Oberflaeche - Apache laeuft dann meist auf
+einem Ausweichport wie 8080, und man muesste `*:80` in den vhost-Dateien
+unten durch `*:8080` ersetzen sowie die Router-Portweiterleitung auf
+diesen Port zeigen lassen (pruefen mit `cat /etc/apache2/ports.conf` und
+`sudo ss -tlnp | grep ':80\|:443'`). Deutlich einfacher: Falls Pi-hole
+nicht mehr gebraucht wird, komplett deinstallieren (`pihole uninstall`)
+und Apache ganz normal auf Port 80/443 laufen lassen - das setzt diese
+Anleitung ab hier voraus.
+
+Da Apache mehrere Domains ueber denselben Port per Name-based Virtual
+Hosting bedient, ist fuer eine zusaetzliche Domain **kein weiteres
+Port-Forwarding** noetig - nur ein neuer vhost.
 
 ## 0. Mit PuTTY auf den Pi verbinden
 
@@ -140,38 +152,51 @@ Im Cloudflare-Dashboard fuer snapolino.de unter **DNS**:
 Proxy "An" (oranges Wolkensymbol) verbirgt die private Heim-IP hinter
 Cloudflare.
 
-## 6. TLS: Cloudflare Origin-Zertifikat
+## 6. TLS: Cloudflare "Flexible" (kein Zertifikat auf dem Pi noetig)
+
+Standardweg dieser Anleitung: Cloudflare spricht TLS mit dem Besucher,
+zum Pi geht nur einfaches HTTP. Kein Zertifikat auf dem Pi zu verwalten.
+**Nachteil:** Die Strecke Cloudflare -> Pi ueber die oeffentliche IP ist
+unverschluesselt, auch die Login-Formulardaten des Panels laufen darueber
+im Klartext. Wer das nicht will, siehe Kasten am Ende dieses Abschnitts.
 
 Im Cloudflare-Dashboard:
-1. **SSL/TLS -> Overview**: Modus auf **Full (strict)** stellen.
-2. **SSL/TLS -> Origin Server -> Create Certificate**: Hostnamen
-   `snapolino.de` und `*.snapolino.de` eintragen, RSA 2048, Gueltigkeit
-   15 Jahre. Cloudflare zeigt dann ein Zertifikat + privaten Schluessel an.
+1. **SSL/TLS -> Overview**: Modus auf **Flexible** stellen.
+2. **SSL/TLS -> Edge Certificates**: **Always Use HTTPS** aktivieren
+   (Cloudflare leitet Besucher dann selbst von http auf https um -
+   eine Umleitung im vhost selbst wuerde bei "Flexible" sonst eine
+   Redirect-Schleife erzeugen).
 
-Auf dem Pi ablegen:
-
-```bash
-sudo mkdir -p /etc/ssl/cloudflare
-sudo nano /etc/ssl/cloudflare/snapolino.de.pem   # Zertifikat einfuegen
-sudo nano /etc/ssl/cloudflare/snapolino.de.key   # privaten Schluessel einfuegen
-sudo chmod 600 /etc/ssl/cloudflare/snapolino.de.key
-```
+> **Sicherer, aber mit mehr Aufwand:** Cloudflare-Modus **Full (strict)**
+> plus ein Cloudflare-Origin-Zertifikat auf dem Pi verschluesselt auch die
+> Strecke Cloudflare -> Pi. Zertifikat erzeugen unter **SSL/TLS -> Origin
+> Server -> Create Certificate** (Hostnamen `snapolino.de` und
+> `*.snapolino.de`), danach:
+> ```bash
+> sudo mkdir -p /etc/ssl/cloudflare
+> sudo nano /etc/ssl/cloudflare/snapolino.de.pem   # Origin Certificate einfuegen
+> sudo nano /etc/ssl/cloudflare/snapolino.de.key   # Private Key einfuegen
+> sudo chmod 600 /etc/ssl/cloudflare/snapolino.de.key
+> ```
+> und in Schritt 7 `apache-snapolino.de-full-strict.conf` statt
+> `apache-snapolino.de.conf` verwenden (zusaetzlich `sudo a2enmod ssl`).
 
 ## 7. Apache-vhost einrichten
 
 ```bash
 sudo cp /var/www/snapolino.de/backend/deploy/apache-snapolino.de.conf \
         /etc/apache2/sites-available/snapolino.de.conf
-sudo a2enmod ssl headers
+sudo a2enmod headers
 sudo a2ensite snapolino.de
 sudo apachectl configtest
 sudo systemctl reload apache2
 ```
 
-Prueft der `configtest`, ob sich der neue vhost nicht mit einem
-bestehenden `*:443`-Default-vhost auf dem Pi in die Quere kommt (Apache
-waehlt sonst per SNI/ServerName den richtigen aus - bei Problemen die
-anderen vhost-Dateien auf doppelte `ServerName`-Eintraege pruefen).
+`snapolino.de` teilt sich Port 80 mit den anderen Seiten auf dem Pi
+(z.B. `derbzocker2.de`) - das ist normal und gewollt, Apache waehlt die
+richtige Seite anhand des `ServerName`/Host-Headers. `configtest` warnt
+nur, falls es doppelte `ServerName`-Eintraege zwischen den vhost-Dateien
+gibt.
 
 ## 8. Testen
 
@@ -181,6 +206,35 @@ curl -I https://snapolino.de/admin/login.php
 
 Sollte `200 OK` liefern. Danach im Browser `https://snapolino.de/admin/`
 oeffnen und mit dem in Schritt 3 angelegten Login einloggen.
+
+## 9. Updates einspielen (nach jedem Merge in main)
+
+Auf dem Pi im Projektverzeichnis:
+
+```bash
+cd /var/www/snapolino.de
+git pull origin main
+```
+
+`includes/config.php` und die Rahmen in `storage/frames/` sind in
+`.gitignore`, `git pull` fasst sie nicht an - eigene Zugangsdaten und
+hochgeladene Rahmen bleiben also erhalten.
+
+Danach je nach Art der Aenderung noch pruefen:
+- **Neue Spalten/Tabellen in `sql/schema.sql`**: werden durch `git pull`
+  NICHT automatisch in die laufende Datenbank uebernommen. Den Diff
+  anschauen (`git log -p -- backend/sql/schema.sql`) und die noetigen
+  `ALTER TABLE`/`CREATE TABLE`-Befehle von Hand in MariaDB ausfuehren.
+- **Neue Eintraege in `includes/config.php.example`**: die eigene
+  `includes/config.php` von Hand um die neuen Schluessel ergaenzen.
+- **Aenderungen an `backend/deploy/apache-snapolino.de.conf`**: werden
+  ebenfalls nicht automatisch uebernommen (ist nur eine Vorlage, keine
+  live genutzte Datei). Manuell mit der Datei unter
+  `/etc/apache2/sites-available/snapolino.de.conf` abgleichen und danach
+  `sudo apachectl configtest && sudo systemctl reload apache2`.
+
+Reine Aenderungen an `.php`-Dateien unter `backend/public/` wirken sofort,
+ohne dass Apache neu gestartet werden muss.
 
 ## Danach
 

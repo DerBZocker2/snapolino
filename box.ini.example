@@ -1,0 +1,30 @@
+; Box-Konfiguration. Diese Datei als "box.ini" (ohne .example) neben die
+; .exe legen. box.ini selbst gehoert NICHT ins Repository (siehe .gitignore).
+
+[cloud]
+; Zugangsdaten aus dem Panel unter "Layouts & Zugang" der jeweiligen Box
+; (siehe backend/README.md). Leer lassen, um Cloud-Sync komplett zu
+; deaktivieren - die Box laeuft dann nur mit dem eingebauten Standardlayout.
+box_key =
+api_key =
+base_url = https://snapolino.de
+
+[box]
+countdown_start = 6
+camera_index = 0
+cam_width = 1920
+cam_height = 1080
+
+output_dir = ausgabe
+log_file = fotobox.log
+cache_dir = cache
+
+print_enabled = true
+; leer = Windows-Standarddrucker verwenden
+printer_name =
+copy_to_usb = true
+
+fullscreen = true
+mirror_preview = true
+; 0 = auf Tastendruck warten, sonst Sekunden bis automatisch weiter
+result_seconds = 0
