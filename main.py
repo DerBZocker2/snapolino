@@ -414,9 +414,7 @@ class Fotobox(QWidget):
     def _start_worker(self):
         self.worker = OutputWorker()
         self.worker.job_done.connect(lambda n: self.hint.setText(""))
-        self.worker.job_failed.connect(
-            lambda e: self.hint.setText("Ausgabe-Fehler – siehe Protokoll")
-        )
+        self.worker.job_failed.connect(lambda e: self.hint.setText(f"Ausgabe-Fehler: {e}"))
         self.worker.start()
 
     # ---------- Status ----------

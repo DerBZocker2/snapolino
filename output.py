@@ -18,13 +18,28 @@ PHYSICALWIDTH, PHYSICALHEIGHT = 110, 111
 PHYSICALOFFSETX, PHYSICALOFFSETY = 112, 113
 
 
+def _printer_hint(printer_name):
+    """Kurzer Hinweistext fuers Protokoll/die Oberflaeche, wenn ein
+    Druckauftrag fehlschlaegt - printer_ready() ist zwar nicht ganz
+    zuverlaessig (siehe CLAUDE.md), liefert aber meistens einen brauchbaren
+    Hinweis, ob der Drucker ueberhaupt erreichbar ist."""
+    if hardware.printer_ready(printer_name):
+        return ""
+    return " (Drucker meldet 'nicht bereit' - eingeschaltet, USB verbunden, Papier/Farbband eingelegt?)"
+
+
 def print_image(pil_image, printer_name=None):
     """Druckt ein PIL-Bild seitenfuellend auf dem angegebenen Drucker."""
     if printer_name is None:
         printer_name = win32print.GetDefaultPrinter()
 
     hdc = win32ui.CreateDC()
-    hdc.CreatePrinterDC(printer_name)
+    try:
+        hdc.CreatePrinterDC(printer_name)
+    except win32ui.error as exc:
+        hdc.DeleteDC()
+        raise RuntimeError(f"Drucker '{printer_name}' nicht erreichbar{_printer_hint(printer_name)}: {exc}") from exc
+
     try:
         pw = hdc.GetDeviceCaps(PHYSICALWIDTH)
         ph = hdc.GetDeviceCaps(PHYSICALHEIGHT)
@@ -42,7 +57,10 @@ def print_image(pil_image, printer_name=None):
         x = (pw - w) // 2 - offx
         y = (ph - h) // 2 - offy
 
-        hdc.StartDoc("Fotobox")
+        try:
+            hdc.StartDoc("Fotobox")
+        except win32ui.error as exc:
+            raise RuntimeError(f"Drucken auf '{printer_name}' fehlgeschlagen{_printer_hint(printer_name)}: {exc}") from exc
         hdc.StartPage()
         ImageWin.Dib(img).draw(hdc.GetHandleOutput(), (x, y, x + w, y + h))
         hdc.EndPage()
