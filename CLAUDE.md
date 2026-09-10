@@ -24,8 +24,10 @@ Build mit PyInstaller `--onedir --windowed`.
 
 ## Ablauf
 WILLKOMMEN (einmalig beim Start, nur falls eine Buchung bekannt ist -
-"Hallo Name, danke fuer die Buchung") → BEREIT → (LAYOUTWAHL falls
->1 Layout) → LIVE → COUNTDOWN → AUFNAHME → EINZELANSICHT
+"Hallo Name, danke fuer die Buchung") → BEREIT (zeigt "Deine Rahmen" -
+alle verfuegbaren Formate direkt mit Vorschau, kein separater
+Start-Knopf mehr, Antippen eines Rahmens startet sofort) → LIVE →
+COUNTDOWN → AUFNAHME → EINZELANSICHT
 (Wiederholen/Weiter) → nächstes Bild oder GESAMTUEBERSICHT (alle Bilder;
 falls Extra "Einzelne Bilder drucken" gebucht ist, zusaetzlich ein Bild
 fuer Extra-Druck auswaehlbar, mit Extra "Mehrfachabzug" dazu die Anzahl

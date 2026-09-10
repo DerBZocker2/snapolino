@@ -93,19 +93,29 @@ def sync(timeout=5):
         log.warning("Cloud-Sync nicht erreichbar, nutze lokalen Stand: %s", exc)
         return
 
+    # Jedes Layout einzeln behandeln statt beim ersten Fehler alles zu
+    # verwerfen - sonst blockiert ein einzelner kaputter Rahmen-Download
+    # (z.B. kurzer Netzwerkaussetzer) auch neu zugeordnete Layouts, deren
+    # Rahmen problemlos heruntergeladen wurden.
+    layouts_ok = []
     for layout in data.get("layouts", []):
         frame_file = layout["frame_file"]
         local_path = os.path.join(FRAMES_DIR, frame_file)
         if os.path.exists(local_path):
-            continue  # Dateiname enthaelt Zufallsanteil, existierende Datei ist aktuell
+            layouts_ok.append(layout)  # Dateiname enthaelt Zufallsanteil, existierende Datei ist aktuell
+            continue
         try:
             with _fetch(layout["frame_url"], timeout) as resp:
                 _atomic_write_bytes(local_path, resp.read())
             log.info("Rahmen heruntergeladen: %s", frame_file)
+            layouts_ok.append(layout)
         except (urllib.error.URLError, OSError) as exc:
-            log.warning("Rahmen-Download fehlgeschlagen (%s): %s", frame_file, exc)
-            return  # unvollstaendiger Satz, lieber beim alten Stand bleiben
+            log.warning(
+                "Rahmen-Download fehlgeschlagen (%s), Layout wird uebersprungen: %s",
+                frame_file, exc,
+            )
 
+    data["layouts"] = layouts_ok
     _atomic_write_text(CONFIG_FILE, json.dumps(data, ensure_ascii=False, indent=2))
     _atomic_write_text(VERSION_FILE, str(data.get("config_version", local_version)))
     log.info("Cloud-Konfiguration aktualisiert auf Version %s", data.get("config_version"))

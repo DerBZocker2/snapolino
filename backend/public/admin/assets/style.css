@@ -158,6 +158,7 @@ h3 { font-size: 16px; margin: 0; color: var(--dark); }
     padding: 26px;
     margin-bottom: 24px;
     box-shadow: 0 2px 14px rgba(108, 92, 231, 0.06);
+    overflow-x: auto;
 }
 
 .cards {
@@ -295,19 +296,38 @@ button.danger {
     background: transparent;
     color: var(--danger);
     border: 1px solid var(--danger);
-    padding: 4px 10px;
-    font-size: 13px;
 }
 
 button.danger:hover { background: var(--danger-bg); box-shadow: none; opacity: 1; }
 
 td.actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
-td.actions form { display: inline; }
+td.actions form { display: inline-flex; }
+
+/* Reine Text-Links in Aktions-Zellen (Details, Bearbeiten, ...) wie
+   kleine Sekundaer-Buttons aussehen lassen statt als nackter Link -
+   einheitlicher mit den echten Buttons daneben. */
+td.actions > a {
+    background: #f2edfa;
+    color: var(--accent2-dark);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+td.actions > a:hover { background: #e7ddf7; }
+
+td.actions button, td.actions .button, td.actions .button-secondary {
+    padding: 8px 14px;
+    font-size: 13px;
+}
 
 .badge {
     background: #e9fbf7;
@@ -477,3 +497,17 @@ body.login-page {
 }
 
 .box-card-actions form { display: inline; }
+
+.box-card-actions > a {
+    background: #f2edfa;
+    color: var(--accent2-dark);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+.box-card-actions > a:hover { background: #e7ddf7; }
+
+.box-card-actions button.danger { padding: 8px 14px; font-size: 13px; }
