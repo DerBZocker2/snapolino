@@ -43,6 +43,15 @@ Programm beenden oder die aktuell zwischengespeicherten Buchungsinfos
 Standard sind 4 Bilder als Collage. Andere Layouts nur, wenn der Kunde sie
 zur Buchung dazugekauft hat.
 
+Schlaegt ein Druckauftrag fehl (Drucker aus, Papier/Farbband leer,
+Papierstau...), haengt sich der `OutputWorker` an einem Popup auf
+("Erneut versuchen"/"Diesen Druck überspringen") statt den Job stillschweigend
+zu verwerfen - nach dem Beheben und "Erneut versuchen" wird derselbe
+Ausdruck (aus dem Speicher, kein erneutes Foto noetig) einfach fortgesetzt.
+Die Meldung enthaelt nach Moeglichkeit einen konkreten Hinweis
+(`hardware.printer_status_message()`), ist aber je nach Treiber nicht
+immer praezise (siehe Offene Punkte).
+
 ## Architekturentscheidungen (bitte beibehalten)
 - **Offline-First.** Die Box muss ohne Internet voll funktionieren. Cloud-Sync
   passiert nur im Vorbereitungsmodus vor dem Versand, nie während eines Events.
@@ -141,7 +150,9 @@ kann sie nicht abfangen).
 - Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
-- `printer_ready()` erkennt Papierende noch nicht zuverlässig
+- `printer_status_message()`/`printer_ready()` erkennen Papier-/Farbbandende
+  nicht bei jedem Treiber zuverlässig (Windows-Statusflags, nicht alle
+  Fotodrucker setzen sie granular)
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
 - Online-Designer bietet nur Farbe/Muster/Text plus verschiebbare

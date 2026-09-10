@@ -415,7 +415,36 @@ class Fotobox(QWidget):
         self.worker = OutputWorker()
         self.worker.job_done.connect(lambda n: self.hint.setText(""))
         self.worker.job_failed.connect(lambda e: self.hint.setText(f"Ausgabe-Fehler: {e}"))
+        self.worker.print_trouble.connect(self._on_print_trouble)
         self.worker.start()
+
+    def _on_print_trouble(self, message):
+        """Popup bei einem Druckfehler (z.B. Papier/Farbband leer) - der
+        Worker-Thread wartet in _print_with_retry(), bis hier geantwortet
+        wird, damit nach dem Beheben (Papier nachlegen etc.) ohne
+        Datenverlust weitergedruckt werden kann."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Druckerproblem")
+        dialog.setStyleSheet("background: #222; color: #eee;")
+        layout = QVBoxLayout(dialog)
+
+        label = QLabel(message + "\n\nProblem beheben (z.B. Papier/Farbband nachlegen) und dann erneut versuchen.")
+        label.setWordWrap(True)
+        label.setStyleSheet("font-size: 18px;")
+        layout.addWidget(label)
+
+        btn_retry = QPushButton("Erneut versuchen")
+        btn_retry.setStyleSheet("font-size: 20px; background: #27ae60; color: white; padding: 16px;")
+        btn_retry.clicked.connect(dialog.accept)
+        layout.addWidget(btn_retry)
+
+        btn_skip = QPushButton("Diesen Druck überspringen")
+        btn_skip.setStyleSheet("font-size: 16px; padding: 12px;")
+        btn_skip.clicked.connect(dialog.reject)
+        layout.addWidget(btn_skip)
+
+        retry = dialog.exec() == QDialog.Accepted
+        self.worker.respond_print_trouble(retry)
 
     # ---------- Status ----------
 
