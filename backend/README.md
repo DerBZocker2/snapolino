@@ -175,21 +175,26 @@ Eine `reserviert`-Buchung, die **nicht** innerhalb von `RESERVATION_HOLD_DAYS`
 (`fetch_blocked_dates()` prueft das per Zeitfenster, kein Cron noetig).
 
 Im Panel unter **Buchungen**:
-- Bezahlte Buchungen sind durch den Webhook bereits `bestaetigt` (siehe
-  oben) - **Bestaetigen** taucht dort im Normalfall nur noch fuer
-  `angefragt`-Buchungen (schriftliches Angebot gewuenscht) auf und weist
-  eine Box zu (bei nur einer Box automatisch, sonst per Auswahl), traegt
-  alle gewuenschten Layouts in `box_layouts` dieser Box ein und erhoeht
-  ihre `config_version` - die Box muss also vor dem Versand einmal online
-  sein, um sie abzuholen. Dieselbe Logik (`assign_box_and_confirm()`) laeuft
-  fuer bezahlte Buchungen automatisch; nur wenn dabei 0 oder mehrere Boxen
-  existieren (keine eindeutige Zuordnung moeglich) bleibt `box_id` leer und
-  die Liste zeigt stattdessen "Box zuweisen" zum Nachtragen von Hand.
 - **Ablehnen**/**Stornieren** setzen den Status, eine stornierte oder
   abgelehnte Buchung blockiert den Kalender nicht mehr.
 - Die Liste zeigt den Gesamtpreis (leer, solange die Buchung noch bei
   `reserviert` haengt), das Detail zusaetzlich die gewaehlten Extras und ob
   ein schriftliches Angebot gewuenscht wurde.
+- Eine `angefragt`-Buchung wird nicht mehr hier bestaetigt, sondern unter
+  **Boxen** per Drag & Drop einer Box zugeordnet (siehe unten) - das
+  bestaetigt sie gleichzeitig.
+
+Im Panel unter **Boxen**: Buchungen, die noch keiner Box zugeordnet sind
+(`angefragt`, oder `bestaetigt` mit `box_id IS NULL`), erscheinen dort als
+Karten zum Ziehen; auf eine Box-Karte fallen gelassen ruft das per Fetch
+`assign_box.php` auf, das dieselbe `assign_box_and_confirm()` aufruft, die
+auch bei Zahlungseingang automatisch laeuft. Sie setzt die Buchung auf
+`bestaetigt`, traegt alle gewuenschten Layouts in `box_layouts` dieser Box
+ein und erhoeht deren `config_version` - die Box muss also vor dem Versand
+einmal online sein, um Kundendaten, Layouts und Extras (siehe api.php)
+abzuholen. Fuer bezahlte Buchungen laeuft dieselbe Zuordnung automatisch,
+wenn genau eine Box existiert; bei 0 oder mehreren Boxen bleibt `box_id`
+leer und die Buchung taucht ebenfalls als Karte zum Zuordnen auf.
 
 Serverseitig wird das Eventdatum beim Absenden nochmal gegen blockierte
 Tage geprueft (nicht nur im Kalender per JavaScript), damit das nicht per

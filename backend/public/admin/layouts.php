@@ -37,10 +37,10 @@ $layouts = db()->query('SELECT * FROM layouts WHERE is_custom = 0 ORDER BY is_de
                 <td><code><?= htmlspecialchars($layout['frame_file'], ENT_QUOTES) ?></code></td>
                 <td class="actions">
                     <a href="layout_form.php?id=<?= (int) $layout['id'] ?>">Bearbeiten</a>
-                    <form method="post" action="layout_delete.php" onsubmit="return confirm('Layout wirklich loeschen? Boxen, denen es zugeordnet ist, verlieren es sofort.');">
+                    <form method="post" action="layout_delete.php" onsubmit="return confirm('Layout wirklich löschen? Boxen, denen es zugeordnet ist, verlieren es sofort.');">
                         <?= csrf_field() ?>
                         <input type="hidden" name="id" value="<?= (int) $layout['id'] ?>">
-                        <button type="submit" class="danger">Loeschen</button>
+                        <button type="submit" class="danger">Löschen</button>
                     </form>
                 </td>
             </tr>

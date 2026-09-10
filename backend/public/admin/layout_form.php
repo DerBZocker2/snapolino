@@ -71,10 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resize'])) {
         $errors[] = 'Bitte einen Namen angeben.';
     }
     if ($canvasWidth <= 0 || $canvasHeight <= 0) {
-        $errors[] = 'Leinwandgroesse muss groesser als 0 sein.';
+        $errors[] = 'Leinwandgröße muss größer als 0 sein.';
     }
     if ($slotCount < 1 || $slotCount !== count($slotRows)) {
-        $errors[] = 'Anzahl Slots stimmt nicht mit den Koordinatenzeilen ueberein. Bitte "Anzahl aktualisieren" nutzen.';
+        $errors[] = 'Anzahl Slots stimmt nicht mit den Koordinatenzeilen überein. Bitte "Anzahl aktualisieren" nutzen.';
     }
     if (!is_numeric($surchargeEuro) || (float) $surchargeEuro < 0) {
         $errors[] = 'Aufpreis muss eine Zahl >= 0 sein.';
@@ -189,7 +189,7 @@ if (!$slotRows) {
             <label>Name
                 <input type="text" name="name" required value="<?= htmlspecialchars($name, ENT_QUOTES) ?>">
             </label>
-            <label>Kategorie (fuer die Galerie-Filter, z.B. "Hochzeit")
+            <label>Kategorie (für die Galerie-Filter, z.B. "Hochzeit")
                 <input type="text" name="category" value="<?= htmlspecialchars($category, ENT_QUOTES) ?>">
             </label>
         </div>
@@ -198,7 +198,7 @@ if (!$slotRows) {
             <label>Leinwandbreite (px)
                 <input type="number" name="canvas_width" min="1" required value="<?= $canvasWidth ?>">
             </label>
-            <label>Leinwandhoehe (px)
+            <label>Leinwandhöhe (px)
                 <input type="number" name="canvas_height" min="1" required value="<?= $canvasHeight ?>">
             </label>
             <label>Aufpreis (EUR)
@@ -239,7 +239,7 @@ if (!$slotRows) {
 
         <table id="slots-table">
             <thead>
-            <tr><th>#</th><th>x</th><th>y</th><th>Breite</th><th>Hoehe</th></tr>
+            <tr><th>#</th><th>x</th><th>y</th><th>Breite</th><th>Höhe</th></tr>
             </thead>
             <tbody>
             <?php foreach ($slotRows as $i => $row): ?>

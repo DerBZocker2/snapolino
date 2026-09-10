@@ -83,12 +83,13 @@ unverbindlich (`RESERVATION_HOLD_DAYS`, Status `reserviert`) und wird erst
 mit der Zusammenfassung zu `angefragt`. Der Kalender blockiert auf
 `angefragt`/`bestätigt` sowie frische `reserviert`-Eintraege, inkl.
 `BOOKING_BUFFER_DAYS` Tage Puffer vor/nach dem Event für Versand.
-Im Panel unter **Buchungen** ablehnen/stornieren, oder (nur im
-Ausnahmefall bei 0/mehreren Boxen noetig) manuell eine Box zuweisen -
-**Bestätigen** weist eine Box zu und überträgt die vom Kunden gewünschten
-Layouts nach `box_layouts` (erhöht `config_version`). Aktuell fest auf
-eine Box ausgelegt (kein Verfügbarkeits-Overbooking-Schutz über mehrere
-Boxen).
+Im Panel unter **Buchungen** ablehnen/stornieren. Eine Box zuordnen (und
+damit gleichzeitig bestätigen) passiert unter **Boxen** per Drag & Drop:
+Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe
+`assign_box_and_confirm()` auf, die auch nach Zahlungseingang automatisch
+läuft) - überträgt die vom Kunden gewünschten Layouts nach `box_layouts`
+und erhöht `config_version`. Aktuell fest auf eine Box ausgelegt (kein
+Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
 
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
 filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos), Online-Designer

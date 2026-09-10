@@ -64,6 +64,6 @@ function check_csrf(): void
     $token = $_POST['csrf_token'] ?? '';
     if (!is_string($token) || $token === '' || !hash_equals(csrf_token(), $token)) {
         http_response_code(400);
-        die('Ungueltiges Formular (CSRF-Token abgelaufen). Bitte Seite neu laden und erneut versuchen.');
+        die('Ungültiges Formular (CSRF-Token abgelaufen). Bitte Seite neu laden und erneut versuchen.');
     }
 }
