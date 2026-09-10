@@ -106,8 +106,13 @@ EXIT;
 ```
 
 ```bash
-mysql -u snapolino -p snapolino < /var/www/snapolino.de/backend/sql/schema.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < /var/www/snapolino.de/backend/sql/schema.sql
 ```
+
+Das `--default-character-set=utf8mb4` ist wichtig: ohne das verhandelt der
+mysql-Client oft eine schmalere Verbindungs-Kodierung und das Einfuegen der
+Emoji-Icons bei den Beispiel-Extras schlaegt mit "Incorrect string value"
+fehl - unabhaengig davon, dass die Tabelle selbst schon `utf8mb4` ist.
 
 ## 3. Konfiguration und Admin-Login
 
@@ -221,10 +226,18 @@ git pull origin main
 hochgeladene Rahmen bleiben also erhalten.
 
 Danach je nach Art der Aenderung noch pruefen:
-- **Neue Spalten/Tabellen in `sql/schema.sql`**: werden durch `git pull`
-  NICHT automatisch in die laufende Datenbank uebernommen. Den Diff
-  anschauen (`git log -p -- backend/sql/schema.sql`) und die noetigen
-  `ALTER TABLE`/`CREATE TABLE`-Befehle von Hand in MariaDB ausfuehren.
+- **Neue Datei unter `sql/migrations/`**: einspielen (siehe
+  `backend/README.md`, Abschnitt "Bestehende Installation aktualisieren") -
+  **immer mit `--default-character-set=utf8mb4`**, sonst schlaegt das
+  Einfuegen von Emoji-Icons mit "Incorrect string value" fehl:
+  ```bash
+  mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/000X_....sql
+  ```
+  Schlaegt eine Migration mittendrin fehl (z.B. genau dieser Fehler): die
+  Datei ist bewusst so geschrieben, dass bereits erfolgreich gelaufene
+  Anweisungen (ALTER/CREATE TABLE, `INSERT IGNORE`) beim erneuten
+  Ausfuehren nicht nochmal fehlschlagen - meist reicht es, nach dem Beheben
+  der Ursache dieselbe Datei einfach nochmal einzuspielen.
 - **Neue Eintraege in `includes/config.php.example`**: die eigene
   `includes/config.php` von Hand um die neuen Schluessel ergaenzen.
 - **Aenderungen an `backend/deploy/apache-snapolino.de.conf`**: werden

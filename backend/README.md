@@ -46,7 +46,7 @@ Cloudflare-DNS/TLS) siehe `deploy/RASPBERRY_PI.md`.
 1. Datenbank anlegen und Schema importieren:
    ```
    mysql -u root -p -e "CREATE DATABASE snapolino CHARACTER SET utf8mb4"
-   mysql -u root -p snapolino < sql/schema.sql
+   mysql --default-character-set=utf8mb4 -u root -p snapolino < sql/schema.sql
    ```
 2. `includes/config.php.example` nach `includes/config.php` kopieren und
    Zugangsdaten sowie `base_url` (die spaeter oeffentlich erreichbare
@@ -206,12 +206,16 @@ guenstig pruefen, ob ein neuer Abgleich noetig ist.
 ## Bestehende Installation aktualisieren
 
 Neue Tabellen kommen nicht automatisch per `git pull` in die laufende
-Datenbank (siehe `deploy/RASPBERRY_PI.md`). Der Reihe nach einspielen:
+Datenbank (siehe `deploy/RASPBERRY_PI.md`). Der Reihe nach einspielen -
+**immer mit `--default-character-set=utf8mb4`**, sonst schlaegt das
+Einfuegen der Emoji-Icons bei den Beispiel-Extras mit "Incorrect string
+value" fehl (der mysql-Client verhandelt sonst oft eine schmalere
+Verbindungs-Kodierung, unabhaengig vom Tabellen-Charset):
 
 ```bash
-mysql -u snapolino -p snapolino < backend/sql/migrations/0002_bookings.sql
-mysql -u snapolino -p snapolino < backend/sql/migrations/0003_extras_and_wizard.sql
-mysql -u snapolino -p snapolino < backend/sql/migrations/0004_preset_designs.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0002_bookings.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0003_extras_and_wizard.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0004_preset_designs.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
