@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/functions.php';
 
 start_session();
 
@@ -37,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Snapolino Panel &ndash; Anmeldung</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="<?= asset_url('assets/style.css', __DIR__ . '/assets/style.css') ?>">
 </head>
 <body class="login-page">
     <form class="login-box" method="post" action="login.php">

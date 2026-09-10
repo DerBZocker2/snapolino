@@ -31,7 +31,7 @@ function nav_class(array $pages, string $current): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?> &ndash; Snapolino Panel</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="<?= asset_url('assets/style.css', __DIR__ . '/assets/style.css') ?>">
 </head>
 <body>
 <div class="app">

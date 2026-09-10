@@ -8,6 +8,19 @@ function random_key(int $bytes = 20): string
     return bin2hex(random_bytes($bytes));
 }
 
+// Haengt einen Versions-Query-Parameter an eine Asset-URL (CSS/JS), der sich
+// bei jeder Aenderung der Datei automatisch mitaendert. Ohne das liefern
+// CDNs/Browser (z.B. Cloudflares Standard-Edge-Cache fuer .css/.js) nach
+// einem Deploy oft tagelang die alte Version aus, waehrend .php-Seiten
+// laengst aktuell sind - sichtbar an einem kaputt wirkenden Layout mit
+// neuer HTML-Struktur, aber altem Stylesheet.
+function asset_url(string $urlPath, string $fsPath): string
+{
+    $version = is_file($fsPath) ? (string) filemtime($fsPath) : '0';
+
+    return $urlPath . '?v=' . $version;
+}
+
 // Erhoeht die config_version einer einzelnen Box, z.B. nach Aenderung
 // der zugeordneten Layouts.
 function bump_box_version(int $boxId): void

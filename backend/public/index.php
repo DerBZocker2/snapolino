@@ -25,7 +25,7 @@ try {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?></title>
-    <link rel="stylesheet" href="assets/site.css">
+    <link rel="stylesheet" href="<?= asset_url('assets/site.css', __DIR__ . '/assets/site.css') ?>">
 </head>
 <body>
 <header class="site-header">
