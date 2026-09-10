@@ -23,9 +23,20 @@ Build mit PyInstaller `--onedir --windowed`.
 - `config.py` – Konstanten, liest `box.ini` (nicht im Repo)
 
 ## Ablauf
-BEREIT → (LAYOUTWAHL falls >1 Layout) → LIVE → COUNTDOWN → AUFNAHME
-→ EINZELANSICHT (Wiederholen/Weiter) → nächstes Bild oder COLLAGE
-→ Druckfrage mit grünem Knopf → speichern/drucken → BEREIT
+WILLKOMMEN (einmalig beim Start, nur falls eine Buchung bekannt ist -
+"Hallo Name, danke fuer die Buchung") → BEREIT → (LAYOUTWAHL falls
+>1 Layout) → LIVE → COUNTDOWN → AUFNAHME → EINZELANSICHT
+(Wiederholen/Weiter) → nächstes Bild oder GESAMTUEBERSICHT (alle Bilder;
+falls Extra "Einzelne Bilder drucken" gebucht ist, zusaetzlich ein Bild
+fuer Extra-Druck auswaehlbar, mit Extra "Mehrfachabzug" dazu die Anzahl
+der Abzuege bis zur gebuchten Menge) → COLLAGE → Druckfrage mit gruenem
+Knopf → speichern/drucken (Collage + ggf. Einzelbild-Extra-Druck) → BEREIT.
+
+Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
+(Ziffernblock statt Tastatur, PIN kommt per Cloud-Sync von der jeweiligen
+Box - Panel unter **Boxen → Layouts & Zugang**, leer = kein Schutz):
+Programm beenden oder die aktuell zwischengespeicherten Buchungsinfos
+(Kundenname, Eventdatum, gebuchte Extras) ansehen.
 
 Standard sind 4 Bilder als Collage. Andere Layouts nur, wenn der Kunde sie
 zur Buchung dazugekauft hat.
@@ -51,8 +62,11 @@ Boxen. Jede Box bekommt beim Anlegen automatisch das Standard-Layout
 (4er-Collage), zusätzliche Formate werden pro Box angehakt (Aufpreis wird
 im Panel angezeigt).
 - `api.php?box=<box_key>` mit Header `X-API-Key` → Konfigurations-JSON
-  (Layouts inkl. Slot-Koordinaten). Optional `?since=<config_version>` für
-  einen günstigen Preflight-Check (`304` wenn unverändert).
+  (Layouts inkl. Slot-Koordinaten, `admin_pin`, sowie `booking`/`extras` der
+  naechsten bestaetigten Buchung dieser Box, falls vorhanden - fuer den
+  Willkommens-Screen und Extra-Verhalten auf der Box). Optional
+  `?since=<config_version>` für einen günstigen Preflight-Check (`304`
+  wenn unverändert).
 - `frame.php?file=<name>.png` mit Header `X-API-Key` → Rahmen-Download,
   nur wenn die Box das Layout mit dieser Datei zugeordnet hat.
 - Jede Änderung an einer Box-Layout-Zuordnung oder an einem Layout selbst

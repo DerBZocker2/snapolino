@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS boxes (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     box_key         VARCHAR(64)  NOT NULL UNIQUE,
     api_key         VARCHAR(64)  NOT NULL UNIQUE,
+    admin_pin       VARCHAR(20)  NULL,
     name            VARCHAR(100) NOT NULL,
     note            TEXT NULL,
     config_version  INT UNSIGNED NOT NULL DEFAULT 1,

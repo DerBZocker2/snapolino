@@ -63,13 +63,13 @@ class OutputWorker(QThread):
         self.jobs = queue.Queue()
         self._running = True
 
-    def submit(self, pil_image, filename, do_print):
-        self.jobs.put((pil_image, filename, do_print))
+    def submit(self, pil_image, filename, do_print, copies=1):
+        self.jobs.put((pil_image, filename, do_print, copies))
 
     def run(self):
         while self._running:
             try:
-                image, filename, do_print = self.jobs.get(timeout=0.5)
+                image, filename, do_print, copies = self.jobs.get(timeout=0.5)
             except queue.Empty:
                 continue
 
@@ -98,7 +98,8 @@ class OutputWorker(QThread):
                         log.warning("Kein USB-Stick gefunden")
 
                 if do_print and config.PRINT_ENABLED:
-                    print_image(image, config.PRINTER_NAME)
+                    for _ in range(max(1, copies)):
+                        print_image(image, config.PRINTER_NAME)
 
                 self.job_done.emit(filename)
             except Exception as exc:

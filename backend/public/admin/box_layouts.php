@@ -17,26 +17,42 @@ if (!$box) {
     exit;
 }
 
+$error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
+    $formAction = (string) ($_POST['form_action'] ?? 'layouts');
 
-    $selected = array_map('intval', $_POST['layout_ids'] ?? []);
+    if ($formAction === 'admin_pin') {
+        $newPin = trim((string) ($_POST['admin_pin'] ?? ''));
+        if ($newPin !== '' && !ctype_digit($newPin)) {
+            $error = 'PIN darf nur aus Ziffern bestehen.';
+        } else {
+            db()->prepare('UPDATE boxes SET admin_pin = ? WHERE id = ?')
+                ->execute([$newPin !== '' ? $newPin : null, $boxId]);
+            bump_box_version($boxId);
+            header('Location: box_layouts.php?id=' . $boxId);
+            exit;
+        }
+    } else {
+        $selected = array_map('intval', $_POST['layout_ids'] ?? []);
 
-    db()->beginTransaction();
-    $del = db()->prepare('DELETE FROM box_layouts WHERE box_id = ?');
-    $del->execute([$boxId]);
+        db()->beginTransaction();
+        $del = db()->prepare('DELETE FROM box_layouts WHERE box_id = ?');
+        $del->execute([$boxId]);
 
-    $ins = db()->prepare(
-        'INSERT INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, ?)'
-    );
-    foreach (array_values($selected) as $order => $layoutId) {
-        $ins->execute([$boxId, $layoutId, $order]);
+        $ins = db()->prepare(
+            'INSERT INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, ?)'
+        );
+        foreach (array_values($selected) as $order => $layoutId) {
+            $ins->execute([$boxId, $layoutId, $order]);
+        }
+        bump_box_version($boxId);
+        db()->commit();
+
+        header('Location: box_layouts.php?id=' . $boxId);
+        exit;
     }
-    bump_box_version($boxId);
-    db()->commit();
-
-    header('Location: box_layouts.php?id=' . $boxId);
-    exit;
 }
 
 $layouts = db()->query('SELECT * FROM layouts ORDER BY is_default DESC, name')->fetchAll();
@@ -53,12 +69,30 @@ $box = $stmt->fetch();
 
 <section class="panel">
     <h2><?= htmlspecialchars($box['name'], ENT_QUOTES) ?></h2>
+    <?php if ($error !== ''): ?>
+        <p class="error"><?= htmlspecialchars($error, ENT_QUOTES) ?></p>
+    <?php endif; ?>
     <p>Diese Werte gehoeren in die <code>box.ini</code> auf der Box, bevor sie versendet wird:</p>
     <table class="key-table">
         <tr><th>box_key</th><td><code><?= htmlspecialchars($box['box_key'], ENT_QUOTES) ?></code></td></tr>
         <tr><th>api_key</th><td><code><?= htmlspecialchars($box['api_key'], ENT_QUOTES) ?></code></td></tr>
         <tr><th>Aktuelle Version</th><td><?= (int) $box['config_version'] ?></td></tr>
     </table>
+
+    <h3>Admin-PIN (auf der Box)</h3>
+    <p class="muted-text">Schuetzt das Admin-Menue direkt auf der Box (Programm beenden, Buchungsinfos
+        ansehen) - wird per Sync auf die Box uebertragen, gilt also erst nach dem naechsten
+        erfolgreichen Sync im Vorbereitungsmodus.</p>
+    <form method="post" action="box_layouts.php" class="inline-form">
+        <?= csrf_field() ?>
+        <input type="hidden" name="box_id" value="<?= (int) $box['id'] ?>">
+        <input type="hidden" name="form_action" value="admin_pin">
+        <label>PIN (nur Ziffern, leer = kein Schutz)
+            <input type="text" name="admin_pin" inputmode="numeric" pattern="[0-9]*"
+                value="<?= htmlspecialchars((string) $box['admin_pin'], ENT_QUOTES) ?>">
+        </label>
+        <button type="submit">PIN speichern</button>
+    </form>
 </section>
 
 <section class="panel">
