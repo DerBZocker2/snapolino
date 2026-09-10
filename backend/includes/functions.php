@@ -21,6 +21,42 @@ function asset_url(string $urlPath, string $fsPath): string
     return $urlPath . '?v=' . $version;
 }
 
+// Bestaetigt eine Buchung und weist ihr eine Box zu (bei genau einer Box
+// automatisch, sonst muss $boxId uebergeben werden). Ueberfuehrt die
+// gewuenschten Layouts nach box_layouts und erhoeht die config_version -
+// gemeinsam genutzt vom Admin-Panel (manuelles Bestaetigen) und dem
+// Stripe-Webhook (automatisches Bestaetigen nach Zahlung). Gibt false
+// zurueck, wenn keine eindeutige Box bestimmt werden konnte.
+function assign_box_and_confirm(int $bookingId, int $boxId = 0): bool
+{
+    if ($boxId <= 0) {
+        $boxes = db()->query('SELECT id FROM boxes ORDER BY name')->fetchAll();
+        if (count($boxes) !== 1) {
+            return false;
+        }
+        $boxId = (int) $boxes[0]['id'];
+    }
+
+    db()->beginTransaction();
+
+    db()->prepare("UPDATE bookings SET status = 'bestaetigt', box_id = ? WHERE id = ?")
+        ->execute([$boxId, $bookingId]);
+
+    $stmt = db()->prepare('SELECT layout_id FROM booking_layouts WHERE booking_id = ?');
+    $stmt->execute([$bookingId]);
+    $layoutIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $ins = db()->prepare('INSERT IGNORE INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
+    foreach ($layoutIds as $layoutId) {
+        $ins->execute([$boxId, (int) $layoutId]);
+    }
+
+    bump_box_version($boxId);
+    db()->commit();
+
+    return true;
+}
+
 // Erhoeht die config_version einer einzelnen Box, z.B. nach Aenderung
 // der zugeordneten Layouts.
 function bump_box_version(int $boxId): void
@@ -243,6 +279,45 @@ function delete_custom_layouts_for_booking(int $bookingId): void
     }
 }
 
+// Prueft vom Online-Designer eingesandte Slot-Positionen (nachdem der
+// Kunde die Fotoflaechen im Editor verschoben hat). Liefert normalisierte
+// Slots oder null, wenn die Daten nicht plausibel sind (z.B. manipuliert) -
+// der Aufrufer faellt dann auf die Basis-Layout-Slots zurueck.
+function validate_custom_slots(mixed $raw, int $canvasWidth, int $canvasHeight): ?array
+{
+    if (!is_string($raw) || $raw === '') {
+        return null;
+    }
+    $slots = json_decode($raw, true);
+    if (!is_array($slots) || !$slots) {
+        return null;
+    }
+
+    $result = [];
+    foreach ($slots as $slot) {
+        if (!is_array($slot)) {
+            return null;
+        }
+        foreach (['x', 'y', 'width', 'height'] as $field) {
+            if (!isset($slot[$field]) || !is_numeric($slot[$field])) {
+                return null;
+            }
+        }
+        $x = (int) round((float) $slot['x']);
+        $y = (int) round((float) $slot['y']);
+        $width = (int) round((float) $slot['width']);
+        $height = (int) round((float) $slot['height']);
+
+        if ($width <= 0 || $height <= 0 || $x < 0 || $y < 0 || $x + $width > $canvasWidth || $y + $height > $canvasHeight) {
+            return null;
+        }
+
+        $result[] = ['x' => $x, 'y' => $y, 'width' => $width, 'height' => $height];
+    }
+
+    return $result;
+}
+
 // Legt aus einer fertigen PNG-Datei (Upload oder vom Online-Designer
 // exportiert) ein neues Layout an, direkt einer Buchung zugeordnet. Ein
 // vorheriges eigenes Design derselben Buchung wird ersetzt statt
@@ -279,6 +354,28 @@ function save_custom_layout_for_booking(int $bookingId, string $sourcePath, arra
     db()->commit();
 
     return $layoutId;
+}
+
+// Fortlaufende Rechnungsnummer im Format "2026-0001", ein Zaehler pro Jahr.
+// Zeilenlock (SELECT ... FOR UPDATE) statt PDO::lastInsertId(), weil
+// invoice_counters keine AUTO_INCREMENT-Spalte hat - lastInsertId() koennte
+// sonst einen veralteten Wert von einer ganz anderen, frueher im selben
+// Request gelaufenen Query liefern. Darf nicht innerhalb einer bereits
+// offenen Transaktion aufgerufen werden.
+function next_invoice_number(): string
+{
+    $year = (int) date('Y');
+    $pdo = db();
+
+    $pdo->beginTransaction();
+    $pdo->prepare('INSERT IGNORE INTO invoice_counters (year, next_number) VALUES (?, 1)')->execute([$year]);
+    $stmt = $pdo->prepare('SELECT next_number FROM invoice_counters WHERE year = ? FOR UPDATE');
+    $stmt->execute([$year]);
+    $number = (int) $stmt->fetchColumn();
+    $pdo->prepare('UPDATE invoice_counters SET next_number = next_number + 1 WHERE year = ?')->execute([$year]);
+    $pdo->commit();
+
+    return $year . '-' . str_pad((string) $number, 4, '0', STR_PAD_LEFT);
 }
 
 // ---------- Buchungen ----------
@@ -392,6 +489,25 @@ function fetch_all_extras(): array
     return db()->query('SELECT * FROM extras ORDER BY sort_order, name')->fetchAll();
 }
 
+function booking_layout_ids(int $bookingId): array
+{
+    $stmt = db()->prepare('SELECT layout_id FROM booking_layouts WHERE booking_id = ?');
+    $stmt->execute([$bookingId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+// [extra_id => quantity]
+function booking_extra_selections(int $bookingId): array
+{
+    $stmt = db()->prepare('SELECT extra_id, quantity FROM booking_extras WHERE booking_id = ?');
+    $stmt->execute([$bookingId]);
+    $result = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $result[(int) $row['extra_id']] = (int) $row['quantity'];
+    }
+    return $result;
+}
+
 // Gesamtpreis: Basispreis + Aufpreis der gewuenschten Layouts + gewaehlte
 // Extras (Menge * Preis, Extra-Preise duerfen negativ sein). Wird beim
 // finalen Absenden serverseitig neu berechnet, nie der Client-Wert
@@ -417,4 +533,88 @@ function calc_booking_total(array $layoutIds, array $extraSelections): int
     }
 
     return max(0, $total);
+}
+
+// Itemisierte Positionen einer Buchung (Basispreis, Layout-Aufpreise,
+// Extras) - Grundlage sowohl fuer die Rechnung als auch fuer die
+// Stripe-Checkout-Zeilen. Preise koennen negativ sein (Rabatt-Extras).
+function booking_invoice_items(int $bookingId): array
+{
+    $items = [[
+        'name' => base_price_label() ?: 'Fotobox-Miete',
+        'unit_amount_cents' => base_price_cents(),
+        'quantity' => 1,
+    ]];
+
+    $layoutIds = booking_layout_ids($bookingId);
+    if ($layoutIds) {
+        $placeholders = implode(',', array_fill(0, count($layoutIds), '?'));
+        $stmt = db()->prepare("SELECT name, surcharge_cents FROM layouts WHERE id IN ($placeholders) AND surcharge_cents <> 0");
+        $stmt->execute(array_map('intval', $layoutIds));
+        foreach ($stmt->fetchAll() as $row) {
+            $items[] = [
+                'name' => 'Zusatzformat: ' . $row['name'],
+                'unit_amount_cents' => (int) $row['surcharge_cents'],
+                'quantity' => 1,
+            ];
+        }
+    }
+
+    $extraSelections = booking_extra_selections($bookingId);
+    if ($extraSelections) {
+        $placeholders = implode(',', array_fill(0, count($extraSelections), '?'));
+        $stmt = db()->prepare("SELECT id, name, price_cents FROM extras WHERE id IN ($placeholders)");
+        $stmt->execute(array_map('intval', array_keys($extraSelections)));
+        foreach ($stmt->fetchAll() as $row) {
+            $items[] = [
+                'name' => $row['name'],
+                'unit_amount_cents' => (int) $row['price_cents'],
+                'quantity' => max(1, $extraSelections[(int) $row['id']]),
+            ];
+        }
+    }
+
+    return $items;
+}
+
+// Stripe erlaubt keine negativen Line-Item-Betraege (z.B. beim
+// Rabatt-Extra "Ohne Druck"). Positive Posten bleiben erhalten, ein
+// eventueller Rabatt wird vom groessten Posten abgezogen (der dabei auf
+// Menge 1 kollabiert, um Rundung zu vermeiden) - die Summe entspricht
+// danach exakt calc_booking_total().
+function booking_stripe_line_items(int $bookingId): array
+{
+    $items = booking_invoice_items($bookingId);
+    $positive = [];
+    $discount = 0;
+    foreach ($items as $item) {
+        $lineTotal = $item['unit_amount_cents'] * $item['quantity'];
+        if ($lineTotal >= 0) {
+            $positive[] = $item;
+        } else {
+            $discount += -$lineTotal;
+        }
+    }
+
+    if ($discount > 0 && $positive) {
+        usort($positive, static fn (array $a, array $b) =>
+            ($b['unit_amount_cents'] * $b['quantity']) <=> ($a['unit_amount_cents'] * $a['quantity']));
+        foreach ($positive as &$item) {
+            if ($discount <= 0) {
+                break;
+            }
+            $lineTotal = $item['unit_amount_cents'] * $item['quantity'];
+            $reduceBy = min($discount, $lineTotal);
+            $item['unit_amount_cents'] = $lineTotal - $reduceBy;
+            $item['quantity'] = 1;
+            $discount -= $reduceBy;
+        }
+        unset($item);
+    }
+
+    return array_values(array_map(static fn (array $i) => [
+        'name' => $i['name'],
+        'amount_cents' => max(0, $i['unit_amount_cents']),
+        'quantity' => $i['quantity'],
+    ], array_filter($positive, static fn (array $i) => $i['unit_amount_cents'] > 0)));
 }

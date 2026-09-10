@@ -69,18 +69,37 @@ unverbindlich (`RESERVATION_HOLD_DAYS`, Status `reserviert`) und wird erst
 mit der Zusammenfassung zu `angefragt`. Der Kalender blockiert auf
 `angefragt`/`bestätigt` sowie frische `reserviert`-Eintraege, inkl.
 `BOOKING_BUFFER_DAYS` Tage Puffer vor/nach dem Event für Versand.
-Im Panel unter **Buchungen** bestätigen/ablehnen/stornieren - Bestätigen
-weist eine Box zu und überträgt die vom Kunden gewünschten Layouts nach
-`box_layouts` (erhöht `config_version`). Aktuell fest auf eine Box
-ausgelegt (kein Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
+Im Panel unter **Buchungen** ablehnen/stornieren, oder (nur im
+Ausnahmefall bei 0/mehreren Boxen noetig) manuell eine Box zuweisen -
+**Bestätigen** weist eine Box zu und überträgt die vom Kunden gewünschten
+Layouts nach `box_layouts` (erhöht `config_version`). Aktuell fest auf
+eine Box ausgelegt (kein Verfügbarkeits-Overbooking-Schutz über mehrere
+Boxen).
 
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
-filterbar), Online-Designer (Canvas-Editor für Farbe/Muster/Text, auch um
-eine Vorlage per "Anpassen" umzufärben) oder eigenes PNG mit transparenten
-Fotoflächen hochladen (Server erkennt die Flächen automatisch per
-Connected-Component-Analyse). Beide Wege legen ein `is_custom=1`-Layout an,
-das nur dieser einen Buchung zugeordnet ist und weder in der öffentlichen
-Galerie noch im allgemeinen Panel bei anderen Kunden auftaucht.
+filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos), Online-Designer
+(Canvas-Editor für Farbe/Muster/Text mit per Maus verschiebbaren
+Fotoflächen, auch um eine Vorlage per "Anpassen" umzugestalten) oder
+eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
+Flächen automatisch per Connected-Component-Analyse). Alle drei Wege legen
+bei einer Aenderung ein `is_custom=1`-Layout an, das nur dieser einen
+Buchung zugeordnet ist und weder in der öffentlichen Galerie noch im
+allgemeinen Panel bei anderen Kunden auftaucht. Admin legt neue
+Layout-Vorlagen (auch mit anderer Fotoanzahl) im Panel per Drag-Editor an
+(`layout_form.php`) statt Pixel-Koordinaten von Hand einzutippen.
+
+Schritt 5 (Zusammenfassung): Kunde zahlt direkt per Stripe Checkout (Kreditkarte,
+Klarna etc. - keine Kartendaten beruehren den eigenen Server) statt nur
+eine Anfrage abzuschicken. Erst der Stripe-**Webhook**
+(`stripe_webhook.php`, signaturgeprueft) bestaetigt die Buchung endgueltig
+und loest Rechnung + Bestaetigungsmail aus - der Redirect zurueck zur Seite
+ist nur fuers UI, niemals die Quelle der Wahrheit fuer "bezahlt". Wer noch
+unsicher ist, kann stattdessen die Checkbox "nur ein schriftliches
+Angebot" waehlen (dann wie bisher `status = angefragt`, keine Zahlung).
+Rechnungen: fortlaufende Nummer (`invoice_counters`, ein Zaehler pro Jahr),
+PDF per FPDF, Versand per SMTP (PHPMailer) - beide Bibliotheken ohne
+Composer eingebunden (`backend/includes/lib/`), Rechnungsdaten
+(Name/Adresse/§19-Hinweis) im Panel unter **Einstellungen** pflegbar.
 
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
@@ -95,13 +114,18 @@ u.a. die Windows-Taste per Registry-Scancode-Map deaktivieren (Qt selbst
 kann sie nicht abfangen).
 
 ## Offene Punkte
-- Visueller Slot-Editor im Panel (aktuell Koordinaten per Hand)
 - Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
 - `printer_ready()` erkennt Papierende noch nicht zuverlässig
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
-- E-Mail-Benachrichtigung bei neuer/bestätigter Buchung (bisher nur im Panel sichtbar)
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
-- Online-Designer bietet nur Farbe/Muster/Text, kein Logo-Upload oder
-  freie Platzierung von Elementen
+- Online-Designer bietet nur Farbe/Muster/Text plus verschiebbare
+  Fotoflächen, kein Logo-Upload oder frei platzierbare Textelemente
+- Stripe-Webhook-Verarbeitung ist synchron (PDF-Erzeugung + Mailversand
+  laufen direkt in der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das
+  die Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern
+  (die Buchung ist trotzdem bestaetigt, nur die Mail fehlt und muesste
+  manuell nachverschickt werden)
+- Keine Rechnungskorrektur/Stornorechnung bei nachtraeglicher Stornierung
+  einer bereits bezahlten Buchung

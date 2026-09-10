@@ -10,4 +10,21 @@ return [
     'db_pass'     => 'bitte_aendern',
     'storage_dir' => __DIR__ . '/../storage/frames',
     'base_url'    => 'https://snapolino.de',
+
+    // Stripe (https://dashboard.stripe.com/apikeys und .../webhooks).
+    // Ohne diese drei Werte funktioniert "Jetzt bezahlen" nicht - der
+    // Assistent zeigt dann eine Fehlermeldung statt zur Kasse zu leiten.
+    'stripe_secret_key'    => '',
+    'stripe_webhook_secret' => '',
+
+    // SMTP-Zugang des eigenen Postfachs (z.B. bei mc-host24.de), fuer
+    // Bestaetigungs-/Rechnungsmails. Ohne diese Werte wird die Buchung nach
+    // erfolgreicher Zahlung trotzdem bestaetigt, nur der Mailversand
+    // schlaegt fehl (steht dann im Panel bei der Buchung als Hinweis).
+    'smtp_host'       => '',
+    'smtp_port'       => 587,
+    'smtp_user'       => '',
+    'smtp_pass'       => '',
+    'smtp_from_email' => 'info@snapolino.de',
+    'smtp_from_name'  => 'Snapolino',
 ];

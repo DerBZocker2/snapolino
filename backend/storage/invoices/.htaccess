@@ -1,0 +1,7 @@
+# Rechnungs-PDFs (personenbezogene Daten!) liegen ausserhalb des Webroots
+# (backend/public), diese Datei ist eine zusaetzliche Absicherung falls das
+# Verzeichnis doch einmal direkt erreichbar gemacht wird: keinerlei
+# Skriptausfuehrung, kein Directory-Listing, kein Ausliefern von PDFs.
+php_flag engine off
+AddType text/plain .php .php3 .php4 .php5 .phtml .pdf
+Options -Indexes -ExecCGI

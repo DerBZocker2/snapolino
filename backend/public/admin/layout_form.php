@@ -49,7 +49,21 @@ if (is_array($postedSlots)) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resize'])) {
     check_csrf();
     $slotCount = max(1, min(20, $slotCount));
-    $slotRows = array_pad(array_slice($slotRows, 0, $slotCount), $slotCount, ['x' => 0, 'y' => 0, 'width' => 0, 'height' => 0]);
+    $slotRows = array_slice($slotRows, 0, $slotCount);
+    // Neue Zeilen bekommen eine sichtbare Startgroesse/-position statt 0x0,
+    // damit man sie im visuellen Editor sofort sehen und verschieben kann.
+    $defaultW = max(50, intdiv($canvasWidth, 3));
+    $defaultH = max(50, intdiv($canvasHeight, 3));
+    while (count($slotRows) < $slotCount) {
+        $i = count($slotRows);
+        $offset = ($i % 5) * 30;
+        $slotRows[] = [
+            'x' => min(max(0, $canvasWidth - $defaultW), $offset),
+            'y' => min(max(0, $canvasHeight - $defaultH), $offset),
+            'width' => $defaultW,
+            'height' => $defaultH,
+        ];
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     check_csrf();
 
@@ -205,14 +219,22 @@ if (!$slotRows) {
         <?php endif; ?>
 
         <h2>Foto-Slots</h2>
-        <p>Koordinaten in Pixeln, bezogen auf die Leinwandgroesse oben. Kein
-            visueller Editor &ndash; bitte anhand der Rahmen-PNG von Hand eintragen.</p>
+        <p>Fotoflächen direkt auf dem Rahmen per Maus verschieben und an der
+            Ecke unten rechts in der Größe ziehen - die Zahlen unten aktualisieren
+            sich automatisch mit (und lassen sich für die exakte Positionierung
+            auch direkt eintippen).</p>
 
         <div class="inline-form">
             <label>Anzahl Slots
                 <input type="number" name="slot_count" id="slot_count" min="1" max="20" value="<?= count($slotRows) ?>">
             </label>
             <button type="submit" name="resize" value="1" formnovalidate>Anzahl aktualisieren</button>
+        </div>
+
+        <div id="slot-editor-wrap" style="margin:16px 0;">
+            <div id="slot-editor" style="position:relative;width:100%;max-width:700px;background:repeating-conic-gradient(#f0edf9 0% 25%, #ffffff 0% 50%) 0 0/20px 20px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+                <img id="slot-editor-bg" alt="" style="display:block;width:100%;height:auto;">
+            </div>
         </div>
 
         <table id="slots-table">
@@ -223,10 +245,10 @@ if (!$slotRows) {
             <?php foreach ($slotRows as $i => $row): ?>
                 <tr>
                     <td><?= $i ?></td>
-                    <td><input type="number" name="slots[<?= $i ?>][x]" value="<?= (int) $row['x'] ?>"></td>
-                    <td><input type="number" name="slots[<?= $i ?>][y]" value="<?= (int) $row['y'] ?>"></td>
-                    <td><input type="number" name="slots[<?= $i ?>][width]" value="<?= (int) $row['width'] ?>"></td>
-                    <td><input type="number" name="slots[<?= $i ?>][height]" value="<?= (int) $row['height'] ?>"></td>
+                    <td><input type="number" class="slot-input" data-slot="<?= $i ?>" data-field="x" name="slots[<?= $i ?>][x]" value="<?= (int) $row['x'] ?>"></td>
+                    <td><input type="number" class="slot-input" data-slot="<?= $i ?>" data-field="y" name="slots[<?= $i ?>][y]" value="<?= (int) $row['y'] ?>"></td>
+                    <td><input type="number" class="slot-input" data-slot="<?= $i ?>" data-field="width" name="slots[<?= $i ?>][width]" value="<?= (int) $row['width'] ?>"></td>
+                    <td><input type="number" class="slot-input" data-slot="<?= $i ?>" data-field="height" name="slots[<?= $i ?>][height]" value="<?= (int) $row['height'] ?>"></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -236,5 +258,137 @@ if (!$slotRows) {
         <a href="layouts.php" class="button-secondary">Abbrechen</a>
     </form>
 </section>
+
+<script>
+(function () {
+    var wrap = document.getElementById('slot-editor');
+    var bgImg = document.getElementById('slot-editor-bg');
+    var canvasWInput = document.querySelector('input[name="canvas_width"]');
+    var canvasHInput = document.querySelector('input[name="canvas_height"]');
+    var fileInput = document.querySelector('input[name="frame"]');
+    var slotCount = <?= (int) count($slotRows) ?>;
+    var layoutId = <?= $layoutId > 0 ? (int) $layoutId : 'null' ?>;
+    var boxes = [];
+
+    function canvasW() { return Math.max(1, parseInt(canvasWInput.value, 10) || 1800); }
+    function canvasH() { return Math.max(1, parseInt(canvasHInput.value, 10) || 1200); }
+    function scale() { return wrap.clientWidth / canvasW(); }
+
+    function getInput(i, field) {
+        return document.querySelector('.slot-input[data-slot="' + i + '"][data-field="' + field + '"]');
+    }
+
+    function layoutBoxes() {
+        var s = scale();
+        boxes.forEach(function (b) {
+            var i = b.index;
+            b.el.style.left = (parseInt(getInput(i, 'x').value, 10) || 0) * s + 'px';
+            b.el.style.top = (parseInt(getInput(i, 'y').value, 10) || 0) * s + 'px';
+            b.el.style.width = (parseInt(getInput(i, 'width').value, 10) || 0) * s + 'px';
+            b.el.style.height = (parseInt(getInput(i, 'height').value, 10) || 0) * s + 'px';
+        });
+    }
+
+    function buildBoxes() {
+        boxes.forEach(function (b) { b.el.remove(); });
+        boxes = [];
+        var colors = ['255,111,89', '108,92,231', '23,195,178', '255,196,61', '255,92,141'];
+        for (var i = 0; i < slotCount; i++) {
+            if (!getInput(i, 'x')) continue;
+            var color = colors[i % colors.length];
+            var el = document.createElement('div');
+            el.className = 'slot-box';
+            el.style.cssText = 'position:absolute;border:2px solid rgba(' + color + ',0.9);background:rgba(' + color + ',0.18);cursor:move;box-sizing:border-box;';
+            var label = document.createElement('span');
+            label.textContent = (i + 1);
+            label.style.cssText = 'position:absolute;top:2px;left:4px;font:bold 12px sans-serif;color:rgba(' + color + ',1);';
+            el.appendChild(label);
+            var handle = document.createElement('div');
+            handle.className = 'slot-resize-handle';
+            handle.style.cssText = 'position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;background:rgba(' + color + ',1);border:2px solid #fff;border-radius:50%;cursor:nwse-resize;';
+            el.appendChild(handle);
+            wrap.appendChild(el);
+            boxes.push({ index: i, el: el, handle: handle });
+            attachDrag(boxes[boxes.length - 1]);
+        }
+        layoutBoxes();
+    }
+
+    function attachDrag(box) {
+        var i = box.index;
+        box.el.addEventListener('mousedown', function (ev) {
+            if (ev.target === box.handle) return;
+            ev.preventDefault();
+            var s = scale();
+            var startX = ev.clientX, startY = ev.clientY;
+            var origX = parseInt(getInput(i, 'x').value, 10) || 0;
+            var origY = parseInt(getInput(i, 'y').value, 10) || 0;
+            function onMove(e) {
+                var dx = (e.clientX - startX) / s, dy = (e.clientY - startY) / s;
+                var w = parseInt(getInput(i, 'width').value, 10) || 0;
+                var h = parseInt(getInput(i, 'height').value, 10) || 0;
+                var nx = Math.max(0, Math.min(canvasW() - w, origX + dx));
+                var ny = Math.max(0, Math.min(canvasH() - h, origY + dy));
+                getInput(i, 'x').value = Math.round(nx);
+                getInput(i, 'y').value = Math.round(ny);
+                layoutBoxes();
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+
+        box.handle.addEventListener('mousedown', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            var s = scale();
+            var startX = ev.clientX, startY = ev.clientY;
+            var origW = parseInt(getInput(i, 'width').value, 10) || 0;
+            var origH = parseInt(getInput(i, 'height').value, 10) || 0;
+            var x = parseInt(getInput(i, 'x').value, 10) || 0;
+            var y = parseInt(getInput(i, 'y').value, 10) || 0;
+            function onMove(e) {
+                var dw = (e.clientX - startX) / s, dh = (e.clientY - startY) / s;
+                var nw = Math.max(10, Math.min(canvasW() - x, origW + dw));
+                var nh = Math.max(10, Math.min(canvasH() - y, origH + dh));
+                getInput(i, 'width').value = Math.round(nw);
+                getInput(i, 'height').value = Math.round(nh);
+                layoutBoxes();
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    document.querySelectorAll('.slot-input').forEach(function (input) {
+        input.addEventListener('input', layoutBoxes);
+    });
+    window.addEventListener('resize', layoutBoxes);
+
+    bgImg.addEventListener('load', layoutBoxes);
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files && fileInput.files[0]) {
+                bgImg.src = URL.createObjectURL(fileInput.files[0]);
+            }
+        });
+    }
+    if (layoutId) {
+        bgImg.src = '../layout_preview.php?id=' + layoutId + '&t=' + Date.now();
+    } else {
+        // Kein Bild vorhanden: feste Hoehe passend zum Seitenverhaeltnis reservieren.
+        bgImg.style.aspectRatio = canvasW() + ' / ' + canvasH();
+    }
+
+    buildBoxes();
+})();
+</script>
 
 <?php require __DIR__ . '/_footer.php'; ?>

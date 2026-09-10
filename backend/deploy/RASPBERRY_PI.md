@@ -123,7 +123,12 @@ nano includes/config.php   # db_user/db_pass/base_url eintragen
 ```
 
 `base_url` muss `https://snapolino.de` sein (wird fuer `frame_url` in der
-API-Antwort verwendet).
+API-Antwort sowie fuer die Stripe-Redirect-URLs verwendet). Stripe- und
+SMTP-Zugangsdaten fuer Online-Zahlung und Bestaetigungsmails ebenfalls
+hier eintragen - siehe `backend/README.md`, Abschnitt "Zahlung (Stripe)
+und Rechnungen einrichten", inkl. der Rechnungsdaten (Name/Adresse/
+Steuerhinweis), die danach im Panel unter **Einstellungen** ausgefuellt
+werden.
 
 ```bash
 php bin/create_admin.php mein_benutzername "sicheres passwort"
@@ -131,11 +136,13 @@ php bin/create_admin.php mein_benutzername "sicheres passwort"
 
 ## 4. Rechte setzen
 
-Apache (`www-data`) muss `storage/frames/` beschreiben koennen:
+Apache (`www-data`) muss `storage/frames/` (Rahmen-Uploads) und
+`storage/invoices/` (erzeugte Rechnungs-PDFs) beschreiben koennen:
 
 ```bash
 sudo chown -R www-data:www-data /var/www/snapolino.de/backend/storage
 sudo chmod 750 /var/www/snapolino.de/backend/storage/frames
+sudo chmod 750 /var/www/snapolino.de/backend/storage/invoices
 ```
 
 `includes/config.php` sollte nicht world-readable sein:
@@ -218,12 +225,23 @@ Auf dem Pi im Projektverzeichnis:
 
 ```bash
 cd /var/www/snapolino.de
+sudo chown -R $USER:$USER backend/storage/frames   # nur noetig, wenn neue preset_*.png im Diff sind
 git pull origin main
+sudo chown -R www-data:www-data backend/storage/frames
+sudo chmod 750 backend/storage/frames
 ```
 
-`includes/config.php` und die Rahmen in `storage/frames/` sind in
-`.gitignore`, `git pull` fasst sie nicht an - eigene Zugangsdaten und
-hochgeladene Rahmen bleiben also erhalten.
+`git pull` laeuft als eigener Login-User, nicht als `www-data` - neue
+mitgelieferte Preset-Dateien (`preset_*.png`) lassen sich also nicht in
+das laut Schritt 4 `www-data`-eigene, `750`-geschuetzte `storage/frames/`
+schreiben, wenn man das nicht kurz vorher lockert und danach wieder
+zuruecksetzt. Ohne neue Presets im Diff (`git log -p --stat -- backend/storage/frames`
+zeigt es) kann dieser Schritt entfallen.
+
+`includes/config.php` und eigene Uploads/Kundendesigns in `storage/frames/`
+sowie `storage/invoices/` sind in `.gitignore`, `git pull` fasst sie nicht
+an - eigene Zugangsdaten, hochgeladene Rahmen und Rechnungen bleiben also
+erhalten.
 
 Danach je nach Art der Aenderung noch pruefen:
 - **Neue Datei unter `sql/migrations/`**: einspielen (siehe

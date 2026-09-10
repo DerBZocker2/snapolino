@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/stripe.php';
 
 // Muss vor jeder Ausgabe passieren: csrf_field()/check_csrf() greifen auf die
 // Session zu, und auf laengeren Seiten (z.B. Schritt 5 mit Zusammenfassung)
@@ -26,24 +27,6 @@ function fetch_booking_by_token(string $token): ?array
     $stmt->execute([$token]);
     $booking = $stmt->fetch();
     return $booking ?: null;
-}
-
-function booking_layout_ids(int $bookingId): array
-{
-    $stmt = db()->prepare('SELECT layout_id FROM booking_layouts WHERE booking_id = ?');
-    $stmt->execute([$bookingId]);
-    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-}
-
-function booking_extra_selections(int $bookingId): array
-{
-    $stmt = db()->prepare('SELECT extra_id, quantity FROM booking_extras WHERE booking_id = ?');
-    $stmt->execute([$bookingId]);
-    $result = [];
-    foreach ($stmt->fetchAll() as $row) {
-        $result[(int) $row['extra_id']] = (int) $row['quantity'];
-    }
-    return $result;
 }
 
 function stepper_html(int $current): string
@@ -166,8 +149,14 @@ if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$info || $info[2] !== IMAGETYPE_PNG) {
                 $errors[] = 'Design konnte nicht gespeichert werden. Bitte erneut versuchen.';
             } else {
+                $slots = validate_custom_slots(
+                    $_POST['custom_slots'] ?? null,
+                    (int) $baseLayout['canvas_width'],
+                    (int) $baseLayout['canvas_height']
+                ) ?? $baseLayout['slots'];
+
                 save_custom_layout_for_booking(
-                    (int) $booking['id'], $tmpPath, $baseLayout['slots'],
+                    (int) $booking['id'], $tmpPath, $slots,
                     (int) $baseLayout['canvas_width'], (int) $baseLayout['canvas_height'],
                     'Eigenes Design (Online-Designer)'
                 );
@@ -238,8 +227,8 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $total = calc_booking_total($layoutIds, $extraSelections);
 
         $stmt = db()->prepare(
-            "UPDATE bookings SET customer_phone = ?, customer_address = ?, message = ?,
-             total_price_cents = ?, wants_quote = ?, status = 'angefragt' WHERE id = ?"
+            'UPDATE bookings SET customer_phone = ?, customer_address = ?, message = ?,
+             total_price_cents = ?, wants_quote = ? WHERE id = ?'
         );
         $stmt->execute([
             $phone !== '' ? $phone : null,
@@ -250,8 +239,27 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $booking['id'],
         ]);
 
-        header('Location: buchen.php?danke=1');
-        exit;
+        if ($wantsQuote) {
+            // Wer erst ein schriftliches Angebot moechte, zahlt nicht sofort -
+            // normale Anfrage, Admin bearbeitet sie im Panel wie bisher.
+            db()->prepare("UPDATE bookings SET status = 'angefragt' WHERE id = ?")->execute([$booking['id']]);
+            header('Location: buchen.php?danke=1');
+            exit;
+        }
+
+        $baseUrl = rtrim((string) backend_config()['base_url'], '/');
+        $successUrl = $baseUrl . '/buchen.php?danke=1&paid=1';
+        $cancelUrl = $baseUrl . '/buchen.php?step=5&token=' . urlencode($token);
+
+        $session = create_stripe_checkout_session($booking, booking_stripe_line_items((int) $booking['id']), $successUrl, $cancelUrl);
+
+        if (!$session || empty($session['url'])) {
+            $errors[] = 'Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es gleich nochmal oder schreib uns kurz.';
+        } else {
+            db()->prepare('UPDATE bookings SET stripe_session_id = ? WHERE id = ?')->execute([$session['id'], $booking['id']]);
+            header('Location: ' . $session['url']);
+            exit;
+        }
     }
 }
 
@@ -288,8 +296,13 @@ if ($booking) {
     <?php if ($success): ?>
         <h2>Fotobox buchen</h2>
         <div class="panel-box success-box">
-            <h3>Danke für deine Anfrage!</h3>
-            <p>Wir prüfen die Verfügbarkeit und melden uns zeitnah per E-Mail bei dir.</p>
+            <?php if (isset($_GET['paid'])): ?>
+                <h3>Danke für deine Zahlung!</h3>
+                <p>Deine Fotobox ist fest gebucht. Die Buchungsbestätigung mit Rechnung schicken wir dir gerade per E-Mail zu.</p>
+            <?php else: ?>
+                <h3>Danke für deine Anfrage!</h3>
+                <p>Wir prüfen die Verfügbarkeit und melden uns zeitnah per E-Mail bei dir.</p>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <?= stepper_html($step) ?>
@@ -445,7 +458,7 @@ if ($booking) {
 
                 <!-- Panel 2: Online-Designer -->
                 <div class="design-panel" id="panel-designer" hidden>
-                    <p class="muted">Wähle Farben, ein Muster und optional einen Text - passt automatisch auf die Foto-Slots deines Basis-Layouts.</p>
+                    <p class="muted">Wähle Farben, ein Muster und optional einen Text. Die Fotoflächen (gestrichelt) kannst du direkt im Bild per Maus verschieben.</p>
                     <div class="designer-layout">
                         <canvas id="designer-canvas" width="600" height="400"></canvas>
                         <div class="designer-controls">
@@ -466,6 +479,7 @@ if ($booking) {
                                 </select>
                             </label>
                             <label>Text (optional)<input type="text" id="designer-text" maxlength="40" placeholder="z.B. Julia &amp; Tom"></label>
+                            <button type="button" id="designer-reset" class="button-secondary">Fotoflächen zurücksetzen</button>
                             <button type="button" id="designer-save">Design übernehmen</button>
                         </div>
                     </div>
@@ -474,6 +488,7 @@ if ($booking) {
                         <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
                         <input type="hidden" name="mode" value="designer">
                         <input type="hidden" name="base_layout_id" id="designer-base-id">
+                        <input type="hidden" name="custom_slots" id="designer-slots">
                         <input type="hidden" name="custom_design_data" id="designer-data">
                     </form>
                 </div>
@@ -541,7 +556,16 @@ if ($booking) {
                     return layouts[0];
                 }
 
-                function drawDesign(targetCtx, w, h, layout, scale) {
+                function currentLayout() { return layoutById(parseInt(baseSelect.value, 10)); }
+
+                var customSlots = null;
+                function resetSlots() {
+                    customSlots = currentLayout().slots.map(function (s) {
+                        return { x: s.x, y: s.y, width: s.width, height: s.height };
+                    });
+                }
+
+                function drawDesign(targetCtx, w, h, layout, slots, scale, showOutlines) {
                     targetCtx.clearRect(0, 0, w, h);
                     targetCtx.fillStyle = bgInput.value;
                     targetCtx.fillRect(0, 0, w, h);
@@ -585,40 +609,100 @@ if ($booking) {
                     // Foto-Slots ausschneiden (transparent), damit die Kamera-Bilder durchscheinen.
                     targetCtx.save();
                     targetCtx.globalCompositeOperation = 'destination-out';
-                    layout.slots.forEach(function (s) {
+                    slots.forEach(function (s) {
                         targetCtx.fillRect(s.x * scale, s.y * scale, s.width * scale, s.height * scale);
                     });
                     targetCtx.restore();
+
+                    if (showOutlines) {
+                        targetCtx.save();
+                        targetCtx.strokeStyle = 'rgba(108,92,231,0.8)';
+                        targetCtx.lineWidth = 2;
+                        targetCtx.setLineDash([6, 4]);
+                        slots.forEach(function (s) {
+                            targetCtx.strokeRect(s.x * scale, s.y * scale, s.width * scale, s.height * scale);
+                        });
+                        targetCtx.restore();
+                    }
                 }
 
                 function refreshPreview() {
-                    var layout = layoutById(parseInt(baseSelect.value, 10));
+                    var layout = currentLayout();
                     var scale = canvas.width / layout.canvas_width;
-                    drawDesign(ctx, canvas.width, canvas.height, layout, scale);
+                    drawDesign(ctx, canvas.width, canvas.height, layout, customSlots, scale, true);
                 }
 
-                [baseSelect, bgInput, accentInput, patternSelect, textInput].forEach(function (el) {
+                [bgInput, accentInput, patternSelect, textInput].forEach(function (el) {
                     el.addEventListener('input', refreshPreview);
                     el.addEventListener('change', refreshPreview);
                 });
+                baseSelect.addEventListener('change', function () {
+                    resetSlots();
+                    refreshPreview();
+                });
+                resetSlots();
                 refreshPreview();
+
+                document.getElementById('designer-reset').addEventListener('click', function () {
+                    resetSlots();
+                    refreshPreview();
+                });
+
+                // Fotoflaechen im Vorschau-Canvas per Maus verschieben.
+                var drag = null;
+                function canvasPoint(ev) {
+                    var rect = canvas.getBoundingClientRect();
+                    return {
+                        x: (ev.clientX - rect.left) * (canvas.width / rect.width),
+                        y: (ev.clientY - rect.top) * (canvas.height / rect.height),
+                    };
+                }
+                canvas.addEventListener('mousedown', function (ev) {
+                    var layout = currentLayout();
+                    var scale = canvas.width / layout.canvas_width;
+                    var p = canvasPoint(ev);
+                    for (var i = customSlots.length - 1; i >= 0; i--) {
+                        var s = customSlots[i];
+                        var sx = s.x * scale, sy = s.y * scale, sw = s.width * scale, sh = s.height * scale;
+                        if (p.x >= sx && p.x <= sx + sw && p.y >= sy && p.y <= sy + sh) {
+                            drag = { index: i, startX: p.x, startY: p.y, origX: s.x, origY: s.y };
+                            break;
+                        }
+                    }
+                });
+                canvas.addEventListener('mousemove', function (ev) {
+                    if (!drag) return;
+                    var layout = currentLayout();
+                    var scale = canvas.width / layout.canvas_width;
+                    var p = canvasPoint(ev);
+                    var s = customSlots[drag.index];
+                    var dx = (p.x - drag.startX) / scale;
+                    var dy = (p.y - drag.startY) / scale;
+                    s.x = Math.max(0, Math.min(layout.canvas_width - s.width, drag.origX + dx));
+                    s.y = Math.max(0, Math.min(layout.canvas_height - s.height, drag.origY + dy));
+                    refreshPreview();
+                });
+                document.addEventListener('mouseup', function () { drag = null; });
+                canvas.style.cursor = 'grab';
 
                 document.querySelectorAll('[data-customize]').forEach(function (btn) {
                     btn.addEventListener('click', function (ev) {
                         ev.preventDefault();
                         baseSelect.value = btn.getAttribute('data-customize');
+                        resetSlots();
                         refreshPreview();
                         showPanel('designer');
                     });
                 });
 
                 document.getElementById('designer-save').addEventListener('click', function () {
-                    var layout = layoutById(parseInt(baseSelect.value, 10));
+                    var layout = currentLayout();
                     var full = document.createElement('canvas');
                     full.width = layout.canvas_width;
                     full.height = layout.canvas_height;
-                    drawDesign(full.getContext('2d'), full.width, full.height, layout, 1);
+                    drawDesign(full.getContext('2d'), full.width, full.height, layout, customSlots, 1, false);
                     document.getElementById('designer-base-id').value = layout.id;
+                    document.getElementById('designer-slots').value = JSON.stringify(customSlots);
                     document.getElementById('designer-data').value = full.toDataURL('image/png');
                     document.getElementById('designer-form').submit();
                 });
@@ -808,11 +892,25 @@ if ($booking) {
                     </label>
                     <label>Nachricht (optional)<textarea name="message" rows="3"><?= htmlspecialchars((string) $booking['message'], ENT_QUOTES) ?></textarea></label>
                     <label class="checkbox">
-                        <input type="checkbox" name="wants_quote" <?= $booking['wants_quote'] ? 'checked' : '' ?>>
-                        Ich benötige vorab ein schriftliches Angebot
+                        <input type="checkbox" name="wants_quote" id="wants-quote-checkbox" <?= $booking['wants_quote'] ? 'checked' : '' ?>>
+                        Ich möchte vorab nur ein schriftliches Angebot (noch nicht bezahlen)
                     </label>
-                    <button type="submit">Anfrage jetzt verbindlich abschicken</button>
+                    <button type="submit" id="submit-booking-btn">
+                        <?= $booking['wants_quote'] ? 'Angebot anfordern' : 'Jetzt ' . money_from_cents($total) . ' bezahlen' ?>
+                    </button>
+                    <p class="muted" style="text-align:center;font-size:12px;">Sichere Zahlung über Stripe · Kreditkarte, Klarna &amp; mehr</p>
                 </form>
+                <script>
+                (function () {
+                    var cb = document.getElementById('wants-quote-checkbox');
+                    var btn = document.getElementById('submit-booking-btn');
+                    var payLabel = 'Jetzt <?= addslashes(money_from_cents($total)) ?> bezahlen';
+                    var quoteLabel = 'Angebot anfordern';
+                    cb.addEventListener('change', function () {
+                        btn.textContent = cb.checked ? quoteLabel : payLabel;
+                    });
+                })();
+                </script>
             </div>
         <?php endif; ?>
     <?php endif; ?>

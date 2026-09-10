@@ -16,22 +16,31 @@ backend/
     config.php               (nicht im Repo, siehe Einrichtung unten)
   bin/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
+    lib/fpdf/                FPDF (Rechnungs-PDF), manuell eingebunden
+    lib/PHPMailer/           PHPMailer (SMTP-Mailversand), manuell eingebunden
+    stripe.php               Rohe Stripe-API-Anbindung per cURL (kein SDK)
+    payments.php             mark_booking_paid(): Buchung bestaetigen, Rechnung + Mail ausloesen
+    invoice.php              Rechnungs-PDF erzeugen (FPDF)
+    mailer.php               Bestaetigungsmail mit Rechnung verschicken (PHPMailer/SMTP)
   storage/
     frames/                  Rahmen-PNGs: preset_*.png sind mitgelieferte
                              Design-Vorlagen (im Repo), alles andere sind
                              echte Uploads/Kundendesigns (nicht im Repo)
+    invoices/                Erzeugte Rechnungs-PDFs (personenbezogen, nicht im Repo)
   public/                   Docroot fuer den Webserver
     index.php                Oeffentliche Startseite
     buchen.php               Oeffentlicher Buchungsassistent (5 Schritte)
     booking_availability.php JSON-Endpunkt: blockierte Tage fuer den Kalender
     layout_preview.php       Oeffentliche Vorschau-PNG fuer die Design-Galerie
+    stripe_webhook.php       Nimmt Stripe-Zahlungsbestaetigungen entgegen (signaturgeprueft)
     api.php                  Konfigurations-Endpunkt fuer die Box
     frame.php                Liefert eine Rahmen-PNG aus (API-Key, fuer die Box)
     admin/                   Verwaltungs-Panel (Login-geschuetzt, Sidebar-Layout)
-      bookings.php             Buchungsanfragen bestaetigen/ablehnen/stornieren
+      bookings.php             Buchungsanfragen ablehnen/stornieren/Box zuweisen
       booking_detail.php       Details, Extras, Gesamtpreis + interne Notiz
+      layout_form.php          Layout anlegen/bearbeiten inkl. visuellem Drag-Slot-Editor
       extras.php, extra_form.php   Zusatzoptionen verwalten (Preis, Ein/Aus/Menge)
-      settings.php             Basispreis + Beschriftung fuer den Assistenten
+      settings.php             Basispreis, Beschriftung, Rechnungsdaten
 ```
 
 **Wichtig:** Das Document Root des vhosts muss auf `backend/public` zeigen,
@@ -42,6 +51,14 @@ Fuer die konkrete Einrichtung auf dem Raspberry Pi (Apache, MariaDB,
 Cloudflare-DNS/TLS) siehe `deploy/RASPBERRY_PI.md`.
 
 ## Einrichtung
+
+**PHP-Erweiterungen:** `gd` (Design-Vorschauen, automatische Slot-Erkennung
+beim Upload), `curl` (Stripe-API), `mbstring` (Rechnungs-PDF, Umlaute).
+Bei den meisten Debian/Raspbian-PHP-Paketen schon dabei, notfalls
+nachinstallieren:
+```bash
+sudo apt install php-gd php-curl php-mbstring && sudo systemctl reload apache2
+```
 
 1. Datenbank anlegen und Schema importieren:
    ```
@@ -90,15 +107,23 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
    `booking_layouts`:
    - **Fertige Vorlage**: nach Kategorie filterbare Galerie der Layouts aus
      der Datenbank (Vorschaubilder ueber `layout_preview.php`, oeffentlich
-     ohne API-Key). 18 mitgelieferte Presets plus Standard, siehe
-     `sql/migrations/0004_preset_designs.sql`. Jede Karte hat einen
+     ohne API-Key). 18 mitgelieferte Themen-Presets plus Standard (siehe
+     `sql/migrations/0004_preset_designs.sql`) sowie 3 Formate mit
+     abweichender Fotoanzahl - 1 Bild, 2 und 3 nebeneinander statt der
+     4er-Collage (Kategorie "Format", siehe
+     `sql/migrations/0006_format_templates.sql`). Jede Karte hat einen
      "Anpassen"-Knopf, der dieselbe Vorlage mit ihrer Slot-Geometrie in den
      Online-Designer laedt.
    - **Online-Designer**: Canvas-Editor (Hintergrund-/Akzentfarbe, Muster,
      optionaler Text), rendert clientseitig eine PNG mit der Slot-Geometrie
      eines gewaehlten Basis-Layouts (die Foto-Slots werden per
      `globalCompositeOperation = 'destination-out'` transparent
-     ausgeschnitten) und schickt sie als Data-URL ans Formular.
+     ausgeschnitten). Die Fotoflaechen selbst lassen sich direkt im Canvas
+     per Maus verschieben (gestrichelter Umriss zur Orientierung, "Zuruecksetzen"
+     stellt die Ausgangsposition wieder her) - die neuen Koordinaten werden
+     als JSON mit abgeschickt (`custom_slots`, serverseitig via
+     `validate_custom_slots()` geprueft, faellt bei verdaechtigen Werten auf
+     die Basis-Geometrie zurueck).
    - **Eigenes hochladen**: PNG mit transparenten Fotoflaechen hochladen.
      `detect_transparent_slots()` (includes/functions.php) erkennt die
      zusammenhaengenden transparenten Bereiche per Connected-Component-
@@ -115,21 +140,39 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
 4. **Extras** - admin-verwaltete Zusatzoptionen (`extras`-Tabelle), je nach
    Typ als Ein/Aus-Schalter oder mit Mengenauswahl, Preis kann auch negativ
    sein (Rabatt, z.B. "Ohne Druck").
-5. **Zusammenfassung** - Telefon/Versandadresse, optional "schriftliches
-   Angebot gewuenscht" (`wants_quote`), Versand-Zeitplan und Preisuebersicht.
-   Erst hier wird `total_price_cents` (`calc_booking_total()`) berechnet und
-   der Status auf `angefragt` gesetzt - vorher ist die Reservierung
-   unverbindlich.
+5. **Zusammenfassung** - Telefon/Versandadresse, Versand-Zeitplan und
+   Preisuebersicht (`total_price_cents` via `calc_booking_total()`). Zwei
+   Wege zum Abschluss:
+   - **Jetzt bezahlen** (Standardfall): erstellt eine Stripe Checkout
+     Session (`create_stripe_checkout_session()`) und leitet zur von Stripe
+     gehosteten Kassenseite weiter - keine Kartendaten beruehren den
+     eigenen Server. Erst der **Webhook** `stripe_webhook.php` (Event
+     `checkout.session.completed`, Signatur per `verify_stripe_webhook()`
+     geprueft) bestaetigt die Buchung endgueltig
+     (`payments.php::mark_booking_paid()`): Status `bestaetigt`, Box
+     automatisch zugewiesen (wenn eindeutig moeglich), Rechnungsnummer
+     vergeben, Rechnungs-PDF erzeugt und per Mail verschickt. Der Redirect
+     des Browsers zurueck auf die Erfolgsseite ist nur fuers UI gedacht und
+     bestaetigt selbst nichts.
+   - **"Ich möchte vorab nur ein schriftliches Angebot"** (Checkbox): keine
+     Zahlung, Status wird wie bisher `angefragt`, Admin bearbeitet die
+     Anfrage im Panel von Hand.
 
 Eine `reserviert`-Buchung, die **nicht** innerhalb von `RESERVATION_HOLD_DAYS`
 (14 Tage) zu `angefragt` wird, blockiert den Kalender danach nicht mehr
 (`fetch_blocked_dates()` prueft das per Zeitfenster, kein Cron noetig).
 
 Im Panel unter **Buchungen**:
-- **Bestaetigen** weist der Buchung eine Box zu (bei nur einer Box
-  automatisch, sonst per Auswahl), traegt alle gewuenschten Layouts in
-  `box_layouts` dieser Box ein und erhoeht ihre `config_version` - die Box
-  muss also vor dem Versand einmal online sein, um sie abzuholen.
+- Bezahlte Buchungen sind durch den Webhook bereits `bestaetigt` (siehe
+  oben) - **Bestaetigen** taucht dort im Normalfall nur noch fuer
+  `angefragt`-Buchungen (schriftliches Angebot gewuenscht) auf und weist
+  eine Box zu (bei nur einer Box automatisch, sonst per Auswahl), traegt
+  alle gewuenschten Layouts in `box_layouts` dieser Box ein und erhoeht
+  ihre `config_version` - die Box muss also vor dem Versand einmal online
+  sein, um sie abzuholen. Dieselbe Logik (`assign_box_and_confirm()`) laeuft
+  fuer bezahlte Buchungen automatisch; nur wenn dabei 0 oder mehrere Boxen
+  existieren (keine eindeutige Zuordnung moeglich) bleibt `box_id` leer und
+  die Liste zeigt stattdessen "Box zuweisen" zum Nachtragen von Hand.
 - **Ablehnen**/**Stornieren** setzen den Status, eine stornierte oder
   abgelehnte Buchung blockiert den Kalender nicht mehr.
 - Die Liste zeigt den Gesamtpreis (leer, solange die Buchung noch bei
@@ -148,6 +191,42 @@ Header schon automatisch geflushed haben, bevor der Session-Cookie gesetzt
 wird - `session_start()` schlaegt dann still fehl und jedes Formular auf
 der Seite bekommt ein neues CSRF-Token, das nicht mehr zum vorher
 ausgelieferten passt ("Ungueltiges Formular"-Fehler beim Absenden).
+
+## Zahlung (Stripe) und Rechnungen einrichten
+
+Ohne die folgenden Schritte funktioniert der "Jetzt bezahlen"-Button
+nicht (zeigt eine Fehlermeldung) und es werden keine Bestaetigungsmails
+verschickt - die Buchung selbst geht dabei nicht verloren, der Kunde kann
+es erneut versuchen bzw. stattdessen "nur ein schriftliches Angebot"
+anfragen.
+
+1. **Stripe-Konto** anlegen auf https://dashboard.stripe.com/register
+   (echtes Geschaeftskonto mit Bankverbindung fuer den Live-Modus - zum
+   Testen reicht der Test-Modus ohne echte Kontodaten).
+2. **API-Key**: Dashboard -> **Developers -> API keys** -> "Secret key"
+   kopieren (`sk_live_...` bzw. `sk_test_...` zum Testen) nach
+   `includes/config.php` unter `stripe_secret_key`.
+3. **Webhook einrichten**: Dashboard -> **Developers -> Webhooks -> Add
+   endpoint**.
+   - Endpoint-URL: `https://snapolino.de/stripe_webhook.php`
+   - Event: `checkout.session.completed` auswaehlen (reicht allein aus).
+   - Nach dem Anlegen das "Signing secret" (`whsec_...`) kopieren nach
+     `includes/config.php` unter `stripe_webhook_secret`.
+4. **SMTP-Zugang** des eigenen Postfachs (z.B. bei mc-host24.de, wo
+   `info@snapolino.de` liegt) in `includes/config.php` eintragen:
+   `smtp_host`, `smtp_port` (587 fuer STARTTLS, 465 fuer implizites TLS),
+   `smtp_user`, `smtp_pass`, `smtp_from_email`.
+5. **Rechnungsdaten** im Panel unter **Einstellungen** ausfuellen (Name/
+   Firma, Anschrift, steuerlicher Hinweis) - erscheinen auf jeder
+   erzeugten Rechnungs-PDF. Voreingestellt ist der Kleinunternehmer-Hinweis
+   nach § 19 UStG; bei Regelbesteuerung hier den Text anpassen und ggf.
+   Umsatzsteuer-ID ergaenzen.
+
+Zum Testen: Stripe im Test-Modus lassen (Kreditkartennummer
+`4242 4242 4242 4242`, beliebiges zukuenftiges Datum/CVC) und mit der
+[Stripe CLI](https://stripe.com/docs/stripe-cli) `stripe listen --forward-to
+https://snapolino.de/stripe_webhook.php` laufen lassen, falls Webhooks
+lokal statt gegen die echte Domain getestet werden sollen.
 
 ## Schnittstelle fuer die Box
 
@@ -216,6 +295,8 @@ Verbindungs-Kodierung, unabhaengig vom Tabellen-Charset):
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0002_bookings.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0003_extras_and_wizard.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0004_preset_designs.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0005_payments_and_invoices.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0006_format_templates.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -230,16 +311,26 @@ Platzhalter existierende Standarddesign durch ein echtes und legt 18
 mitgelieferte Preset-Designs an (idempotent - ueberschreibt keine
 bestehenden Zeilen mit demselben Namen, z.B. eigene Admin-Layouts).
 
+Migration 0005 ergaenzt `bookings` um Stripe-/Rechnungsfelder
+(`stripe_session_id`, `stripe_payment_intent`, `paid_at`,
+`invoice_number`), legt die Tabelle `invoice_counters` an (fortlaufende
+Rechnungsnummern) und seedet Platzhalter-Rechnungsdaten in `settings` -
+unbedingt danach im Panel unter **Einstellungen** durch echte Werte
+ersetzen (siehe "Zahlung einrichten" oben).
+
+Migration 0006 legt die drei Zusatzformate mit 1/2/3 statt 4 Fotos an.
+
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
 
 ## Offen (siehe auch CLAUDE.md)
 
-- Visueller Slot-Editor im Panel (aktuell Koordinaten per Hand, siehe
-  `admin/layout_form.php`) - fuer eigene Uploads/den Online-Designer
-  braucht es das nicht mehr, da die Slots dort automatisch ermittelt bzw.
-  von einem Basis-Layout uebernommen werden.
-- E-Mail-Benachrichtigung bei neuer Buchung/Bestaetigung (aktuell nur im
-  Panel sichtbar, kein Mailversand).
-- Online-Designer bietet nur Farbe/Muster/Text, kein Logo-Upload oder frei
-  platzierbare Elemente.
+- E-Mail-Benachrichtigung nur bei erfolgreicher Zahlung, nicht bei einer
+  reinen Angebotsanfrage (dort weiterhin nur im Panel sichtbar).
+- Online-Designer bietet nur Farbe/Muster/Text plus verschiebbare
+  Fotoflaechen, kein Logo-Upload oder frei platzierbare Textelemente.
+- Stripe-Webhook verschickt Rechnung/Mail synchron in der Webhook-Antwort;
+  bei SMTP-Ausfaellen dauert die Antwort laenger (Bestaetigung selbst ist
+  davon unabhaengig, nur die Mail muesste dann manuell nachverschickt
+  werden - `storage/invoices/<Rechnungsnummer>.pdf` liegt in jedem Fall
+  bereits vor).

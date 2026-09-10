@@ -19,3 +19,8 @@ backend/storage/frames/*
 !backend/storage/frames/.gitkeep
 !backend/storage/frames/.htaccess
 !backend/storage/frames/preset_*.png
+
+# Rechnungs-PDFs enthalten personenbezogene Daten, nicht im Repo.
+backend/storage/invoices/*
+!backend/storage/invoices/.gitkeep
+!backend/storage/invoices/.htaccess

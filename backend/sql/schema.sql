@@ -68,24 +68,35 @@ CREATE TABLE IF NOT EXISTS box_layouts (
 -- box_id bleibt leer, bis ein Admin die Anfrage bestaetigt und eine
 -- physische Box zuordnet.
 CREATE TABLE IF NOT EXISTS bookings (
-    id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    edit_token        VARCHAR(64) NULL UNIQUE,
-    customer_name     VARCHAR(120) NOT NULL,
-    customer_email    VARCHAR(190) NOT NULL,
-    customer_phone    VARCHAR(40) NULL,
-    customer_address  TEXT NULL,
-    event_date        DATE NOT NULL,
-    box_id            INT UNSIGNED NULL,
-    status            VARCHAR(20) NOT NULL DEFAULT 'reserviert',
-    message           TEXT NULL,
-    admin_note        TEXT NULL,
-    total_price_cents INT UNSIGNED NULL,
-    wants_quote       TINYINT(1) NOT NULL DEFAULT 0,
-    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    edit_token             VARCHAR(64) NULL UNIQUE,
+    stripe_session_id      VARCHAR(255) NULL UNIQUE,
+    stripe_payment_intent  VARCHAR(255) NULL,
+    customer_name          VARCHAR(120) NOT NULL,
+    customer_email         VARCHAR(190) NOT NULL,
+    customer_phone         VARCHAR(40) NULL,
+    customer_address       TEXT NULL,
+    event_date             DATE NOT NULL,
+    box_id                 INT UNSIGNED NULL,
+    status                 VARCHAR(20) NOT NULL DEFAULT 'reserviert',
+    message                TEXT NULL,
+    admin_note             TEXT NULL,
+    total_price_cents      INT UNSIGNED NULL,
+    wants_quote            TINYINT(1) NOT NULL DEFAULT 0,
+    paid_at                DATETIME NULL,
+    invoice_number         VARCHAR(30) NULL UNIQUE,
+    created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (box_id) REFERENCES boxes(id) ON DELETE SET NULL,
     INDEX idx_event_date (event_date),
     INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Atomarer Zaehler fuer fortlaufende Rechnungsnummern (ein Zaehler pro Jahr,
+-- Format wird in PHP zu z.B. "2026-0001" zusammengesetzt).
+CREATE TABLE IF NOT EXISTS invoice_counters (
+    year        INT UNSIGNED PRIMARY KEY,
+    next_number INT UNSIGNED NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Vom Kunden bei der Buchung gewuenschte Layouts (Standard ist immer dabei,
@@ -133,7 +144,10 @@ CREATE TABLE IF NOT EXISTS settings (
 
 INSERT IGNORE INTO settings (name, value) VALUES
     ('base_price_cents', '21900'),
-    ('base_price_label', 'Basic · Mit Druck-Flatrate');
+    ('base_price_label', 'Basic · Mit Druck-Flatrate'),
+    ('business_name', 'Bitte im Panel unter Einstellungen ausfuellen'),
+    ('business_address', 'Straße Hausnummer\nPLZ Ort'),
+    ('business_tax_note', 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES
@@ -181,3 +195,32 @@ CROSS JOIN (
     UNION ALL SELECT 2, 40,  610, 850, 550
     UNION ALL SELECT 3, 910, 610, 850, 550
 ) AS s;
+
+-- Zusatzformate mit anderer Fotoanzahl statt der Standard-4er-Collage -
+-- jeweils eigene Slot-Geometrie, siehe migrations/0006_format_templates.sql.
+INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents) VALUES
+    ('1 Bild (Vollformat)',    'Format', 1, 1800, 1200, 'preset_format_1bild.png',    0, 300),
+    ('2 Bilder nebeneinander', 'Format', 2, 1800, 1200, 'preset_format_2bilder.png', 0, 300),
+    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder.png', 0, 300);
+
+INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
+SELECT id, 0, 40, 40, 1720, 1120 FROM layouts WHERE name = '1 Bild (Vollformat)';
+
+INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
+SELECT id, s.slot_index, s.x, s.y, s.width, s.height
+FROM layouts
+CROSS JOIN (
+    SELECT 0 AS slot_index, 40 AS x, 40 AS y, 850 AS width, 1120 AS height
+    UNION ALL SELECT 1, 910, 40, 850, 1120
+) AS s
+WHERE layouts.name = '2 Bilder nebeneinander';
+
+INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
+SELECT id, s.slot_index, s.x, s.y, s.width, s.height
+FROM layouts
+CROSS JOIN (
+    SELECT 0 AS slot_index, 40   AS x, 40 AS y, 560 AS width, 1120 AS height
+    UNION ALL SELECT 1, 620, 40, 560, 1120
+    UNION ALL SELECT 2, 1200, 40, 560, 1120
+) AS s
+WHERE layouts.name = '3 Bilder nebeneinander';

@@ -25,27 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($booking) {
         if ($action === 'confirm') {
-            $boxes = db()->query('SELECT id, name FROM boxes ORDER BY name')->fetchAll();
-            $boxId = count($boxes) === 1 ? (int) $boxes[0]['id'] : (int) ($_POST['box_id'] ?? 0);
-
-            if ($boxId > 0) {
-                db()->beginTransaction();
-
-                $stmt = db()->prepare("UPDATE bookings SET status = 'bestaetigt', box_id = ? WHERE id = ?");
-                $stmt->execute([$boxId, $bookingId]);
-
-                $stmt = db()->prepare('SELECT layout_id FROM booking_layouts WHERE booking_id = ?');
-                $stmt->execute([$bookingId]);
-                $layoutIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-                $ins = db()->prepare('INSERT IGNORE INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
-                foreach ($layoutIds as $layoutId) {
-                    $ins->execute([$boxId, (int) $layoutId]);
-                }
-
-                bump_box_version($boxId);
-                db()->commit();
-            }
+            $boxId = (int) ($_POST['box_id'] ?? 0);
+            assign_box_and_confirm($bookingId, $boxId);
         } elseif ($action === 'reject') {
             $stmt = db()->prepare("UPDATE bookings SET status = 'abgelehnt' WHERE id = ?");
             $stmt->execute([$bookingId]);
@@ -156,6 +137,22 @@ $layoutStmt = db()->prepare(
                             <button type="submit" class="danger">Ablehnen</button>
                         </form>
                     <?php elseif ($booking['status'] === 'bestaetigt'): ?>
+                        <?php if (!$booking['box_id'] && count($boxes) > 0): ?>
+                            <form method="post" action="bookings.php">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+                                <input type="hidden" name="action" value="confirm">
+                                <?php if (count($boxes) > 1): ?>
+                                    <select name="box_id" required>
+                                        <option value="">Box wählen…</option>
+                                        <?php foreach ($boxes as $box): ?>
+                                            <option value="<?= (int) $box['id'] ?>"><?= htmlspecialchars($box['name'], ENT_QUOTES) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                <?php endif; ?>
+                                <button type="submit">Box zuweisen</button>
+                            </form>
+                        <?php endif; ?>
                         <form method="post" action="bookings.php" onsubmit="return confirm('Buchung wirklich stornieren?');">
                             <?= csrf_field() ?>
                             <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
