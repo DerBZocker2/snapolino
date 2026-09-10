@@ -287,8 +287,12 @@ class Fotobox(QWidget):
 
         # Seite 2: LAYOUTWAHL (nur bei mehr als einem Layout sichtbar)
         p1 = QWidget()
-        self.layout_choice_box = QVBoxLayout(p1)
-        self.layout_choice_box.addWidget(QLabel("Welches Format?"))
+        l1 = QVBoxLayout(p1)
+        title1 = QLabel("Deine Rahmen")
+        title1.setStyleSheet("font-size: 26px; font-weight: bold;")
+        l1.addWidget(title1)
+        self.layout_choice_box = QVBoxLayout()
+        l1.addLayout(self.layout_choice_box, 1)
         self.pages.addWidget(p1)
 
         # Seite 3: LIVE + COUNTDOWN
@@ -402,20 +406,26 @@ class Fotobox(QWidget):
             self.frame_preview.setText("Kein Rahmen gefunden")
 
     def _refresh_layout_choices(self):
-        while self.layout_choice_box.count() > 1:
-            item = self.layout_choice_box.takeAt(1)
+        while self.layout_choice_box.count():
+            item = self.layout_choice_box.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
         for layout in self.layouts:
-            label = layout["name"]
+            label = "  " + layout["name"]
             if layout.get("surcharge_cents"):
                 label += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
             btn = QPushButton(label)
-            btn.setFixedHeight(70)
+            btn.setFixedHeight(100)
             btn.setStyleSheet(
                 "font-size: 22px; background: #2980b9; color: white; border-radius: 10px;"
+                " text-align: left; padding-left: 10px;"
             )
+            frame_path = layout.get("frame_path")
+            if frame_path and os.path.exists(frame_path):
+                pix = QPixmap(frame_path).scaled(150, 90, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                btn.setIcon(QIcon(pix))
+                btn.setIconSize(pix.size())
             btn.clicked.connect(lambda checked=False, ly=layout: self.choose_layout(ly))
             self.layout_choice_box.addWidget(btn)
 
