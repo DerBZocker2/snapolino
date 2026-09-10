@@ -65,9 +65,17 @@ im Panel angezeigt).
 - Keine Umlaute in Code-Kommentaren (Encoding-Probleme bei PyInstaller)
 - Alles Konfigurierbare gehört in `config.py` oder die Cloud, nicht in den Code
 
+## Windows-Setup (Autostart/Kiosk)
+`deploy/windows-kiosk-setup.ps1` (siehe `deploy/KIOSK_SETUP.md`) richtet
+pro Box einmalig automatischen Login, automatischen App-Start beim
+Anmelden (mit Neustart bei Absturz) und ein paar Kiosk-Einstellungen ein,
+u.a. die Windows-Taste per Registry-Scancode-Map deaktivieren (Qt selbst
+kann sie nicht abfangen).
+
 ## Offene Punkte
 - Visueller Slot-Editor im Panel (aktuell Koordinaten per Hand)
 - Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
-- Windows-Kiosk-Modus (Windows-Taste lässt sich in Qt nicht abfangen)
+- Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
+  (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
 - `printer_ready()` erkennt Papierende noch nicht zuverlässig
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept

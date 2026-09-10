@@ -48,9 +48,9 @@ CAMERA_INDEX = _get_int("box", "camera_index", 0)
 CAM_WIDTH = _get_int("box", "cam_width", 1920)
 CAM_HEIGHT = _get_int("box", "cam_height", 1080)
 
-OUTPUT_DIR = _get_str("box", "output_dir", "ausgabe")
-LOG_FILE = _get_str("box", "log_file", "fotobox.log")
-CACHE_DIR = _get_str("box", "cache_dir", "cache")
+OUTPUT_DIR = os.path.join(_install_dir(), _get_str("box", "output_dir", "ausgabe"))
+LOG_FILE = os.path.join(_install_dir(), _get_str("box", "log_file", "fotobox.log"))
+CACHE_DIR = os.path.join(_install_dir(), _get_str("box", "cache_dir", "cache"))
 
 PRINT_ENABLED = _get_bool("box", "print_enabled", True)
 PRINTER_NAME = _get_str("box", "printer_name", "") or None  # leer = Windows-Standarddrucker
