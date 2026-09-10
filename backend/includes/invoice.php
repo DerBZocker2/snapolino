@@ -29,7 +29,7 @@ function generate_invoice_pdf(array $booking): string
 {
     $bookingId = (int) $booking['id'];
     $items = booking_invoice_items($bookingId);
-    $total = calc_booking_total(booking_layout_ids($bookingId), booking_extra_selections($bookingId));
+    $total = (int) $booking['total_price_cents'];
 
     $businessName = get_setting('business_name', 'Snapolino') ?: 'Snapolino';
     $businessAddress = (string) get_setting('business_address', '');
@@ -54,11 +54,12 @@ function generate_invoice_pdf(array $booking): string
     $pdf->SetFont('Helvetica', 'B', 10);
     $pdf->Cell(0, 6, pdf_txt('Rechnungsempfänger'), 0, 1);
     $pdf->SetFont('Helvetica', '', 10);
+    if ($booking['invoice_to_company'] && !empty($booking['customer_company'])) {
+        $pdf->Cell(0, 5, pdf_txt((string) $booking['customer_company']), 0, 1);
+    }
     $pdf->Cell(0, 5, pdf_txt($booking['customer_name']), 0, 1);
-    foreach (preg_split('/\R/', (string) $booking['customer_address']) as $line) {
-        if (trim($line) !== '') {
-            $pdf->Cell(0, 5, pdf_txt($line), 0, 1);
-        }
+    foreach (booking_address_lines($booking) as $line) {
+        $pdf->Cell(0, 5, pdf_txt($line), 0, 1);
     }
     $pdf->Ln(10);
 

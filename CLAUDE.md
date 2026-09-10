@@ -88,9 +88,16 @@ allgemeinen Panel bei anderen Kunden auftaucht. Admin legt neue
 Layout-Vorlagen (auch mit anderer Fotoanzahl) im Panel per Drag-Editor an
 (`layout_form.php`) statt Pixel-Koordinaten von Hand einzutippen.
 
-Schritt 5 (Zusammenfassung): Kunde zahlt direkt per Stripe Checkout (Kreditkarte,
-Klarna etc. - keine Kartendaten beruehren den eigenen Server) statt nur
-eine Anfrage abzuschicken. Erst der Stripe-**Webhook**
+Schritt 5 (Zusammenfassung): zweispaltiges Layout, links strukturierte
+Rechnungsadresse (Strasse/PLZ/Ort, optional Firma), rechts eine sticky
+Buchungsuebersicht mit Gutscheincode-Einloesung. Gutscheine (Prozent oder
+Festbetrag, optional Ablaufdatum/Kontingent) werden im Panel unter
+**Gutscheine** angelegt; `redemption_count` zaehlt erst hoch, wenn die
+Buchung wirklich bestaetigt wird (bezahlt oder Admin bestaetigt eine
+Angebots-Buchung), nicht schon beim Einloesen. Kunde zahlt direkt per
+Stripe Checkout (Kreditkarte, Klarna etc. - keine Kartendaten beruehren
+den eigenen Server) statt nur eine Anfrage abzuschicken. Erst der
+Stripe-**Webhook**
 (`stripe_webhook.php`, signaturgeprueft) bestaetigt die Buchung endgueltig
 und loest Rechnung + Bestaetigungsmail aus - der Redirect zurueck zur Seite
 ist nur fuers UI, niemals die Quelle der Wahrheit fuer "bezahlt". Wer noch

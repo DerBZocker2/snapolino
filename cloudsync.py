@@ -25,7 +25,14 @@ def _atomic_write_text(path, text):
 
 
 def _fetch(url, timeout):
-    req = urllib.request.Request(url, headers={"X-API-Key": config.CLOUD_API_KEY})
+    # Eigener User-Agent statt "Python-urllib/x.y": Cloudflare (vor
+    # snapolino.de geschaltet, siehe backend/deploy/RASPBERRY_PI.md) blockt
+    # den Standard-User-Agent von urllib per Bot-Erkennung mit HTTP 403,
+    # noch bevor die Anfrage den Server erreicht.
+    req = urllib.request.Request(
+        url,
+        headers={"X-API-Key": config.CLOUD_API_KEY, "User-Agent": "SnapolinoBox/1.0"},
+    )
     return urllib.request.urlopen(req, timeout=timeout)
 
 
@@ -56,7 +63,13 @@ def sync(timeout=5):
     Fallback-Stand weiter.
     """
     if not config.CLOUD_BOX_KEY or not config.CLOUD_API_KEY:
-        log.info("Kein Box-Key/API-Key in box.ini, Cloud-Sync uebersprungen")
+        if not config.BOX_INI_FOUND:
+            log.info("box.ini nicht gefunden unter %s, Cloud-Sync uebersprungen", config.BOX_INI_PATH)
+        else:
+            log.info(
+                "box.ini gefunden (%s), aber box_key/api_key leer, Cloud-Sync uebersprungen",
+                config.BOX_INI_PATH,
+            )
         return
 
     os.makedirs(FRAMES_DIR, exist_ok=True)

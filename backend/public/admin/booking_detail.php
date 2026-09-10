@@ -61,7 +61,13 @@ if ($booking['box_id']) {
         <tr><th>Eventdatum</th><td><?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?></td></tr>
         <tr><th>E-Mail</th><td><a href="mailto:<?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?>"><?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?></a></td></tr>
         <tr><th>Telefon</th><td><?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?: '—' ?></td></tr>
-        <tr><th>Versandadresse</th><td><?= nl2br(htmlspecialchars($booking['customer_address'], ENT_QUOTES)) ?></td></tr>
+        <tr><th>Versandadresse</th><td>
+            <?php $addressLines = booking_address_lines($booking); ?>
+            <?= $addressLines ? htmlspecialchars(implode("\n", $addressLines), ENT_QUOTES) : '—' ?>
+            <?php if ($booking['invoice_to_company'] && $booking['customer_company']): ?>
+                <br><span class="muted-text">Rechnung auf Firma: <?= htmlspecialchars((string) $booking['customer_company'], ENT_QUOTES) ?></span>
+            <?php endif; ?>
+        </td></tr>
         <tr><th>Gewünschte Layouts</th><td>
             <?php foreach ($layouts as $layout): ?>
                 <?= htmlspecialchars($layout['name'], ENT_QUOTES) ?>
@@ -82,6 +88,9 @@ if ($booking['box_id']) {
                 <?php endforeach; ?>
             <?php endif; ?>
         </td></tr>
+        <?php if ($booking['coupon_code']): ?>
+            <tr><th>Gutschein</th><td><?= htmlspecialchars($booking['coupon_code'], ENT_QUOTES) ?> (&minus;<?= money_from_cents((int) $booking['discount_cents']) ?>)</td></tr>
+        <?php endif; ?>
         <tr><th>Gesamtpreis</th><td>
             <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>
         </td></tr>
