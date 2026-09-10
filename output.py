@@ -80,7 +80,9 @@ class OutputWorker(QThread):
                 # umbenennen - sonst bleibt bei Stromausfall waehrend des
                 # Schreibens ein halbes JPEG liegen.
                 tmp_path = path + ".tmp"
-                image.save(tmp_path, quality=95)
+                # format explizit angeben: PIL erkennt das Format sonst an
+                # der Dateiendung, ".tmp" waere ihm unbekannt.
+                image.save(tmp_path, format="JPEG", quality=95)
                 os.replace(tmp_path, path)
                 log.info("Gespeichert: %s", path)
 
