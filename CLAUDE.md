@@ -59,6 +59,16 @@ im Panel angezeigt).
   erhöht `config_version` der betroffenen Box(en).
 - DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
   `config.php.example`), analog zu `box.ini` auf der Box.
+- Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts).
+
+## Buchungssystem
+Kunden buchen öffentlich unter `/buchen.php` (Kalender + Formular, siehe
+`backend/README.md`). Nur **bestätigte** Buchungen blockieren den Kalender
+(inkl. `BOOKING_BUFFER_DAYS` Tage Puffer vor/nach dem Event für Versand).
+Im Panel unter **Buchungen** bestätigen/ablehnen/stornieren - Bestätigen
+weist eine Box zu und überträgt die vom Kunden gewünschten Layouts nach
+`box_layouts` (erhöht `config_version`). Aktuell fest auf eine Box
+ausgelegt (kein Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
 
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
@@ -79,3 +89,7 @@ kann sie nicht abfangen).
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
 - `printer_ready()` erkennt Papierende noch nicht zuverlässig
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
+- E-Mail-Benachrichtigung bei neuer/bestätigter Buchung (bisher nur im Panel sichtbar)
+- Online-Designer und 64-Preset-Bibliothek (auf der Startseite schon
+  beworben, technisch noch nicht gebaut - siehe backend/README.md)
+- Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)

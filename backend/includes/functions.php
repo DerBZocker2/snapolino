@@ -47,3 +47,62 @@ function fetch_layout_with_slots(int $layoutId): ?array
     $layout['slots'] = $stmt->fetchAll();
     return $layout;
 }
+
+function fetch_all_layouts(): array
+{
+    return db()->query('SELECT * FROM layouts ORDER BY is_default DESC, name')->fetchAll();
+}
+
+// ---------- Buchungen ----------
+
+// Eine Box ist ab Versand bis Rueckversand blockiert, nicht nur am
+// Eventtag selbst. Fester Puffer vor und nach dem Eventdatum.
+const BOOKING_BUFFER_DAYS = 3;
+
+const BOOKING_STATUSES = ['angefragt', 'bestaetigt', 'abgelehnt', 'storniert'];
+
+const BOOKING_STATUS_LABELS = [
+    'angefragt'  => 'Angefragt',
+    'bestaetigt' => 'Bestätigt',
+    'abgelehnt'  => 'Abgelehnt',
+    'storniert'  => 'Storniert',
+];
+
+function booking_status_label(string $status): string
+{
+    return BOOKING_STATUS_LABELS[$status] ?? $status;
+}
+
+// Blockierter Zeitraum (inkl. Versand-Puffer) fuer ein Eventdatum.
+function booking_block_range(string $eventDate): array
+{
+    $event = new DateTimeImmutable($eventDate);
+    return [
+        $event->modify('-' . BOOKING_BUFFER_DAYS . ' days')->format('Y-m-d'),
+        $event->modify('+' . BOOKING_BUFFER_DAYS . ' days')->format('Y-m-d'),
+    ];
+}
+
+// Alle Tage, die aktuell durch bestaetigte Buchungen blockiert sind
+// (inkl. Puffer). Nur "bestaetigt" blockiert den Kalender - eine blosse
+// Anfrage reserviert noch nichts, das entscheidet der Admin.
+function fetch_blocked_dates(): array
+{
+    $stmt = db()->query("SELECT event_date FROM bookings WHERE status = 'bestaetigt'");
+    $blocked = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $eventDate) {
+        [$start, $end] = booking_block_range($eventDate);
+        $cursor = new DateTimeImmutable($start);
+        $endDate = new DateTimeImmutable($end);
+        while ($cursor <= $endDate) {
+            $blocked[$cursor->format('Y-m-d')] = true;
+            $cursor = $cursor->modify('+1 day');
+        }
+    }
+    return array_keys($blocked);
+}
+
+function is_date_blocked(string $eventDate): bool
+{
+    return in_array($eventDate, fetch_blocked_dates(), true);
+}

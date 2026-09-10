@@ -30,7 +30,7 @@ $pageTitle = 'Snapolino Fotobox – Design-Optionen';
         Selbstbedienungs-Fotobox mit Sofortdruck – wir schicken sie dir bequem
         zu, du stellst sie auf, deine Gäste machen die Fotos selbst.
     </p>
-    <a class="button" href="mailto:info@snapolino.de">Jetzt anfragen</a>
+    <a class="button" href="buchen.php">Jetzt buchen</a>
 </section>
 
 <section class="section" id="design-optionen">

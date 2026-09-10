@@ -10,6 +10,20 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_login();
 
 $pageTitle = $pageTitle ?? 'Snapolino Panel';
+$currentPage = basename($_SERVER['SCRIPT_NAME']);
+
+// Bookings-Tabelle existiert evtl. noch nicht (Migration 0002 nicht
+// eingespielt) - Panel soll deswegen nicht komplett ausfallen.
+try {
+    $openBookings = (int) db()->query("SELECT COUNT(*) FROM bookings WHERE status = 'angefragt'")->fetchColumn();
+} catch (PDOException $e) {
+    $openBookings = 0;
+}
+
+function nav_class(string $page, string $current): string
+{
+    return $page === $current ? 'active' : '';
+}
 ?>
 <!doctype html>
 <html lang="de">
@@ -20,14 +34,30 @@ $pageTitle = $pageTitle ?? 'Snapolino Panel';
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-<header class="topbar">
-    <div class="brand">Snapolino Panel</div>
-    <nav>
-        <a href="dashboard.php">Uebersicht</a>
-        <a href="boxes.php">Boxen</a>
-        <a href="layouts.php">Layouts</a>
-        <a href="logout.php">Abmelden</a>
-    </nav>
-</header>
-<main class="content">
-    <h1><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?></h1>
+<div class="app">
+    <aside class="sidebar">
+        <div class="sidebar-brand">Snapolino</div>
+        <nav class="sidebar-nav">
+            <a class="<?= nav_class('dashboard.php', $currentPage) ?>" href="dashboard.php">
+                <span class="nav-icon">📊</span> Übersicht
+            </a>
+            <a class="<?= nav_class('bookings.php', $currentPage) ?>" href="bookings.php">
+                <span class="nav-icon">📅</span> Buchungen
+                <?php if ($openBookings > 0): ?>
+                    <span class="nav-badge"><?= $openBookings ?></span>
+                <?php endif; ?>
+            </a>
+            <a class="<?= nav_class('boxes.php', $currentPage) ?>" href="boxes.php">
+                <span class="nav-icon">📦</span> Boxen
+            </a>
+            <a class="<?= nav_class('layouts.php', $currentPage) ?>" href="layouts.php">
+                <span class="nav-icon">🖼️</span> Layouts
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="../">Zur Webseite</a>
+            <a href="logout.php">Abmelden</a>
+        </div>
+    </aside>
+    <main class="content">
+        <h1><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?></h1>
