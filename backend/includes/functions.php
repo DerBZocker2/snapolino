@@ -37,6 +37,10 @@ function assign_box_and_confirm(int $bookingId, int $boxId = 0): bool
         $boxId = (int) $boxes[0]['id'];
     }
 
+    $stmt = db()->prepare('SELECT status, coupon_code FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $before = $stmt->fetch();
+
     db()->beginTransaction();
 
     db()->prepare("UPDATE bookings SET status = 'bestaetigt', box_id = ? WHERE id = ?")
@@ -49,6 +53,14 @@ function assign_box_and_confirm(int $bookingId, int $boxId = 0): bool
     $ins = db()->prepare('INSERT IGNORE INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
     foreach ($layoutIds as $layoutId) {
         $ins->execute([$boxId, (int) $layoutId]);
+    }
+
+    // Gutschein-Einloesung erst zaehlen, wenn die Buchung wirklich bestaetigt
+    // wird (bezahlt oder Admin bestaetigt eine Angebots-Buchung) - nicht
+    // schon beim blossen Eintippen im Assistenten, und nur einmal pro Buchung.
+    if ($before && $before['status'] !== 'bestaetigt' && !empty($before['coupon_code'])) {
+        db()->prepare('UPDATE coupons SET redemption_count = redemption_count + 1 WHERE code = ?')
+            ->execute([$before['coupon_code']]);
     }
 
     bump_box_version($boxId);
@@ -574,6 +586,17 @@ function booking_invoice_items(int $bookingId): array
         }
     }
 
+    $stmt = db()->prepare('SELECT coupon_code, discount_cents FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $couponRow = $stmt->fetch();
+    if ($couponRow && (int) $couponRow['discount_cents'] > 0) {
+        $items[] = [
+            'name' => 'Rabatt' . ($couponRow['coupon_code'] ? ' (' . $couponRow['coupon_code'] . ')' : ''),
+            'unit_amount_cents' => -(int) $couponRow['discount_cents'],
+            'quantity' => 1,
+        ];
+    }
+
     return $items;
 }
 
@@ -617,4 +640,65 @@ function booking_stripe_line_items(int $bookingId): array
         'amount_cents' => max(0, $i['unit_amount_cents']),
         'quantity' => $i['quantity'],
     ], array_filter($positive, static fn (array $i) => $i['unit_amount_cents'] > 0)));
+}
+
+// Adresszeilen fuer Rechnung/Admin-Ansicht, leere Felder werden ausgelassen.
+function booking_address_lines(array $booking): array
+{
+    $lines = [];
+    if (!empty($booking['customer_street'])) {
+        $lines[] = (string) $booking['customer_street'];
+    }
+    $zipCity = trim((string) ($booking['customer_zip'] ?? '') . ' ' . (string) ($booking['customer_city'] ?? ''));
+    if ($zipCity !== '') {
+        $lines[] = $zipCity;
+    }
+    return $lines;
+}
+
+// ---------- Gutscheine ----------
+
+// Liefert den Gutschein nur, wenn er aktuell einloesbar ist (aktiv, nicht
+// abgelaufen, Kontingent nicht ausgeschoepft) - sonst null, unabhaengig
+// davon, ob der Code ueberhaupt existiert (kein Unterschied fuer den Kunden
+// zwischen "falscher Code" und "abgelaufener Code" noetig).
+function find_active_coupon(string $code): ?array
+{
+    if ($code === '') {
+        return null;
+    }
+    $stmt = db()->prepare(
+        "SELECT * FROM coupons WHERE code = ? AND is_active = 1
+         AND (valid_until IS NULL OR valid_until >= CURDATE())
+         AND (max_redemptions IS NULL OR redemption_count < max_redemptions)"
+    );
+    $stmt->execute([strtoupper($code)]);
+    return $stmt->fetch() ?: null;
+}
+
+function coupon_discount_cents(array $coupon, int $subtotalCents): int
+{
+    if ($coupon['discount_type'] === 'percent') {
+        $discount = (int) round($subtotalCents * ((int) $coupon['discount_value'] / 100));
+    } else {
+        $discount = (int) $coupon['discount_value'];
+    }
+    return max(0, min($discount, $subtotalCents));
+}
+
+// Rechnet Zwischensumme, Rabatt und Endsumme fuer eine Buchung aus - Basis
+// fuer sowohl das Einloesen im Assistenten als auch das finale Abschicken
+// (Schritt 5), damit beide exakt denselben Betrag ermitteln.
+function calc_booking_pricing(array $layoutIds, array $extraSelections, ?string $couponCode): array
+{
+    $subtotal = calc_booking_total($layoutIds, $extraSelections);
+    $coupon = $couponCode ? find_active_coupon($couponCode) : null;
+    $discount = $coupon ? coupon_discount_cents($coupon, $subtotal) : 0;
+
+    return [
+        'subtotal' => $subtotal,
+        'coupon' => $coupon,
+        'discount_cents' => $discount,
+        'total' => max(0, $subtotal - $discount),
+    ];
 }

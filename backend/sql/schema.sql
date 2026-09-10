@@ -75,7 +75,13 @@ CREATE TABLE IF NOT EXISTS bookings (
     customer_name          VARCHAR(120) NOT NULL,
     customer_email         VARCHAR(190) NOT NULL,
     customer_phone         VARCHAR(40) NULL,
-    customer_address       TEXT NULL,
+    customer_street        VARCHAR(150) NULL,
+    customer_zip           VARCHAR(10) NULL,
+    customer_city          VARCHAR(100) NULL,
+    customer_company       VARCHAR(150) NULL,
+    invoice_to_company     TINYINT(1) NOT NULL DEFAULT 0,
+    coupon_code            VARCHAR(50) NULL,
+    discount_cents         INT UNSIGNED NOT NULL DEFAULT 0,
     event_date             DATE NOT NULL,
     box_id                 INT UNSIGNED NULL,
     status                 VARCHAR(20) NOT NULL DEFAULT 'reserviert',
@@ -90,6 +96,22 @@ CREATE TABLE IF NOT EXISTS bookings (
     FOREIGN KEY (box_id) REFERENCES boxes(id) ON DELETE SET NULL,
     INDEX idx_event_date (event_date),
     INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Gutscheincodes, im Panel unter "Gutscheine" angelegt. redemption_count
+-- wird erst erhoeht, wenn eine Buchung tatsaechlich bestaetigt wird
+-- (bezahlt oder Admin bestaetigt eine Angebots-Buchung), nicht schon beim
+-- blossen Eingeben/Einloesen im Assistenten.
+CREATE TABLE IF NOT EXISTS coupons (
+    id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    code              VARCHAR(50) NOT NULL UNIQUE,
+    discount_type     ENUM('percent', 'fixed') NOT NULL,
+    discount_value    INT UNSIGNED NOT NULL,
+    max_redemptions   INT UNSIGNED NULL,
+    redemption_count  INT UNSIGNED NOT NULL DEFAULT 0,
+    valid_until       DATE NULL,
+    is_active         TINYINT(1) NOT NULL DEFAULT 1,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Atomarer Zaehler fuer fortlaufende Rechnungsnummern (ein Zaehler pro Jahr,

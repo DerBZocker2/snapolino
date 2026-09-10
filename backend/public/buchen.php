@@ -212,53 +212,80 @@ if ($step === 4 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // ---------- Schritt 5: final abschicken ----------
 if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
-    $phone = trim((string) ($_POST['customer_phone'] ?? ''));
-    $address = trim((string) ($_POST['customer_address'] ?? ''));
-    $message = trim((string) ($_POST['message'] ?? ''));
-    $wantsQuote = isset($_POST['wants_quote']);
+    $formAction = (string) ($_POST['form_action'] ?? 'submit');
+    $layoutIds = booking_layout_ids((int) $booking['id']);
+    $extraSelections = booking_extra_selections((int) $booking['id']);
 
-    if ($address === '') {
-        $errors[] = 'Bitte eine Versandadresse angeben.';
-    }
+    if ($formAction === 'apply_coupon' || $formAction === 'remove_coupon') {
+        $couponCode = $formAction === 'remove_coupon' ? '' : strtoupper(trim((string) ($_POST['coupon_code'] ?? '')));
+        $pricing = calc_booking_pricing($layoutIds, $extraSelections, $couponCode !== '' ? $couponCode : null);
 
-    if (!$errors) {
-        $layoutIds = booking_layout_ids((int) $booking['id']);
-        $extraSelections = booking_extra_selections((int) $booking['id']);
-        $total = calc_booking_total($layoutIds, $extraSelections);
+        if ($couponCode !== '' && !$pricing['coupon']) {
+            $errors[] = 'Dieser Gutscheincode ist ungültig oder abgelaufen.';
+        } else {
+            db()->prepare('UPDATE bookings SET coupon_code = ?, discount_cents = ?, total_price_cents = ? WHERE id = ?')
+                ->execute([$couponCode !== '' ? $couponCode : null, $pricing['discount_cents'], $pricing['total'], $booking['id']]);
+        }
+    } else {
+        $phone = trim((string) ($_POST['customer_phone'] ?? ''));
+        $street = trim((string) ($_POST['customer_street'] ?? ''));
+        $zip = trim((string) ($_POST['customer_zip'] ?? ''));
+        $city = trim((string) ($_POST['customer_city'] ?? ''));
+        $company = trim((string) ($_POST['customer_company'] ?? ''));
+        $invoiceToCompany = isset($_POST['invoice_to_company']);
+        $message = trim((string) ($_POST['message'] ?? ''));
+        $wantsQuote = isset($_POST['wants_quote']);
 
-        $stmt = db()->prepare(
-            'UPDATE bookings SET customer_phone = ?, customer_address = ?, message = ?,
-             total_price_cents = ?, wants_quote = ? WHERE id = ?'
-        );
-        $stmt->execute([
-            $phone !== '' ? $phone : null,
-            $address,
-            $message !== '' ? $message : null,
-            $total,
-            $wantsQuote ? 1 : 0,
-            $booking['id'],
-        ]);
-
-        if ($wantsQuote) {
-            // Wer erst ein schriftliches Angebot moechte, zahlt nicht sofort -
-            // normale Anfrage, Admin bearbeitet sie im Panel wie bisher.
-            db()->prepare("UPDATE bookings SET status = 'angefragt' WHERE id = ?")->execute([$booking['id']]);
-            header('Location: buchen.php?danke=1');
-            exit;
+        if ($street === '' || $zip === '' || $city === '') {
+            $errors[] = 'Bitte Straße, PLZ und Ort angeben.';
+        }
+        if ($invoiceToCompany && $company === '') {
+            $errors[] = 'Bitte einen Firmennamen für die Rechnung angeben.';
         }
 
-        $baseUrl = rtrim((string) backend_config()['base_url'], '/');
-        $successUrl = $baseUrl . '/buchen.php?danke=1&paid=1';
-        $cancelUrl = $baseUrl . '/buchen.php?step=5&token=' . urlencode($token);
+        if (!$errors) {
+            $pricing = calc_booking_pricing($layoutIds, $extraSelections, (string) ($booking['coupon_code'] ?? '') ?: null);
 
-        $session = create_stripe_checkout_session($booking, booking_stripe_line_items((int) $booking['id']), $successUrl, $cancelUrl);
+            $stmt = db()->prepare(
+                'UPDATE bookings SET customer_phone = ?, customer_street = ?, customer_zip = ?, customer_city = ?,
+                 customer_company = ?, invoice_to_company = ?, message = ?, discount_cents = ?,
+                 total_price_cents = ?, wants_quote = ? WHERE id = ?'
+            );
+            $stmt->execute([
+                $phone !== '' ? $phone : null,
+                $street,
+                $zip,
+                $city,
+                $company !== '' ? $company : null,
+                $invoiceToCompany ? 1 : 0,
+                $message !== '' ? $message : null,
+                $pricing['discount_cents'],
+                $pricing['total'],
+                $wantsQuote ? 1 : 0,
+                $booking['id'],
+            ]);
 
-        if (!$session || empty($session['url'])) {
-            $errors[] = 'Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es gleich nochmal oder schreib uns kurz.';
-        } else {
-            db()->prepare('UPDATE bookings SET stripe_session_id = ? WHERE id = ?')->execute([$session['id'], $booking['id']]);
-            header('Location: ' . $session['url']);
-            exit;
+            if ($wantsQuote) {
+                // Wer erst ein schriftliches Angebot moechte, zahlt nicht sofort -
+                // normale Anfrage, Admin bearbeitet sie im Panel wie bisher.
+                db()->prepare("UPDATE bookings SET status = 'angefragt' WHERE id = ?")->execute([$booking['id']]);
+                header('Location: buchen.php?danke=1');
+                exit;
+            }
+
+            $baseUrl = rtrim((string) backend_config()['base_url'], '/');
+            $successUrl = $baseUrl . '/buchen.php?danke=1&paid=1';
+            $cancelUrl = $baseUrl . '/buchen.php?step=5&token=' . urlencode($token);
+
+            $session = create_stripe_checkout_session($booking, booking_stripe_line_items((int) $booking['id']), $successUrl, $cancelUrl);
+
+            if (!$session || empty($session['url'])) {
+                $errors[] = 'Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es gleich nochmal oder schreib uns kurz.';
+            } else {
+                db()->prepare('UPDATE bookings SET stripe_session_id = ? WHERE id = ?')->execute([$session['id'], $booking['id']]);
+                header('Location: ' . $session['url']);
+                exit;
+            }
         }
     }
 }
@@ -819,99 +846,155 @@ if ($booking) {
                 $stmt->execute(array_keys($chosenExtras));
                 $chosenExtraRows = $stmt->fetchAll();
             }
-            $total = calc_booking_total($chosenLayoutIds, $chosenExtras);
+            $pricing = calc_booking_pricing($chosenLayoutIds, $chosenExtras, (string) ($booking['coupon_code'] ?? '') ?: null);
+            $discount = $pricing['discount_cents'];
+            $total = $pricing['total'];
 
             $event = new DateTimeImmutable($booking['event_date']);
             [$shipStart] = booking_block_range($booking['event_date']);
             $shipOut = new DateTimeImmutable($shipStart);
             $shipBack = $event->modify('+' . BOOKING_BUFFER_DAYS . ' days');
             ?>
-            <div class="panel-box" style="max-width:640px;margin:0 auto;">
-                <h3>Zusammenfassung</h3>
-                <p class="muted">📅 <?= htmlspecialchars(german_weekday($event) . ', ' . $event->format('d.m.Y'), ENT_QUOTES) ?></p>
+            <div class="summary-layout">
+                <div class="panel-box">
+                    <h3>Rechnungsadresse</h3>
+                    <p class="muted">Die Rechnung geht an diese Adresse.</p>
 
-                <div class="summary-card">
-                    <div class="summary-card-head">
-                        <span>🎨 DESIGN</span>
-                        <a href="buchen.php?step=3&token=<?= urlencode($token) ?>">Ändern</a>
-                    </div>
-                    <strong><?= htmlspecialchars($defaultLayout['name'] ?? 'Standard', ENT_QUOTES) ?></strong>
-                    <?php foreach ($chosenLayoutRows as $l): ?>
-                        <?php if (!$l['is_default']): ?>
-                            <div><?= htmlspecialchars($l['name'], ENT_QUOTES) ?> (+<?= money_from_cents((int) $l['surcharge_cents']) ?>)</div>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
+                    <form method="post" action="buchen.php?step=5&token=<?= urlencode($token) ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
+                        <input type="hidden" name="form_action" value="submit">
+
+                        <label>Telefon<input type="text" name="customer_phone" value="<?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?>"></label>
+                        <label>Straße und Hausnummer *
+                            <input type="text" name="customer_street" required value="<?= htmlspecialchars((string) $booking['customer_street'], ENT_QUOTES) ?>">
+                        </label>
+                        <div class="grid2">
+                            <label>PLZ *<input type="text" name="customer_zip" required value="<?= htmlspecialchars((string) $booking['customer_zip'], ENT_QUOTES) ?>"></label>
+                            <label>Ort *<input type="text" name="customer_city" required value="<?= htmlspecialchars((string) $booking['customer_city'], ENT_QUOTES) ?>"></label>
+                        </div>
+
+                        <label class="checkbox">
+                            <input type="checkbox" name="invoice_to_company" id="invoice-company-checkbox" <?= $booking['invoice_to_company'] ? 'checked' : '' ?>>
+                            Rechnung auf Firma ausstellen
+                        </label>
+                        <div id="company-name-field" <?= $booking['invoice_to_company'] ? '' : 'hidden' ?>>
+                            <label>Firmenname
+                                <input type="text" name="customer_company" value="<?= htmlspecialchars((string) $booking['customer_company'], ENT_QUOTES) ?>">
+                            </label>
+                        </div>
+
+                        <label>Nachricht (optional)<textarea name="message" rows="3"><?= htmlspecialchars((string) $booking['message'], ENT_QUOTES) ?></textarea></label>
+                        <label class="checkbox">
+                            <input type="checkbox" name="wants_quote" id="wants-quote-checkbox" <?= $booking['wants_quote'] ? 'checked' : '' ?>>
+                            Ich möchte vorab nur ein schriftliches Angebot (noch nicht bezahlen)
+                        </label>
+
+                        <button type="submit" id="submit-booking-btn" class="btn-gradient">
+                            <?= $booking['wants_quote'] ? 'Angebot anfordern' : 'Weiter zur Zahlung' ?>
+                        </button>
+                        <p class="muted" style="text-align:center;font-size:12px;">Sichere Zahlung über Stripe · Kreditkarte, Klarna &amp; mehr</p>
+                    </form>
                 </div>
 
-                <div class="summary-card">
-                    <div class="summary-card-head">
-                        <span>✨ EXTRAS</span>
-                        <a href="buchen.php?step=4&token=<?= urlencode($token) ?>">Ändern</a>
-                    </div>
-                    <?php if ($chosenExtraRows): ?>
-                        <?php foreach ($chosenExtraRows as $extraRow): ?>
-                            <?php $qty = $chosenExtras[$extraRow['id']]; ?>
-                            <div>✓ <?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?>
-                                <span class="muted-text">(<?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?>)</span>
+                <div class="summary-sidebar">
+                    <div class="panel-box">
+                        <h3>Deine Buchung</h3>
+                        <p class="muted">📅 <?= htmlspecialchars(german_weekday($event) . ', ' . $event->format('d.m.Y'), ENT_QUOTES) ?></p>
+
+                        <div class="summary-card">
+                            <div class="summary-card-head">
+                                <span>🎨 DESIGN</span>
+                                <a href="buchen.php?step=3&token=<?= urlencode($token) ?>">Ändern</a>
                             </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <span class="muted">Keine Extras gewählt</span>
-                    <?php endif; ?>
-                </div>
+                            <strong><?= htmlspecialchars($defaultLayout['name'] ?? 'Standard', ENT_QUOTES) ?></strong>
+                            <?php foreach ($chosenLayoutRows as $l): ?>
+                                <?php if (!$l['is_default']): ?>
+                                    <div><?= htmlspecialchars($l['name'], ENT_QUOTES) ?> (+<?= money_from_cents((int) $l['surcharge_cents']) ?>)</div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
 
-                <div class="summary-card">
-                    <div class="summary-card-head"><span>🚚 VERSAND-ZEITPLAN (voraussichtlich)</span></div>
-                    <ul class="timeline">
-                        <li><strong>Versand an dich</strong> &mdash; ca. <?= htmlspecialchars($shipOut->format('d.m.Y'), ENT_QUOTES) ?></li>
-                        <li><strong>Dein Event</strong> &mdash; <?= htmlspecialchars($event->format('d.m.Y'), ENT_QUOTES) ?></li>
-                        <li><strong>Rücksendung</strong> &mdash; ca. <?= htmlspecialchars($shipBack->format('d.m.Y'), ENT_QUOTES) ?></li>
-                    </ul>
-                </div>
+                        <div class="summary-card">
+                            <div class="summary-card-head">
+                                <span>✨ EXTRAS</span>
+                                <a href="buchen.php?step=4&token=<?= urlencode($token) ?>">Ändern</a>
+                            </div>
+                            <?php if ($chosenExtraRows): ?>
+                                <?php foreach ($chosenExtraRows as $extraRow): ?>
+                                    <?php $qty = $chosenExtras[$extraRow['id']]; ?>
+                                    <div>✓ <?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?>
+                                        <span class="muted-text">(<?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?>)</span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <span class="muted">Keine Extras gewählt</span>
+                            <?php endif; ?>
+                        </div>
 
-                <div class="price-box">
-                    <h4>Preisübersicht</h4>
-                    <div class="price-row"><span><?= htmlspecialchars(base_price_label() ?: 'Fotobox-Miete', ENT_QUOTES) ?></span><span><?= money_from_cents(base_price_cents()) ?></span></div>
-                    <?php if ($layoutSurchargeSum > 0): ?>
-                        <div class="price-row"><span>Zusatzformate</span><span>+<?= money_from_cents($layoutSurchargeSum) ?></span></div>
-                    <?php endif; ?>
-                    <?php foreach ($chosenExtraRows as $extraRow): ?>
-                        <?php $qty = $chosenExtras[$extraRow['id']]; ?>
-                        <div class="price-row"><span><?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?></span>
-                            <span><?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?></span></div>
-                    <?php endforeach; ?>
-                    <div class="price-row total"><span>Gesamtpreis</span><span><?= money_from_cents($total) ?></span></div>
-                </div>
+                        <div class="summary-card">
+                            <div class="summary-card-head"><span>🚚 VERSAND-ZEITPLAN (voraussichtlich)</span></div>
+                            <ul class="timeline">
+                                <li><strong>Versand an dich</strong> &mdash; ca. <?= htmlspecialchars($shipOut->format('d.m.Y'), ENT_QUOTES) ?></li>
+                                <li><strong>Dein Event</strong> &mdash; <?= htmlspecialchars($event->format('d.m.Y'), ENT_QUOTES) ?></li>
+                                <li><strong>Rücksendung</strong> &mdash; ca. <?= htmlspecialchars($shipBack->format('d.m.Y'), ENT_QUOTES) ?></li>
+                            </ul>
+                        </div>
 
-                <form method="post" action="buchen.php?step=5&token=<?= urlencode($token) ?>">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
-                    <label>Telefon<input type="text" name="customer_phone" value="<?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?>"></label>
-                    <label>Versandadresse (Straße, PLZ, Ort) *
-                        <textarea name="customer_address" rows="3" required><?= htmlspecialchars((string) $booking['customer_address'], ENT_QUOTES) ?></textarea>
-                    </label>
-                    <label>Nachricht (optional)<textarea name="message" rows="3"><?= htmlspecialchars((string) $booking['message'], ENT_QUOTES) ?></textarea></label>
-                    <label class="checkbox">
-                        <input type="checkbox" name="wants_quote" id="wants-quote-checkbox" <?= $booking['wants_quote'] ? 'checked' : '' ?>>
-                        Ich möchte vorab nur ein schriftliches Angebot (noch nicht bezahlen)
-                    </label>
-                    <button type="submit" id="submit-booking-btn">
-                        <?= $booking['wants_quote'] ? 'Angebot anfordern' : 'Jetzt ' . money_from_cents($total) . ' bezahlen' ?>
-                    </button>
-                    <p class="muted" style="text-align:center;font-size:12px;">Sichere Zahlung über Stripe · Kreditkarte, Klarna &amp; mehr</p>
-                </form>
-                <script>
-                (function () {
-                    var cb = document.getElementById('wants-quote-checkbox');
-                    var btn = document.getElementById('submit-booking-btn');
-                    var payLabel = 'Jetzt <?= addslashes(money_from_cents($total)) ?> bezahlen';
-                    var quoteLabel = 'Angebot anfordern';
-                    cb.addEventListener('change', function () {
-                        btn.textContent = cb.checked ? quoteLabel : payLabel;
-                    });
-                })();
-                </script>
+                        <form method="post" action="buchen.php?step=5&token=<?= urlencode($token) ?>" class="coupon-form">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
+                            <?php if ($booking['coupon_code']): ?>
+                                <input type="hidden" name="form_action" value="remove_coupon">
+                                <div class="coupon-row">
+                                    <span class="muted">Gutschein <strong><?= htmlspecialchars($booking['coupon_code'], ENT_QUOTES) ?></strong> aktiv</span>
+                                    <button type="submit" class="button-secondary">Entfernen</button>
+                                </div>
+                            <?php else: ?>
+                                <input type="hidden" name="form_action" value="apply_coupon">
+                                <div class="coupon-row">
+                                    <input type="text" name="coupon_code" placeholder="Gutscheincode eingeben">
+                                    <button type="submit" class="button-secondary">Einlösen</button>
+                                </div>
+                            <?php endif; ?>
+                        </form>
+
+                        <div class="price-box">
+                            <h4>Preisübersicht</h4>
+                            <div class="price-row"><span><?= htmlspecialchars(base_price_label() ?: 'Fotobox-Miete', ENT_QUOTES) ?></span><span><?= money_from_cents(base_price_cents()) ?></span></div>
+                            <?php if ($layoutSurchargeSum > 0): ?>
+                                <div class="price-row"><span>Zusatzformate</span><span>+<?= money_from_cents($layoutSurchargeSum) ?></span></div>
+                            <?php endif; ?>
+                            <?php foreach ($chosenExtraRows as $extraRow): ?>
+                                <?php $qty = $chosenExtras[$extraRow['id']]; ?>
+                                <div class="price-row"><span><?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?></span>
+                                    <span><?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?></span></div>
+                            <?php endforeach; ?>
+                            <?php if ($discount > 0): ?>
+                                <div class="price-row" style="color:#1f9d55;"><span>Rabatt<?= $booking['coupon_code'] ? ' (' . htmlspecialchars($booking['coupon_code'], ENT_QUOTES) . ')' : '' ?></span><span>&minus;<?= money_from_cents($discount) ?></span></div>
+                            <?php endif; ?>
+                            <div class="price-row total"><span>Gesamtpreis</span><span><?= money_from_cents($total) ?></span></div>
+                        </div>
+                    </div>
+                </div>
             </div>
+            <script>
+            (function () {
+                var cb = document.getElementById('wants-quote-checkbox');
+                var btn = document.getElementById('submit-booking-btn');
+                var payLabel = 'Weiter zur Zahlung';
+                var quoteLabel = 'Angebot anfordern';
+                cb.addEventListener('change', function () {
+                    btn.textContent = cb.checked ? quoteLabel : payLabel;
+                });
+
+                var companyCb = document.getElementById('invoice-company-checkbox');
+                var companyField = document.getElementById('company-name-field');
+                companyCb.addEventListener('change', function () {
+                    companyField.hidden = !companyCb.checked;
+                });
+            })();
+            </script>
         <?php endif; ?>
     <?php endif; ?>
 </section>

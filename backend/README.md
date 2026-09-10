@@ -40,6 +40,7 @@ backend/
       booking_detail.php       Details, Extras, Gesamtpreis + interne Notiz
       layout_form.php          Layout anlegen/bearbeiten inkl. visuellem Drag-Slot-Editor
       extras.php, extra_form.php   Zusatzoptionen verwalten (Preis, Ein/Aus/Menge)
+      coupons.php, coupon_form.php Gutscheincodes verwalten (Prozent/Festbetrag, Ablauf, Kontingent)
       settings.php             Basispreis, Beschriftung, Rechnungsdaten
 ```
 
@@ -140,9 +141,10 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
 4. **Extras** - admin-verwaltete Zusatzoptionen (`extras`-Tabelle), je nach
    Typ als Ein/Aus-Schalter oder mit Mengenauswahl, Preis kann auch negativ
    sein (Rabatt, z.B. "Ohne Druck").
-5. **Zusammenfassung** - Telefon/Versandadresse, Versand-Zeitplan und
-   Preisuebersicht (`total_price_cents` via `calc_booking_total()`). Zwei
-   Wege zum Abschluss:
+5. **Zusammenfassung** - strukturierte Rechnungsadresse (Strasse/PLZ/Ort,
+   optional Firma), Versand-Zeitplan, Gutscheincode-Einloesung und
+   Preisuebersicht (`calc_booking_pricing()`, kombiniert `calc_booking_total()`
+   mit einem eingeloesten Gutschein). Zwei Wege zum Abschluss:
    - **Jetzt bezahlen** (Standardfall): erstellt eine Stripe Checkout
      Session (`create_stripe_checkout_session()`) und leitet zur von Stripe
      gehosteten Kassenseite weiter - keine Kartendaten beruehren den
@@ -157,6 +159,16 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
    - **"Ich möchte vorab nur ein schriftliches Angebot"** (Checkbox): keine
      Zahlung, Status wird wie bisher `angefragt`, Admin bearbeitet die
      Anfrage im Panel von Hand.
+
+**Gutscheine** (Panel unter **Gutscheine**, `coupons`-Tabelle): Prozent- oder
+Festbetrag-Rabatt, optional mit Ablaufdatum und maximaler Einloesungszahl.
+Der Code wird in Schritt 5 gegen `find_active_coupon()` geprueft und landet
+mit dem berechneten Rabatt (`coupon_discount_cents()`) auf der Buchung
+(`coupon_code`/`discount_cents`) - `redemption_count` wird aber bewusst
+*nicht* schon beim Einloesen im Assistenten erhoeht, sondern erst wenn die
+Buchung tatsaechlich `bestaetigt` wird (bezahlt oder Admin bestaetigt eine
+Angebots-Buchung, beides laeuft durch `assign_box_and_confirm()`) - ein
+abgebrochener Checkout verbraucht damit kein Kontingent.
 
 Eine `reserviert`-Buchung, die **nicht** innerhalb von `RESERVATION_HOLD_DAYS`
 (14 Tage) zu `angefragt` wird, blockiert den Kalender danach nicht mehr
@@ -297,6 +309,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0004_preset_designs.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0005_payments_and_invoices.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0006_format_templates.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0007_coupons_and_billing_address.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -319,6 +332,12 @@ unbedingt danach im Panel unter **Einstellungen** durch echte Werte
 ersetzen (siehe "Zahlung einrichten" oben).
 
 Migration 0006 legt die drei Zusatzformate mit 1/2/3 statt 4 Fotos an.
+
+Migration 0007 legt die Tabelle `coupons` an und ersetzt das einzelne
+Freitext-Adressfeld `bookings.customer_address` durch strukturierte Felder
+(`customer_street`, `customer_zip`, `customer_city`, `customer_company`,
+`invoice_to_company`) sowie `coupon_code`/`discount_cents`. Bestehende
+Freitextadressen werden dabei bestmoeglich in `customer_street` uebernommen.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
