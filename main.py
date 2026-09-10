@@ -26,11 +26,10 @@ ES_DISPLAY_REQUIRED = 0x00000002
 
 PAGE_WELCOME = 0
 PAGE_READY = 1
-PAGE_LAYOUT = 2
-PAGE_LIVE = 3
-PAGE_SINGLE = 4
-PAGE_REVIEW = 5
-PAGE_COLLAGE = 6
+PAGE_LIVE = 2
+PAGE_SINGLE = 3
+PAGE_REVIEW = 4
+PAGE_COLLAGE = 5
 
 EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
 EXTRA_MULTI_COPY = "mehrfachabzug"
@@ -270,32 +269,21 @@ class Fotobox(QWidget):
         lw.addWidget(self.btn_welcome_continue)
         self.pages.addWidget(pw)
 
-        # Seite 1: BEREIT
+        # Seite 1: BEREIT - Rahmenauswahl direkt hier, Antippen startet sofort
+        # die Aufnahme (kein separater Zwischenschritt mit Start-Knopf mehr).
         p0 = QWidget()
         l0 = QVBoxLayout(p0)
-        self.frame_preview = QLabel("Kein Rahmen gefunden")
-        self.frame_preview.setAlignment(Qt.AlignCenter)
-        self.btn_start = QPushButton("START")
-        self.btn_start.setFixedHeight(90)
-        self.btn_start.setStyleSheet(
-            "font-size: 34px; background: #27ae60; color: white; border-radius: 12px;"
-        )
-        self.btn_start.clicked.connect(self.start_session)
-        l0.addWidget(self.frame_preview, 1)
-        l0.addWidget(self.btn_start)
+        title0 = QLabel("Deine Rahmen")
+        title0.setStyleSheet("font-size: 26px; font-weight: bold;")
+        l0.addWidget(title0)
+        subtitle0 = QLabel("Zum Starten auf einen Rahmen tippen")
+        subtitle0.setStyleSheet("font-size: 16px; color: #aaa;")
+        l0.addWidget(subtitle0)
+        self.layout_choice_box = QVBoxLayout()
+        l0.addLayout(self.layout_choice_box, 1)
         self.pages.addWidget(p0)
 
-        # Seite 2: LAYOUTWAHL (nur bei mehr als einem Layout sichtbar)
-        p1 = QWidget()
-        l1 = QVBoxLayout(p1)
-        title1 = QLabel("Deine Rahmen")
-        title1.setStyleSheet("font-size: 26px; font-weight: bold;")
-        l1.addWidget(title1)
-        self.layout_choice_box = QVBoxLayout()
-        l1.addLayout(self.layout_choice_box, 1)
-        self.pages.addWidget(p1)
-
-        # Seite 3: LIVE + COUNTDOWN
+        # Seite 2: LIVE + COUNTDOWN
         p2 = QWidget()
         l2 = QVBoxLayout(p2)
         self.live_view = QLabel()
@@ -303,7 +291,7 @@ class Fotobox(QWidget):
         l2.addWidget(self.live_view, 1)
         self.pages.addWidget(p2)
 
-        # Seite 4: EINZELANSICHT (ein aufgenommenes Bild, Wiederholen/Weiter)
+        # Seite 3: EINZELANSICHT (ein aufgenommenes Bild, Wiederholen/Weiter)
         p3 = QWidget()
         l3 = QVBoxLayout(p3)
         self.single_view = QLabel()
@@ -323,7 +311,7 @@ class Fotobox(QWidget):
         l3.addLayout(row3)
         self.pages.addWidget(p3)
 
-        # Seite 5: GESAMTUEBERSICHT (alle Bilder; falls "Einzelne Bilder
+        # Seite 4: GESAMTUEBERSICHT (alle Bilder; falls "Einzelne Bilder
         # drucken" gebucht wurde, kann eins fuer einen Zusatzdruck ausgewaehlt
         # werden, mit "Mehrfachabzug" zusaetzlich die Anzahl der Abzuege)
         p_review = QWidget()
@@ -365,7 +353,7 @@ class Fotobox(QWidget):
         l_review.addWidget(self.btn_review_continue)
         self.pages.addWidget(p_review)
 
-        # Seite 6: COLLAGE + Druckfrage
+        # Seite 5: COLLAGE + Druckfrage
         p4 = QWidget()
         l4 = QVBoxLayout(p4)
         self.collage_view = QLabel()
@@ -386,24 +374,6 @@ class Fotobox(QWidget):
         self.pages.addWidget(p4)
 
         self._refresh_layout_choices()
-        self._load_frame_preview()
-
-    def _default_layout(self):
-        for layout in self.layouts:
-            if layout.get("is_default"):
-                return layout
-        return self.layouts[0]
-
-    def _load_frame_preview(self):
-        frame_path = self._default_layout()["frame_path"]
-        if os.path.exists(frame_path):
-            self.frame_preview.setPixmap(
-                QPixmap(frame_path).scaled(
-                    900, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation
-                )
-            )
-        else:
-            self.frame_preview.setText("Kein Rahmen gefunden")
 
     def _refresh_layout_choices(self):
         while self.layout_choice_box.count():
@@ -488,7 +458,6 @@ class Fotobox(QWidget):
     def _apply_layouts(self, layouts):
         self.layouts = layouts
         self._refresh_layout_choices()
-        self._load_frame_preview()
 
     # ---------- Ablauf ----------
 
@@ -509,7 +478,7 @@ class Fotobox(QWidget):
             to_pixmap(shown, self.live_view.width(), self.live_view.height())
         )
 
-    def start_session(self):
+    def choose_layout(self, layout):
         if self.busy:
             return
         if not self.cam_ok:
@@ -518,12 +487,6 @@ class Fotobox(QWidget):
             return
         self.busy = True
         self._set_buttons(False)
-        if len(self.layouts) > 1:
-            self.pages.setCurrentIndex(PAGE_LAYOUT)
-        else:
-            self.choose_layout(self.layouts[0])
-
-    def choose_layout(self, layout):
         self.selected_layout = layout
         self.slot_frames = []
         self.current_slot = 0
@@ -671,7 +634,6 @@ class Fotobox(QWidget):
             log.info("Zwischenzeitlich synchronisierte Cloud-Konfiguration uebernommen")
 
     def _set_buttons(self, enabled):
-        self.btn_start.setEnabled(enabled)
         self.btn_restart.setEnabled(enabled)
         self.btn_print.setEnabled(enabled)
 

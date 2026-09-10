@@ -113,7 +113,7 @@ $layoutStmt = db()->prepare(
                 <td class="actions">
                     <a href="booking_detail.php?id=<?= (int) $booking['id'] ?>">Details</a>
                     <?php if ($booking['status'] === 'angefragt'): ?>
-                        <a href="boxes.php" class="muted-text" title="Auf der Boxen-Seite per Drag &amp; Drop einer Box zuordnen, um zu bestätigen">→ Box zuordnen</a>
+                        <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop einer Box zuordnen, um zu bestätigen">→ Box zuordnen</a>
                         <form method="post" action="bookings.php">
                             <?= csrf_field() ?>
                             <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
@@ -122,7 +122,7 @@ $layoutStmt = db()->prepare(
                         </form>
                     <?php elseif ($booking['status'] === 'bestaetigt'): ?>
                         <?php if (!$booking['box_id']): ?>
-                            <a href="boxes.php" class="muted-text" title="Auf der Boxen-Seite per Drag &amp; Drop zuordnen">→ Box zuordnen</a>
+                            <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop zuordnen">→ Box zuordnen</a>
                         <?php endif; ?>
                         <form method="post" action="bookings.php" onsubmit="return confirm('Buchung wirklich stornieren?');">
                             <?= csrf_field() ?>
