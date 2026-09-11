@@ -62,6 +62,12 @@ FULLSCREEN = _get_bool("box", "fullscreen", True)
 MIRROR_PREVIEW = _get_bool("box", "mirror_preview", True)   # Live-Bild spiegeln, Foto nicht
 RESULT_SECONDS = _get_int("box", "result_seconds", 0)       # 0 = warten auf Tastendruck
 
+# Tage nach dem Eventdatum der aktuell hinterlegten Buchung, ab denen sich
+# die Box sperrt und um Rueckgabe bittet (z.B. Event am 20.9, Wert 2 ->
+# gesperrt ab dem 22.9). Betrifft nur den Leerlauf, nie eine laufende
+# Aufnahmesession.
+RETURN_BUFFER_DAYS = _get_int("box", "return_buffer_days", 2)
+
 # Eingebautes Standardlayout (4 Bilder als 2x2-Collage), falls die Box
 # noch nie erfolgreich mit der Cloud synchronisiert hat. Die Box muss
 # auch ganz ohne Internetverbindung voll funktionieren.

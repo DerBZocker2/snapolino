@@ -586,6 +586,8 @@ if ($booking) {
                 function currentLayout() { return layoutById(parseInt(baseSelect.value, 10)); }
 
                 var customSlots = null;
+                var HANDLE_RADIUS = 8;
+                var MIN_SLOT_SIZE = 60;
                 function resetSlots() {
                     customSlots = currentLayout().slots.map(function (s) {
                         return { x: s.x, y: s.y, width: s.width, height: s.height };
@@ -650,6 +652,19 @@ if ($booking) {
                             targetCtx.strokeRect(s.x * scale, s.y * scale, s.width * scale, s.height * scale);
                         });
                         targetCtx.restore();
+
+                        // Rundlicher Ziehpunkt unten rechts an jeder Fotoflaeche zum Skalieren.
+                        targetCtx.save();
+                        targetCtx.fillStyle = '#6c5ce7';
+                        targetCtx.strokeStyle = '#fff';
+                        targetCtx.lineWidth = 2;
+                        slots.forEach(function (s) {
+                            targetCtx.beginPath();
+                            targetCtx.arc((s.x + s.width) * scale, (s.y + s.height) * scale, HANDLE_RADIUS, 0, Math.PI * 2);
+                            targetCtx.fill();
+                            targetCtx.stroke();
+                        });
+                        targetCtx.restore();
                     }
                 }
 
@@ -675,8 +690,10 @@ if ($booking) {
                     refreshPreview();
                 });
 
-                // Fotoflaechen im Vorschau-Canvas per Maus verschieben.
+                // Fotoflaechen im Vorschau-Canvas per Maus verschieben und am
+                // Ziehpunkt unten rechts in der Groesse anpassen.
                 var drag = null;
+                var resize = null;
                 function canvasPoint(ev) {
                     var rect = canvas.getBoundingClientRect();
                     return {
@@ -684,33 +701,77 @@ if ($booking) {
                         y: (ev.clientY - rect.top) * (canvas.height / rect.height),
                     };
                 }
-                canvas.addEventListener('mousedown', function (ev) {
-                    var layout = currentLayout();
-                    var scale = canvas.width / layout.canvas_width;
-                    var p = canvasPoint(ev);
+                function slotAtHandle(p, scale) {
+                    for (var i = customSlots.length - 1; i >= 0; i--) {
+                        var s = customSlots[i];
+                        var hx = (s.x + s.width) * scale, hy = (s.y + s.height) * scale;
+                        if (Math.hypot(p.x - hx, p.y - hy) <= HANDLE_RADIUS + 4) {
+                            return i;
+                        }
+                    }
+                    return -1;
+                }
+                function slotAtPoint(p, scale) {
                     for (var i = customSlots.length - 1; i >= 0; i--) {
                         var s = customSlots[i];
                         var sx = s.x * scale, sy = s.y * scale, sw = s.width * scale, sh = s.height * scale;
                         if (p.x >= sx && p.x <= sx + sw && p.y >= sy && p.y <= sy + sh) {
-                            drag = { index: i, startX: p.x, startY: p.y, origX: s.x, origY: s.y };
-                            break;
+                            return i;
                         }
                     }
-                });
-                canvas.addEventListener('mousemove', function (ev) {
-                    if (!drag) return;
+                    return -1;
+                }
+                canvas.addEventListener('mousedown', function (ev) {
                     var layout = currentLayout();
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
-                    var s = customSlots[drag.index];
-                    var dx = (p.x - drag.startX) / scale;
-                    var dy = (p.y - drag.startY) / scale;
-                    s.x = Math.max(0, Math.min(layout.canvas_width - s.width, drag.origX + dx));
-                    s.y = Math.max(0, Math.min(layout.canvas_height - s.height, drag.origY + dy));
-                    refreshPreview();
+
+                    var handleIdx = slotAtHandle(p, scale);
+                    if (handleIdx !== -1) {
+                        var hs = customSlots[handleIdx];
+                        resize = { index: handleIdx, startX: p.x, startY: p.y, origW: hs.width, origH: hs.height };
+                        return;
+                    }
+
+                    var moveIdx = slotAtPoint(p, scale);
+                    if (moveIdx !== -1) {
+                        var ms = customSlots[moveIdx];
+                        drag = { index: moveIdx, startX: p.x, startY: p.y, origX: ms.x, origY: ms.y };
+                    }
                 });
-                document.addEventListener('mouseup', function () { drag = null; });
-                canvas.style.cursor = 'grab';
+                canvas.addEventListener('mousemove', function (ev) {
+                    var layout = currentLayout();
+                    var scale = canvas.width / layout.canvas_width;
+                    var p = canvasPoint(ev);
+
+                    if (resize) {
+                        var s = customSlots[resize.index];
+                        var dw = (p.x - resize.startX) / scale;
+                        var dh = (p.y - resize.startY) / scale;
+                        s.width = Math.max(MIN_SLOT_SIZE, Math.min(layout.canvas_width - s.x, resize.origW + dw));
+                        s.height = Math.max(MIN_SLOT_SIZE, Math.min(layout.canvas_height - s.y, resize.origH + dh));
+                        refreshPreview();
+                        return;
+                    }
+                    if (drag) {
+                        var d = customSlots[drag.index];
+                        var dx = (p.x - drag.startX) / scale;
+                        var dy = (p.y - drag.startY) / scale;
+                        d.x = Math.max(0, Math.min(layout.canvas_width - d.width, drag.origX + dx));
+                        d.y = Math.max(0, Math.min(layout.canvas_height - d.height, drag.origY + dy));
+                        refreshPreview();
+                        return;
+                    }
+
+                    if (slotAtHandle(p, scale) !== -1) {
+                        canvas.style.cursor = 'nwse-resize';
+                    } else if (slotAtPoint(p, scale) !== -1) {
+                        canvas.style.cursor = 'grab';
+                    } else {
+                        canvas.style.cursor = 'default';
+                    }
+                });
+                document.addEventListener('mouseup', function () { drag = null; resize = null; });
 
                 document.querySelectorAll('[data-customize]').forEach(function (btn) {
                     btn.addEventListener('click', function (ev) {

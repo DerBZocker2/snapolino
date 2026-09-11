@@ -196,6 +196,14 @@ abzuholen. Fuer bezahlte Buchungen laeuft dieselbe Zuordnung automatisch,
 wenn genau eine Box existiert; bei 0 oder mehreren Boxen bleibt `box_id`
 leer und die Buchung taucht ebenfalls als Karte zum Zuordnen auf.
 
+Auf jeder Box-Karte kann die aktuelle Zuordnung ueber **Zuordnung
+aufheben** wieder entfernt werden (setzt `box_id` auf `NULL`, der Status
+`bestaetigt` bleibt unangetastet, da die Buchung ja bereits bezahlt sein
+kann - sie taucht danach wieder unter "Buchungen ohne Box" auf). Erhoeht
+ebenfalls `config_version`, sonst wuerde die Box beim naechsten
+Preflight-Check (`?since=`) einen `304` bekommen und die alte Buchung
+weiter anzeigen.
+
 Serverseitig wird das Eventdatum beim Absenden nochmal gegen blockierte
 Tage geprueft (nicht nur im Kalender per JavaScript), damit das nicht per
 manuellem POST umgangen werden kann.
