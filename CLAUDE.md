@@ -52,6 +52,16 @@ Die Meldung enthaelt nach Moeglichkeit einen konkreten Hinweis
 (`hardware.printer_status_message()`), ist aber je nach Treiber nicht
 immer praezise (siehe Offene Punkte).
 
+Liegt das Eventdatum der aktuell hinterlegten Buchung mehr als
+`return_buffer_days` Tage zurueck (box.ini, Standard 2 - Event 20.9 also
+gesperrt ab dem 22.9), zeigt die Box statt WILLKOMMEN/BEREIT eine
+Sperrbildschirm mit der Bitte um Ruecksendung (`return_lock_active()` in
+main.py). Die Pruefung greift nur im Leerlauf, nie mitten in einer
+laufenden Aufnahmesession. Admin-Menue bleibt ueber den Logo-Knopf
+weiterhin erreichbar. Die Zuordnung laesst sich im Panel unter **Boxen**
+per "Zuordnung aufheben" wieder entfernen (z.B. um die Box fuer den
+naechsten Kunden vorzubereiten).
+
 ## Architekturentscheidungen (bitte beibehalten)
 - **Offline-First.** Die Box muss ohne Internet voll funktionieren. Cloud-Sync
   passiert nur im Vorbereitungsmodus vor dem Versand, nie während eines Events.
@@ -100,7 +110,11 @@ Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe
 `assign_box_and_confirm()` auf, die auch nach Zahlungseingang automatisch
 läuft) - überträgt die vom Kunden gewünschten Layouts nach `box_layouts`
 und erhöht `config_version`. Aktuell fest auf eine Box ausgelegt (kein
-Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
+Verfügbarkeits-Overbooking-Schutz über mehrere Boxen). Über "Zuordnung
+aufheben" auf der Box-Karte lässt sich die Zuordnung wieder entfernen
+(`box_id` auf `NULL`, Status bleibt `bestätigt`, `config_version` wird
+ebenfalls erhöht) - die Buchung erscheint danach wieder unter "Buchungen
+ohne Box".
 
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
 filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos), Online-Designer

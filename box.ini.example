@@ -28,3 +28,8 @@ fullscreen = true
 mirror_preview = true
 ; 0 = auf Tastendruck warten, sonst Sekunden bis automatisch weiter
 result_seconds = 0
+
+; Tage nach dem Eventdatum der aktuell hinterlegten Buchung, ab denen sich
+; die Box sperrt und um Rueckgabe bittet (Event 20.9, Wert 2 -> gesperrt
+; ab dem 22.9)
+return_buffer_days = 2
