@@ -165,9 +165,15 @@ kann sie nicht abfangen).
 - Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
-- `printer_status_message()`/`printer_ready()` erkennen Papier-/Farbbandende
-  nicht bei jedem Treiber zuverlässig (Windows-Statusflags, nicht alle
-  Fotodrucker setzen sie granular)
+- `printer_status_message()`/`printer_ready()` fragen inzwischen sowohl die
+  klassischen Windows-Statusflags als auch WMI (`Win32_Printer.DetectedErrorState`)
+  ab, und `output.py` wartet nach jedem Druckauftrag zusaetzlich auf dessen
+  Job-Status (`hardware.job_status()`), weil manche Fotodrucker-Treiber
+  (u.a. der Selphy CP1500) ein Problem wie eine entnommene Papierkassette
+  erst dort und nicht im globalen Druckerstatus zeigen. Trotzdem nicht bei
+  jedem Treiber zuverlässig/vollstaendig - `python hardware.py [Druckername]`
+  auf dem Geraet mit dem Drucker gibt alle Rohwerte aller drei Quellen aus,
+  falls ein Fehlerzustand weiterhin nicht erkannt wird
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
 - Online-Designer bietet nur Farbe/Muster/Text plus verschieb- und
