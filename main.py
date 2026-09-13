@@ -2,7 +2,7 @@ import ctypes
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 
 import cv2
@@ -30,6 +30,7 @@ PAGE_LIVE = 2
 PAGE_SINGLE = 3
 PAGE_REVIEW = 4
 PAGE_COLLAGE = 5
+PAGE_LOCKED = 6
 
 EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
 EXTRA_MULTI_COPY = "mehrfachabzug"
@@ -105,6 +106,21 @@ def extras_flags(extras):
         elif name == EXTRA_MULTI_COPY:
             multi_copy_max = max(multi_copy_max, int(extra.get("quantity", 0)))
     return allow_individual, multi_copy_max
+
+
+def return_lock_active(booking):
+    """Prueft, ob die Box gesperrt werden soll, weil das Event der aktuell
+    hinterlegten Buchung laenger als RETURN_BUFFER_DAYS zurueckliegt (z.B.
+    Event am 20.9, RETURN_BUFFER_DAYS=2 -> gesperrt ab dem 22.9). Ohne
+    bekannte Buchung bzw. Eventdatum wird nie gesperrt."""
+    if not booking or not booking.get("event_date"):
+        return False
+    try:
+        event_date = date.fromisoformat(booking["event_date"])
+    except ValueError:
+        return False
+    lock_date = event_date + timedelta(days=config.RETURN_BUFFER_DAYS)
+    return date.today() >= lock_date
 
 
 def prepare_single_print(frame_bgr, ratio):
@@ -214,7 +230,9 @@ class Fotobox(QWidget):
         self.tick.timeout.connect(self._on_tick)
 
         booking = cloudsync.get_booking()
-        if booking and booking.get("customer_name"):
+        if return_lock_active(booking):
+            self._show_return_lock(booking)
+        elif booking and booking.get("customer_name"):
             self.welcome_label.setText(
                 f"Hallo {booking['customer_name']},\ndanke für die Buchung der Box!"
             )
@@ -373,6 +391,17 @@ class Fotobox(QWidget):
         l4.addLayout(row4)
         self.pages.addWidget(p4)
 
+        # Seite 6: GESPERRT (Buchung laenger als RETURN_BUFFER_DAYS vorbei,
+        # Box soll zurueckgeschickt werden statt weiter genutzt zu werden)
+        p_locked = QWidget()
+        l_locked = QVBoxLayout(p_locked)
+        self.locked_label = QLabel("")
+        self.locked_label.setAlignment(Qt.AlignCenter)
+        self.locked_label.setWordWrap(True)
+        self.locked_label.setStyleSheet("font-size: 26px;")
+        l_locked.addWidget(self.locked_label, 1)
+        self.pages.addWidget(p_locked)
+
         self._refresh_layout_choices()
 
     def _refresh_layout_choices(self):
@@ -457,6 +486,24 @@ class Fotobox(QWidget):
         self.dot_printer.set_ok(bool(ready), ready[0] if ready else "")
 
         self.dot_camera.set_ok(self.cam_ok, self.camera_name if self.cam_ok else "")
+
+        # Rueckgabe-Sperre nur ausserhalb einer laufenden Aufnahmesession
+        # pruefen, damit ein Event nicht mitten in der Aufnahme abbricht -
+        # spaetestens beim naechsten Leerlauf (WILLKOMMEN/BEREIT) greift sie.
+        if self.pages.currentIndex() in (PAGE_WELCOME, PAGE_READY):
+            booking = cloudsync.get_booking()
+            if return_lock_active(booking):
+                self._show_return_lock(booking)
+
+    def _show_return_lock(self, booking):
+        name = booking.get("customer_name") or ""
+        greeting = f"Hallo {name},\n" if name else ""
+        self.locked_label.setText(
+            f"{greeting}diese Fotobox ist für dieses Event bereits abgelaufen.\n\n"
+            "Bitte sende die Box zeitnah an uns zurück. Bei Fragen wende dich "
+            "gerne an den Vermieter."
+        )
+        self.pages.setCurrentIndex(PAGE_LOCKED)
 
     def _on_cam_status(self, ok):
         if ok != self.cam_ok:

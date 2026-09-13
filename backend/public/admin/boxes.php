@@ -6,6 +6,26 @@ require __DIR__ . '/_header.php';
 
 $error = '';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === 'unassign') {
+    check_csrf();
+
+    $bookingId = (int) ($_POST['booking_id'] ?? 0);
+    $boxId = (int) ($_POST['box_id'] ?? 0);
+
+    // Status bleibt 'bestaetigt' (die Buchung ist ja ggf. schon bezahlt),
+    // nur die Box-Zuordnung wird entfernt - die Buchung taucht danach
+    // wieder unter "Buchungen ohne Box" auf.
+    $stmt = db()->prepare('UPDATE bookings SET box_id = NULL WHERE id = ? AND box_id = ?');
+    $stmt->execute([$bookingId, $boxId]);
+
+    // Ohne diesen Aufruf wuerde die Box beim naechsten Preflight-Check
+    // (?since=) einen 304 bekommen und weiter die alte Buchung anzeigen.
+    bump_box_version($boxId);
+
+    header('Location: boxes.php');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
 
@@ -49,7 +69,7 @@ $boxes = db()->query('SELECT * FROM boxes ORDER BY created_at DESC')->fetchAll()
 // api.php, damit die Karte hier zeigt, was die Box beim naechsten Sync
 // tatsaechlich bekommt.
 $currentBookingStmt = db()->prepare(
-    "SELECT customer_name, event_date FROM bookings
+    "SELECT id, customer_name, event_date FROM bookings
      WHERE box_id = ? AND status = 'bestaetigt' AND event_date >= CURDATE()
      ORDER BY event_date ASC LIMIT 1"
 );
@@ -137,6 +157,14 @@ $layoutStmt = db()->prepare(
                         <div class="box-card-booking">
                             <strong><?= htmlspecialchars($box['current_booking']['customer_name'], ENT_QUOTES) ?></strong>
                             <span class="muted-text">📅 <?= htmlspecialchars($box['current_booking']['event_date'], ENT_QUOTES) ?></span>
+                            <form method="post" action="boxes.php" class="box-card-unassign"
+                                  onsubmit="return confirm('Zuordnung wirklich aufheben? Die Box zeigt danach keine Buchung mehr an.');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="form_action" value="unassign">
+                                <input type="hidden" name="booking_id" value="<?= (int) $box['current_booking']['id'] ?>">
+                                <input type="hidden" name="box_id" value="<?= (int) $box['id'] ?>">
+                                <button type="submit" class="button-secondary">Zuordnung aufheben</button>
+                            </form>
                         </div>
                     <?php else: ?>
                         <div class="box-card-empty">Buchung hierher ziehen</div>

@@ -2,6 +2,7 @@ import logging
 import os
 import queue
 import shutil
+import time
 
 import win32print
 import win32ui
@@ -29,6 +30,33 @@ def _printer_hint(printer_name):
     if not hardware.printer_ready(printer_name):
         return " (Drucker meldet 'nicht bereit' - eingeschaltet, USB verbunden, Papier/Farbband eingelegt?)"
     return ""
+
+
+PRINT_JOB_TIMEOUT = 60          # Sekunden, ca. 41s Druckzeit + Puffer
+PRINT_JOB_POLL_INTERVAL = 1.0
+
+
+def _wait_for_job(printer_name, job_id):
+    """Wartet, bis der Spooler den Druckauftrag als erledigt oder
+    fehlerhaft meldet (hardware.job_status()). Noetig, weil StartDoc/EndDoc
+    nur den Auftrag an den Spooler uebergeben - viele Fotodrucker-Treiber
+    (u.a. der Selphy CP1500) melden ein Problem wie eine entnommene
+    Papierkassette erst hier und nicht schon bei der Uebergabe, ohne dass
+    GDI selbst je eine Exception wirft. Blockiert bewusst den Worker-Thread
+    (nie die GUI), siehe CLAUDE.md "Drucken im Worker-Thread"."""
+    deadline = time.monotonic() + PRINT_JOB_TIMEOUT
+    while time.monotonic() < deadline:
+        status, message = hardware.job_status(printer_name, job_id)
+        if status is None:
+            return  # Auftrag nicht mehr in der Warteschlange -> fertig gedruckt
+        if message:
+            raise RuntimeError(f"Drucken auf '{printer_name}' fehlgeschlagen ({message})")
+        if status & getattr(win32print, "JOB_STATUS_PRINTED", 0):
+            return
+        time.sleep(PRINT_JOB_POLL_INTERVAL)
+    raise RuntimeError(
+        f"Drucken auf '{printer_name}' hat zu lange gedauert{_printer_hint(printer_name)}"
+    )
 
 
 def print_image(pil_image, printer_name=None):
@@ -61,16 +89,19 @@ def print_image(pil_image, printer_name=None):
         y = (ph - h) // 2 - offy
 
         try:
-            hdc.StartDoc("Fotobox")
+            job_id = hdc.StartDoc("Fotobox")
         except win32ui.error as exc:
             raise RuntimeError(f"Drucken auf '{printer_name}' fehlgeschlagen{_printer_hint(printer_name)}: {exc}") from exc
         hdc.StartPage()
         ImageWin.Dib(img).draw(hdc.GetHandleOutput(), (x, y, x + w, y + h))
         hdc.EndPage()
         hdc.EndDoc()
-        log.info("Gedruckt auf %s", printer_name)
+        log.info("Druckauftrag %s an %s uebergeben, warte auf Abschluss", job_id, printer_name)
     finally:
         hdc.DeleteDC()
+
+    _wait_for_job(printer_name, job_id)
+    log.info("Gedruckt auf %s", printer_name)
 
 
 class OutputWorker(QThread):
@@ -153,4 +184,7 @@ class OutputWorker(QThread):
 
     def stop(self):
         self._running = False
-        self.wait(30000)   # laufenden Druck zu Ende bringen lassen
+        # Grosszuegige Wartezeit: seit _wait_for_job() wartet ein einzelner
+        # Druckauftrag bis zu PRINT_JOB_TIMEOUT Sekunden auf den Spooler,
+        # bei "Mehrfachabzug" ggf. mehrfach hintereinander.
+        self.wait(5 * 60 * 1000)

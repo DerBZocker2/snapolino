@@ -52,6 +52,16 @@ Die Meldung enthaelt nach Moeglichkeit einen konkreten Hinweis
 (`hardware.printer_status_message()`), ist aber je nach Treiber nicht
 immer praezise (siehe Offene Punkte).
 
+Liegt das Eventdatum der aktuell hinterlegten Buchung mehr als
+`return_buffer_days` Tage zurueck (box.ini, Standard 2 - Event 20.9 also
+gesperrt ab dem 22.9), zeigt die Box statt WILLKOMMEN/BEREIT eine
+Sperrbildschirm mit der Bitte um Ruecksendung (`return_lock_active()` in
+main.py). Die Pruefung greift nur im Leerlauf, nie mitten in einer
+laufenden Aufnahmesession. Admin-Menue bleibt ueber den Logo-Knopf
+weiterhin erreichbar. Die Zuordnung laesst sich im Panel unter **Boxen**
+per "Zuordnung aufheben" wieder entfernen (z.B. um die Box fuer den
+naechsten Kunden vorzubereiten).
+
 ## Architekturentscheidungen (bitte beibehalten)
 - **Offline-First.** Die Box muss ohne Internet voll funktionieren. Cloud-Sync
   passiert nur im Vorbereitungsmodus vor dem Versand, nie während eines Events.
@@ -100,12 +110,17 @@ Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe
 `assign_box_and_confirm()` auf, die auch nach Zahlungseingang automatisch
 läuft) - überträgt die vom Kunden gewünschten Layouts nach `box_layouts`
 und erhöht `config_version`. Aktuell fest auf eine Box ausgelegt (kein
-Verfügbarkeits-Overbooking-Schutz über mehrere Boxen).
+Verfügbarkeits-Overbooking-Schutz über mehrere Boxen). Über "Zuordnung
+aufheben" auf der Box-Karte lässt sich die Zuordnung wieder entfernen
+(`box_id` auf `NULL`, Status bleibt `bestätigt`, `config_version` wird
+ebenfalls erhöht) - die Buchung erscheint danach wieder unter "Buchungen
+ohne Box".
 
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
 filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos), Online-Designer
-(Canvas-Editor für Farbe/Muster/Text mit per Maus verschiebbaren
-Fotoflächen, auch um eine Vorlage per "Anpassen" umzugestalten) oder
+(Canvas-Editor für Farbe/Muster/Text mit per Maus verschieb- und am
+Eck-Ziehpunkt größenveränderbaren Fotoflächen, auch um eine Vorlage per
+"Anpassen" umzugestalten) oder
 eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
 Flächen automatisch per Connected-Component-Analyse). Alle drei Wege legen
 bei einer Aenderung ein `is_custom=1`-Layout an, das nur dieser einen
@@ -150,13 +165,20 @@ kann sie nicht abfangen).
 - Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
-- `printer_status_message()`/`printer_ready()` erkennen Papier-/Farbbandende
-  nicht bei jedem Treiber zuverlässig (Windows-Statusflags, nicht alle
-  Fotodrucker setzen sie granular)
+- `printer_status_message()`/`printer_ready()` fragen inzwischen sowohl die
+  klassischen Windows-Statusflags als auch WMI (`Win32_Printer.DetectedErrorState`)
+  ab, und `output.py` wartet nach jedem Druckauftrag zusaetzlich auf dessen
+  Job-Status (`hardware.job_status()`), weil manche Fotodrucker-Treiber
+  (u.a. der Selphy CP1500) ein Problem wie eine entnommene Papierkassette
+  erst dort und nicht im globalen Druckerstatus zeigen. Trotzdem nicht bei
+  jedem Treiber zuverlässig/vollstaendig - `python hardware.py [Druckername]`
+  auf dem Geraet mit dem Drucker gibt alle Rohwerte aller drei Quellen aus,
+  falls ein Fehlerzustand weiterhin nicht erkannt wird
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
-- Online-Designer bietet nur Farbe/Muster/Text plus verschiebbare
-  Fotoflächen, kein Logo-Upload oder frei platzierbare Textelemente
+- Online-Designer bietet nur Farbe/Muster/Text plus verschieb- und
+  größenveränderbare Fotoflächen, kein Logo-Upload oder frei platzierbare
+  Textelemente
 - Stripe-Webhook-Verarbeitung ist synchron (PDF-Erzeugung + Mailversand
   laufen direkt in der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das
   die Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern

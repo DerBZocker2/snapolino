@@ -490,6 +490,13 @@ body.login-page {
     text-align: center;
 }
 
+.box-card-unassign { margin-top: 6px; }
+
+.box-card-unassign button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
 .box-card-actions {
     display: flex;
     justify-content: space-between;
