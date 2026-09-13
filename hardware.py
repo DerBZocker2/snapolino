@@ -5,7 +5,23 @@ import os
 import win32print
 from pygrabber.dshow_graph import FilterGraph
 
+import config
+
 DRIVE_REMOVABLE = 2
+
+
+def resolve_printer_name():
+    """Ermittelt den Drucker, der tatsaechlich zum Drucken verwendet wird
+    (config.PRINTER_NAME, sonst der Windows-Standarddrucker) - damit
+    Status-Abfragen (siehe printer_check()) immer denselben Drucker pruefen,
+    der beim Drucken auch benutzt wird, statt z.B. einen zufaellig zuerst
+    gefundenen virtuellen Drucker."""
+    if config.PRINTER_NAME:
+        return config.PRINTER_NAME
+    try:
+        return win32print.GetDefaultPrinter()
+    except Exception:
+        return None
 
 
 def find_usb_sticks():
@@ -27,26 +43,6 @@ def find_printers():
         return [p[2] for p in win32print.EnumPrinters(flags)]
     except Exception:
         return []
-
-
-def printer_ready(name):
-    """Prueft, ob ein bestimmter Drucker keinen bekannten Fehlerzustand
-    meldet - sowohl ueber den klassischen Windows-Status (GetPrinter) als
-    auch ueber WMI (siehe printer_status_message()), weil manche
-    Fotodrucker (u.a. der Selphy CP1500) einen Fehler wie eine entnommene
-    Papierkassette nur ueber einen der beiden Wege zeigen, oft auch erst
-    waehrend eines laufenden Druckauftrags (siehe job_status())."""
-    try:
-        handle = win32print.OpenPrinter(name)
-        try:
-            info = win32print.GetPrinter(handle, 2)
-        finally:
-            win32print.ClosePrinter(handle)
-    except Exception:
-        return False
-    if info["Status"] != 0:
-        return False
-    return printer_status_message(name) == ""
 
 
 # Bekannte Windows-Druckerstatus-Flags mit deutschem Klartext. Nicht jeder
@@ -91,45 +87,70 @@ def _wmi_printer_error(name):
     DetectedErrorState) - Zusatzquelle zu den win32print-Statusflags, siehe
     _WMI_DETECTED_ERROR_MESSAGES. Leerer String, falls kein bekannter Fehler
     erkannt wurde, WMI den Drucker nicht kennt oder die Abfrage fehlschlaegt
-    (z.B. WMI-Dienst nicht verfuegbar)."""
+    (z.B. WMI-Dienst nicht verfuegbar). Initialisiert COM selbst (auch
+    wieder abbauend) - noetig, damit das auch aus einem Hintergrund-Thread
+    heraus funktioniert (siehe main.py, PrinterWatcherThread), nicht nur
+    aus dem GUI-Thread."""
     try:
+        import pythoncom
         import win32com.client
-        wmi = win32com.client.GetObject("winmgmts:")
-        escaped = name.replace("'", "''")
-        rows = wmi.ExecQuery(
-            f"SELECT DetectedErrorState FROM Win32_Printer WHERE Name = '{escaped}'"
-        )
-        for row in rows:
-            return _WMI_DETECTED_ERROR_MESSAGES.get(row.DetectedErrorState, "")
+        pythoncom.CoInitialize()
+        try:
+            wmi = win32com.client.GetObject("winmgmts:")
+            escaped = name.replace("'", "''")
+            rows = wmi.ExecQuery(
+                f"SELECT DetectedErrorState FROM Win32_Printer WHERE Name = '{escaped}'"
+            )
+            for row in rows:
+                return _WMI_DETECTED_ERROR_MESSAGES.get(row.DetectedErrorState, "")
+        finally:
+            pythoncom.CoUninitialize()
     except Exception:
         return ""
     return ""
 
 
-def printer_status_message(name):
-    """Menschenlesbarer Hinweis zum Druckerstatus (z.B. "Kein Papier mehr"),
-    kombiniert aus den klassischen Windows-Statusflags und WMI. Leerer
-    String falls kein bekanntes Problem erkannt wurde - das heisst nicht
-    zwingend, dass wirklich alles in Ordnung ist (siehe Kommentar oben)."""
-    messages = []
+def printer_check(name):
+    """Fragt Windows-Statusflags und WMI in einem Rutsch ab - liefert
+    (ready, Klartext-Hinweis oder leerer String). Effizienter als
+    printer_ready()+printer_status_message() einzeln aufzurufen (vermeidet
+    doppelte GetPrinter()/WMI-Abfragen), gedacht fuers haeufige Pollen."""
     try:
         handle = win32print.OpenPrinter(name)
         try:
             status = win32print.GetPrinter(handle, 2)["Status"]
         finally:
             win32print.ClosePrinter(handle)
-        messages = [
-            text for flag_name, text in _STATUS_FLAG_MESSAGES
-            if status & getattr(win32print, flag_name, 0)
-        ]
     except Exception:
-        pass
+        return False, ""
+
+    messages = [
+        text for flag_name, text in _STATUS_FLAG_MESSAGES
+        if status & getattr(win32print, flag_name, 0)
+    ]
 
     wmi_message = _wmi_printer_error(name)
     if wmi_message and wmi_message not in messages:
         messages.append(wmi_message)
 
-    return ", ".join(messages)
+    message = ", ".join(messages)
+    return status == 0 and not message, message
+
+
+def printer_ready(name):
+    """Prueft, ob ein bestimmter Drucker keinen bekannten Fehlerzustand
+    meldet (siehe printer_check())."""
+    ready, _ = printer_check(name)
+    return ready
+
+
+def printer_status_message(name):
+    """Menschenlesbarer Hinweis zum Druckerstatus (siehe printer_check()),
+    z.B. "Kein Papier mehr". Leerer String falls kein bekanntes Problem
+    erkannt wurde - das heisst nicht zwingend, dass wirklich alles in
+    Ordnung ist (siehe Kommentar oben ueber _STATUS_FLAG_MESSAGES)."""
+    _, message = printer_check(name)
+    return message
 
 
 # Bekannte Windows-Druckauftrags-Statusflags (JOB_STATUS_*). Manche Treiber
@@ -235,5 +256,5 @@ def _print_diagnostics(name):
 if __name__ == "__main__":
     import sys
 
-    printer_name = sys.argv[1] if len(sys.argv) > 1 else win32print.GetDefaultPrinter()
+    printer_name = sys.argv[1] if len(sys.argv) > 1 else resolve_printer_name()
     _print_diagnostics(printer_name)

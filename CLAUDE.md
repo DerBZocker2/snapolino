@@ -52,6 +52,15 @@ Die Meldung enthaelt nach Moeglichkeit einen konkreten Hinweis
 (`hardware.printer_status_message()`), ist aber je nach Treiber nicht
 immer praezise (siehe Offene Punkte).
 
+Unabhaengig davon prueft `PrinterWatcherThread` (main.py) den Druckerstatus
+im Hintergrund fast sekuendlich (`PRINTER_POLL_INTERVAL_MS`, `hardware.printer_check()`)
+und aktualisiert damit sofort den Punkt "Drucker" oben in der Leiste
+(Farbe + Klartext als Detailtext). Erkennt es dabei ein Problem, poppt
+zusaetzlich ein Hinweisfenster auf - aber nur im Leerlauf (WILLKOMMEN/BEREIT,
+nie mitten in einer laufenden Aufnahmesession) und nur einmal pro neuem
+Problem, nicht bei jeder Pruefung erneut, solange es unveraendert
+fortbesteht.
+
 Liegt das Eventdatum der aktuell hinterlegten Buchung mehr als
 `return_buffer_days` Tage zurueck (box.ini, Standard 2 - Event 20.9 also
 gesperrt ab dem 22.9), zeigt die Box statt WILLKOMMEN/BEREIT eine
