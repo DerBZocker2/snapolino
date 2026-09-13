@@ -185,6 +185,38 @@ class CloudSyncThread(QThread):
         self.finished_sync.emit(cloudsync.get_layouts())
 
 
+PRINTER_POLL_INTERVAL_MS = 1000  # fast sekuendlich, siehe PrinterWatcherThread
+
+
+class PrinterWatcherThread(QThread):
+    """Prueft den Druckerstatus in einem eigenen Thread (nicht im GUI-
+    Thread), damit haeufiges Pollen - u.a. die WMI-Abfrage in
+    hardware.printer_check() - die Oberflaeche nicht ausbremst. Qt-Signale
+    sind zwischen Threads sicher, die Dot-Anzeige und ein etwaiges Popup
+    kommen also trotzdem im GUI-Thread an."""
+
+    status_changed = Signal(bool, str, str)  # ready, printer_name, message
+
+    def __init__(self, interval_ms=PRINTER_POLL_INTERVAL_MS):
+        super().__init__()
+        self._interval_ms = interval_ms
+        self._running = True
+
+    def run(self):
+        while self._running:
+            name = hardware.resolve_printer_name()
+            if name:
+                ready, message = hardware.printer_check(name)
+            else:
+                ready, message = False, ""
+            self.status_changed.emit(ready, name or "", message)
+            self.msleep(self._interval_ms)
+
+    def stop(self):
+        self._running = False
+        self.wait(3000)
+
+
 class Fotobox(QWidget):
     def __init__(self):
         super().__init__()
@@ -212,10 +244,12 @@ class Fotobox(QWidget):
         self.allow_close = False   # Alt+F4-Sperre
         self.cam_ok = False
         self.sync_thread = None
+        self._last_printer_popup_message = None
 
         self._build_ui()
         self._start_camera()
         self._start_worker()
+        self._start_printer_watcher()
 
         QShortcut(QKeySequence("Ctrl+Shift+Q"), self, activated=self.request_exit)
         QShortcut(QKeySequence("Ctrl+Shift+S"), self, activated=self.trigger_resync)
@@ -447,6 +481,44 @@ class Fotobox(QWidget):
         self.worker.print_trouble.connect(self._on_print_trouble)
         self.worker.start()
 
+    def _start_printer_watcher(self):
+        self.printer_watcher = PrinterWatcherThread()
+        self.printer_watcher.status_changed.connect(self._on_printer_status)
+        self.printer_watcher.start()
+
+    def _on_printer_status(self, ready, name, message):
+        self.dot_printer.set_ok(ready, message or name)
+
+        if ready:
+            self._last_printer_popup_message = None
+            return
+
+        # Nur im Leerlauf automatisch stoeren, nie mitten in einer
+        # laufenden Aufnahmesession (gleiches Prinzip wie bei der
+        # Rueckgabe-Sperre) - und pro neuem Problem nur einmal, nicht bei
+        # jeder Pruefung erneut, solange es unveraendert fortbesteht.
+        if message and not self.busy and message != self._last_printer_popup_message:
+            self._last_printer_popup_message = message
+            self._show_printer_problem(name, message)
+
+    def _show_printer_problem(self, name, message):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Druckerproblem")
+        dialog.setStyleSheet("background: #222; color: #eee;")
+        layout = QVBoxLayout(dialog)
+
+        info = QLabel(f"Drucker '{name}':\n{message}")
+        info.setWordWrap(True)
+        info.setStyleSheet("font-size: 20px;")
+        layout.addWidget(info)
+
+        btn_ok = QPushButton("OK")
+        btn_ok.setStyleSheet("font-size: 20px; padding: 14px;")
+        btn_ok.clicked.connect(dialog.accept)
+        layout.addWidget(btn_ok)
+
+        dialog.exec()
+
     def _on_print_trouble(self, message):
         """Popup bei einem Druckfehler (z.B. Papier/Farbband leer) - der
         Worker-Thread wartet in _print_with_retry(), bis hier geantwortet
@@ -481,9 +553,9 @@ class Fotobox(QWidget):
         sticks = hardware.find_usb_sticks()
         self.dot_usb.set_ok(bool(sticks), sticks[0] if sticks else "")
 
-        printers = hardware.find_printers()
-        ready = [p for p in printers if hardware.printer_ready(p)]
-        self.dot_printer.set_ok(bool(ready), ready[0] if ready else "")
+        # Druckerstatus laeuft separat und haeufiger in PrinterWatcherThread
+        # (siehe _on_printer_status()), damit das WMI-basierte Pollen nicht
+        # den GUI-Thread ausbremst.
 
         self.dot_camera.set_ok(self.cam_ok, self.camera_name if self.cam_ok else "")
 
@@ -808,6 +880,7 @@ class Fotobox(QWidget):
             return
         self.cam.stop()
         self.worker.stop()
+        self.printer_watcher.stop()
         release_awake()
         log.info("Fotobox beendet")
         super().closeEvent(event)

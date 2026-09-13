@@ -24,10 +24,10 @@ def _printer_hint(printer_name):
     Druckauftrag fehlschlaegt - der Windows-Druckerstatus ist zwar nicht
     ganz zuverlaessig (siehe CLAUDE.md), liefert aber meistens einen
     brauchbaren Hinweis, woran es liegen koennte."""
-    message = hardware.printer_status_message(printer_name)
+    ready, message = hardware.printer_check(printer_name)
     if message:
         return f" ({message})"
-    if not hardware.printer_ready(printer_name):
+    if not ready:
         return " (Drucker meldet 'nicht bereit' - eingeschaltet, USB verbunden, Papier/Farbband eingelegt?)"
     return ""
 
