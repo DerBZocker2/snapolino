@@ -242,16 +242,46 @@ anfragen.
    `smtp_host`, `smtp_port` (587 fuer STARTTLS, 465 fuer implizites TLS),
    `smtp_user`, `smtp_pass`, `smtp_from_email`.
 5. **Rechnungsdaten** im Panel unter **Einstellungen** ausfuellen (Name/
-   Firma, Anschrift, steuerlicher Hinweis) - erscheinen auf jeder
-   erzeugten Rechnungs-PDF. Voreingestellt ist der Kleinunternehmer-Hinweis
-   nach § 19 UStG; bei Regelbesteuerung hier den Text anpassen und ggf.
-   Umsatzsteuer-ID ergaenzen.
+   Firma, Anschrift, Kontakt-E-Mail/Telefon, steuerlicher Hinweis) -
+   erscheinen auf jeder erzeugten Rechnungs-PDF sowie im Impressum und in
+   der Datenschutzerklaerung auf der Buchungsseite. Voreingestellt ist der
+   Kleinunternehmer-Hinweis nach § 19 UStG; bei Regelbesteuerung hier den
+   Text anpassen und ggf. Umsatzsteuer-ID ergaenzen.
 
 Zum Testen: Stripe im Test-Modus lassen (Kreditkartennummer
 `4242 4242 4242 4242`, beliebiges zukuenftiges Datum/CVC) und mit der
 [Stripe CLI](https://stripe.com/docs/stripe-cli) `stripe listen --forward-to
 https://snapolino.de/stripe_webhook.php` laufen lassen, falls Webhooks
 lokal statt gegen die echte Domain getestet werden sollen.
+
+## Rechtliche Seiten (Impressum, Datenschutz, AGB)
+
+`impressum.php`, `datenschutz.php` und `agb.php` sind oeffentliche Seiten,
+verlinkt im Footer jeder Kundenseite (`_site_header.php`/`_site_footer.php`
+- gemeinsamer Kopf-/Fussbereich fuer index.php/buchen.php/die drei
+Rechtsseiten, damit z.B. kein Admin-Link versehentlich auf einer davon
+landet). Sie ziehen Name/Anschrift/Kontakt-E-Mail/Telefon/Steuerhinweis
+aus denselben Settings wie die Rechnungsdaten (siehe oben) - fehlt eine
+Angabe, erscheint auf der Seite sichtbar "[... bitte ergaenzen]" statt sie
+stillschweigend wegzulassen.
+
+**Wichtig:** Die Texte sind ein sorgfaeltig recherchiertes Muster, aber
+keine Rechtsberatung. Vor dem Livegang unbedingt insbesondere folgende
+Punkte pruefen (lassen):
+- Die Stornobedingungen in `agb.php` Ziffer 7 (30/14-Tage-Staffel,
+  50 %/100 % Ausfallgebuehr) sind ein Vorschlag - an die eigene Kalkulation
+  anpassen.
+- Der Ausschluss des Widerrufsrechts (`agb.php` Ziffer 10, § 312g Abs. 2
+  Nr. 9 BGB, Freizeitbetaetigung mit festem Termin) ist eine gaengige,
+  aber nicht gerichtlich fuer Fotobox-Vermietung bestaetigte Einordnung.
+- In `datenschutz.php` fehlt bewusst der Name des Hosting- und
+  Versanddienstleisters (als "[bitte ergaenzen]" markiert) - dort die
+  tatsaechlich genutzten Anbieter eintragen.
+
+Jede erfolgreiche Buchung (Schritt 5) verlangt eine Pflicht-Checkbox "AGB
+und Datenschutzerklaerung akzeptiert"; der Zeitpunkt wird als Nachweis in
+`bookings.agb_accepted_at` gespeichert und ist im Panel bei den
+Buchungsdetails sichtbar.
 
 ## Schnittstelle fuer die Box
 
@@ -338,6 +368,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0006_format_templates.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0007_coupons_and_billing_address.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0008_box_admin_pin_and_booking_sync.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0009_legal_pages.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -369,6 +400,9 @@ Freitextadressen werden dabei bestmoeglich in `customer_street` uebernommen.
 
 Migration 0008 ergaenzt `boxes` um `admin_pin` (siehe "Schnittstelle fuer
 die Box" oben) - im Panel unter **Boxen → Layouts & Zugang** pflegbar.
+
+Migration 0009 seedet `business_email`/`business_phone` in `settings` und
+ergaenzt `bookings` um `agb_accepted_at` (siehe "Rechtliche Seiten" oben).
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

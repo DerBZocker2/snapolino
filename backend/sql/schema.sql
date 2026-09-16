@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     admin_note             TEXT NULL,
     total_price_cents      INT UNSIGNED NULL,
     wants_quote            TINYINT(1) NOT NULL DEFAULT 0,
+    agb_accepted_at        DATETIME NULL,
     paid_at                DATETIME NULL,
     invoice_number         VARCHAR(30) NULL UNIQUE,
     created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -170,7 +171,9 @@ INSERT IGNORE INTO settings (name, value) VALUES
     ('base_price_label', 'Basic · Mit Druck-Flatrate'),
     ('business_name', 'Bitte im Panel unter Einstellungen ausfuellen'),
     ('business_address', 'Straße Hausnummer\nPLZ Ort'),
-    ('business_tax_note', 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.');
+    ('business_tax_note', 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.'),
+    ('business_email', 'info@snapolino.de'),
+    ('business_phone', '');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES

@@ -176,6 +176,8 @@ a { color: var(--accent2-dark); }
     margin: 0;
 }
 
+.site-header nav a.active { color: #fff; font-weight: 600; }
+
 .site-footer {
     text-align: center;
     padding: 28px 20px;
@@ -185,6 +187,18 @@ a { color: var(--accent2-dark); }
 }
 
 .site-footer a { color: var(--muted); }
+
+.site-footer-links { margin-bottom: 10px; }
+.site-footer-links a { margin: 0 10px; }
+
+/* ---------- Impressum/Datenschutz/AGB ---------- */
+
+.legal-page { max-width: 760px; margin: 0 auto; }
+.legal-page h3 { margin-top: 28px; margin-bottom: 8px; }
+.legal-page h3:first-child { margin-top: 0; }
+.legal-page p, .legal-page li { line-height: 1.6; color: var(--text); }
+.legal-page ul, .legal-page ol { padding-left: 22px; }
+.legal-page .legal-missing { color: var(--accent-dark); font-style: normal; }
 
 @media (max-width: 760px) {
     .feature-grid { grid-template-columns: 1fr; }
@@ -210,6 +224,10 @@ a { color: var(--accent2-dark); }
     border-radius: 12px;
     padding: 24px;
 }
+
+#faq .panel-box { margin-bottom: 14px; }
+#faq .panel-box h3 { margin-top: 0; margin-bottom: 6px; }
+#faq .panel-box:last-child { margin-bottom: 0; }
 
 .success-box {
     text-align: center;

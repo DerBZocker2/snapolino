@@ -235,12 +235,16 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $invoiceToCompany = isset($_POST['invoice_to_company']);
         $message = trim((string) ($_POST['message'] ?? ''));
         $wantsQuote = isset($_POST['wants_quote']);
+        $agbAccepted = isset($_POST['agb_accepted']);
 
         if ($street === '' || $zip === '' || $city === '') {
             $errors[] = 'Bitte Straße, PLZ und Ort angeben.';
         }
         if ($invoiceToCompany && $company === '') {
             $errors[] = 'Bitte einen Firmennamen für die Rechnung angeben.';
+        }
+        if (!$agbAccepted) {
+            $errors[] = 'Bitte bestätige, dass du die AGB und die Datenschutzerklärung gelesen hast.';
         }
 
         if (!$errors) {
@@ -249,7 +253,7 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = db()->prepare(
                 'UPDATE bookings SET customer_phone = ?, customer_street = ?, customer_zip = ?, customer_city = ?,
                  customer_company = ?, invoice_to_company = ?, message = ?, discount_cents = ?,
-                 total_price_cents = ?, wants_quote = ? WHERE id = ?'
+                 total_price_cents = ?, wants_quote = ?, agb_accepted_at = ? WHERE id = ?'
             );
             $stmt->execute([
                 $phone !== '' ? $phone : null,
@@ -262,6 +266,10 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pricing['discount_cents'],
                 $pricing['total'],
                 $wantsQuote ? 1 : 0,
+                // Zeitstempel als Nachweis der Zustimmung, nicht ueberschreiben,
+                // falls das Formular (z.B. nach einem abgebrochenen
+                // Stripe-Checkout) erneut abgeschickt wird.
+                $booking['agb_accepted_at'] ?? date('Y-m-d H:i:s'),
                 $booking['id'],
             ]);
 
@@ -301,23 +309,9 @@ if ($booking) {
     $chosenLayoutIds = [];
     $chosenExtras = [];
 }
+$activeNav = 'buchen';
+require __DIR__ . '/_site_header.php';
 ?>
-<!doctype html>
-<html lang="de">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?> &ndash; Snapolino</title>
-    <link rel="stylesheet" href="<?= asset_url('assets/site.css', __DIR__ . '/assets/site.css') ?>">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="/">Snapolino</a>
-    <nav>
-        <a href="mailto:info@snapolino.de">Kontakt</a>
-        <a href="admin/login.php">Admin-Login</a>
-    </nav>
-</header>
 
 <section class="section" style="padding-top:40px;">
     <?php if ($success): ?>
@@ -325,11 +319,19 @@ if ($booking) {
         <div class="panel-box success-box">
             <?php if (isset($_GET['paid'])): ?>
                 <h3>Danke für deine Zahlung!</h3>
-                <p>Deine Fotobox ist fest gebucht. Die Buchungsbestätigung mit Rechnung schicken wir dir gerade per E-Mail zu.</p>
+                <p>Deine Fotobox ist fest gebucht. Die Buchungsbestätigung mit Rechnung schicken wir
+                    dir gerade per E-Mail zu (bitte auch im Spam-Ordner nachsehen). Alle weiteren
+                    Details zu Versand, Aufstellung und Rücksendung bekommst du rechtzeitig vor
+                    deinem Event von uns.</p>
             <?php else: ?>
                 <h3>Danke für deine Anfrage!</h3>
-                <p>Wir prüfen die Verfügbarkeit und melden uns zeitnah per E-Mail bei dir.</p>
+                <p>Wir prüfen die Verfügbarkeit und melden uns zeitnah per E-Mail bei dir – meist
+                    innerhalb eines Werktags. Du musst bis dahin nichts weiter tun.</p>
             <?php endif; ?>
+            <p class="muted" style="margin-top:16px;">
+                Fragen in der Zwischenzeit? Schreib uns einfach an
+                <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES) ?>"><?= htmlspecialchars($contactEmail, ENT_QUOTES) ?></a>.
+            </p>
         </div>
     <?php else: ?>
         <?= stepper_html($step) ?>
@@ -950,6 +952,12 @@ if ($booking) {
                             <input type="checkbox" name="wants_quote" id="wants-quote-checkbox" <?= $booking['wants_quote'] ? 'checked' : '' ?>>
                             Ich möchte vorab nur ein schriftliches Angebot (noch nicht bezahlen)
                         </label>
+                        <label class="checkbox">
+                            <input type="checkbox" name="agb_accepted" id="agb-checkbox" required <?= $booking['agb_accepted_at'] ? 'checked' : '' ?>>
+                            Ich habe die <a href="/agb.php" target="_blank" rel="noopener">AGB</a> und die
+                            <a href="/datenschutz.php" target="_blank" rel="noopener">Datenschutzerklärung</a>
+                            gelesen und akzeptiere sie. *
+                        </label>
 
                         <button type="submit" id="submit-booking-btn" class="btn-gradient">
                             <?= $booking['wants_quote'] ? 'Angebot anfordern' : 'Weiter zur Zahlung' ?>
@@ -1060,10 +1068,6 @@ if ($booking) {
     <?php endif; ?>
 </section>
 
-<footer class="site-footer">
-    &copy; <?= date('Y') ?> Snapolino &middot; <a href="mailto:info@snapolino.de">info@snapolino.de</a>
-</footer>
-
 <?php if ($step === 1 && !$success): ?>
 <script>
 (function () {
@@ -1132,5 +1136,4 @@ if ($booking) {
 })();
 </script>
 <?php endif; ?>
-</body>
-</html>
+<?php require __DIR__ . '/_site_footer.php'; ?>

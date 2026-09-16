@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 $pageTitle = 'Snapolino Fotobox – Design-Optionen';
+$activeNav = 'home';
 
 try {
     $priceCents = base_price_cents();
@@ -18,23 +19,9 @@ try {
     $priceLabel = '';
     $presetCount = 0;
 }
+
+require __DIR__ . '/_site_header.php';
 ?>
-<!doctype html>
-<html lang="de">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?></title>
-    <link rel="stylesheet" href="<?= asset_url('assets/site.css', __DIR__ . '/assets/site.css') ?>">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="/">Snapolino</a>
-    <nav>
-        <a href="mailto:info@snapolino.de">Kontakt</a>
-        <a href="admin/login.php">Admin-Login</a>
-    </nav>
-</header>
 
 <section class="hero">
     <h1>Fotobox-Vermietung für deine <span class="accent-text">Veranstaltung</span></h1>
@@ -49,6 +36,36 @@ try {
         </p>
     <?php endif; ?>
     <a class="button" href="buchen.php">Jetzt buchen</a>
+    <p class="muted" style="margin-top:16px;font-size:13px;">
+        Keine Zahlungsdaten für die Reservierung nötig · Sichere Zahlung über Stripe · Made in Deutschland
+    </p>
+</section>
+
+<section class="section" id="ablauf">
+    <h2>So funktioniert's</h2>
+    <p class="lead">In vier einfachen Schritten zu deiner eigenen Fotobox.</p>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="icon">📅</div>
+            <h3>1. Termin buchen</h3>
+            <p>Wähle deinen Eventtag im Buchungsassistenten, gestalte dein Layout und schließe die Buchung sicher online ab.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">📦</div>
+            <h3>2. Box erhalten</h3>
+            <p>Wir schicken dir die fertig eingerichtete Fotobox rechtzeitig vor deinem Event bequem nach Hause.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🎉</div>
+            <h3>3. Losfeiern</h3>
+            <p>Aufstellen, anschalten, loslegen – deine Gäste bedienen die Box ganz von selbst und Fotos werden direkt gedruckt.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">↩️</div>
+            <h3>4. Zurückschicken</h3>
+            <p>Nach dem Event einfach wieder einpacken und an uns zurückschicken – alle Details dazu bekommst du rechtzeitig von uns.</p>
+        </div>
+    </div>
 </section>
 
 <section class="section" id="design-optionen">
@@ -76,8 +93,35 @@ try {
     </div>
 </section>
 
-<footer class="site-footer">
-    &copy; <?= date('Y') ?> Snapolino &middot; <a href="mailto:info@snapolino.de">info@snapolino.de</a>
-</footer>
-</body>
-</html>
+<section class="section" id="faq">
+    <h2>Häufige Fragen</h2>
+    <div class="panel-box">
+        <h3>Muss jemand die Fotobox bedienen?</h3>
+        <p class="muted">Nein. Deine Gäste tippen ein Layout an, schauen in die Kamera und der
+            Countdown startet automatisch – ganz ohne Personal.</p>
+    </div>
+    <div class="panel-box">
+        <h3>Was ist im Lieferumfang enthalten?</h3>
+        <p class="muted">Die fertig eingerichtete Fotobox inkl. Drucker, Kamera und deinem
+            gewählten Design – einfach auspacken, aufstellen und einschalten.</p>
+    </div>
+    <div class="panel-box">
+        <h3>Wie lange vorher sollte ich buchen?</h3>
+        <p class="muted">Je früher, desto besser – vor allem an Wochenenden in der Hochsaison sind
+            Termine schnell vergeben. Eine Reservierung ist zunächst
+            <?= RESERVATION_HOLD_DAYS ?> Tage unverbindlich möglich.</p>
+    </div>
+    <div class="panel-box">
+        <h3>Kann ich stornieren?</h3>
+        <p class="muted">Ja, die genauen Fristen und Bedingungen findest du in unseren
+            <a href="agb.php">AGB</a>.</p>
+    </div>
+    <div class="panel-box">
+        <h3>Sind meine Zahlungsdaten sicher?</h3>
+        <p class="muted">Ja. Die Zahlung läuft komplett über den Zahlungsdienstleister Stripe –
+            deine Kartendaten erreichen unseren Server nie. Details dazu in unserer
+            <a href="datenschutz.php">Datenschutzerklärung</a>.</p>
+    </div>
+</section>
+
+<?php require __DIR__ . '/_site_footer.php'; ?>
