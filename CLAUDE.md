@@ -30,8 +30,9 @@ Start-Knopf mehr, Antippen eines Rahmens startet sofort) → LIVE →
 COUNTDOWN → AUFNAHME → EINZELANSICHT
 (Wiederholen/Weiter) → nächstes Bild oder GESAMTUEBERSICHT (alle Bilder;
 falls Extra "Einzelne Bilder drucken" gebucht ist, zusaetzlich ein Bild
-fuer Extra-Druck auswaehlbar, mit Extra "Mehrfachabzug" dazu die Anzahl
-der Abzuege bis zur gebuchten Menge) → COLLAGE → Druckfrage mit gruenem
+fuer Extra-Druck auswaehlbar samt Anzahl der Abzuege (1 bis
+`MAX_INDIVIDUAL_PRINT_COPIES`, aktuell 3, fest in main.py - keine zweite
+Extra-Buchung fuer die Menge noetig)) → COLLAGE → Druckfrage mit gruenem
 Knopf → speichern/drucken (Collage + ggf. Einzelbild-Extra-Druck) → BEREIT.
 
 Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
@@ -40,8 +41,10 @@ Box - Panel unter **Boxen → Layouts & Zugang**, leer = kein Schutz):
 Programm beenden oder die aktuell zwischengespeicherten Buchungsinfos
 (Kundenname, Eventdatum, gebuchte Extras) ansehen.
 
-Standard sind 4 Bilder als Collage. Andere Layouts nur, wenn der Kunde sie
-zur Buchung dazugekauft hat.
+Standard sind 4 Bilder als Collage. Andere Layouts (bis zu 3 zusaetzliche
+pro Buchung waehlbar) nur, wenn der Kunde sie zur Buchung dazugewaehlt
+hat - kostenlos, ausser den 1-Bild- und 2-Bilder-Formaten (`surcharge_cents`
+auf den Layouts, siehe Buchungssystem unten).
 
 Schlaegt ein Druckauftrag fehl (Drucker aus, Papier/Farbband leer,
 Papierstau...), haengt sich der `OutputWorker` an einem Popup auf
@@ -126,7 +129,13 @@ ebenfalls erhöht) - die Buchung erscheint danach wieder unter "Buchungen
 ohne Box".
 
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
-filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos), Online-Designer
+filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos, bis zu 3 Zusatzformate
+gleichzeitig ankreuzbar - clientseitig deaktiviert das JS weitere
+Checkboxen, serverseitig kappt `buchen.php` zusaetzlich auf 3). Alle
+Layouts sind kostenlos, ausser den 1-Bild- und 2-Bilder-Formaten (`layouts.surcharge_cents`,
+weiterhin pro Layout im Panel unter Layouts editierbar - die Migration
+`0010_free_designs_and_single_print.sql` setzt nur den Ausgangswert).
+Online-Designer
 (Canvas-Editor für Farbe/Muster/Text mit per Maus verschieb- und am
 Eck-Ziehpunkt größenveränderbaren Fotoflächen, auch um eine Vorlage per
 "Anpassen" umzugestalten) oder

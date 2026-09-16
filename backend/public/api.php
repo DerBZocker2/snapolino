@@ -64,7 +64,7 @@ $layouts = $stmt->fetchAll();
 
 // Die naechste bestaetigte Buchung, die dieser Box zugeordnet ist - fuer
 // den persoenlichen Willkommens-Screen und die gebuchten Extras (z.B.
-// "Einzelne Bilder drucken"/"Mehrfachabzug"). Aenderungen daran erhoehen
+// "Einzelne Bilder drucken"). Aenderungen daran erhoehen
 // config_version bereits ueber assign_box_and_confirm()/bump_box_version(),
 // der guenstige ?since-Preflight bleibt also korrekt.
 $stmt = db()->prepare(

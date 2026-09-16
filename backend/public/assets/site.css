@@ -614,6 +614,9 @@ button:hover { background: var(--accent-dark); }
     background: linear-gradient(135deg, rgba(255, 111, 89, 0.06), rgba(108, 92, 231, 0.06));
 }
 
+.design-card-disabled { opacity: 0.45; cursor: default; }
+.design-card-disabled img { cursor: default; }
+
 .design-card-customize {
     display: block;
     width: 100%;

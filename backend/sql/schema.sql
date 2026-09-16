@@ -179,7 +179,7 @@ INSERT IGNORE INTO settings (name, value) VALUES
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES
     ('Express-Versand', 'Lieferung am naechsten Werktag - ideal fuer kurzfristige Events', '⚡', 2900, 'toggle', NULL, 10),
     ('Vollformat-Drucke', 'Fotos rahmenlos auf das gesamte Papier gedruckt - keine Collage', '🖼️', 7500, 'toggle', NULL, 20),
-    ('Mehrfachdruck', 'Bis zu 3 Abzuege pro Foto - jeder Gast bekommt sein eigenes Exemplar', '📄', 5000, 'toggle', NULL, 30),
+    ('Einzelne Bilder drucken', 'Am Ende ein Foto auswaehlen und zusaetzlich bis zu 3x einzeln ausdrucken lassen', '📄', 5000, 'toggle', NULL, 30),
     ('Extra-Tage', 'Laenger mieten, gestaffelt pro Tag', '📅', 8000, 'quantity', 'Tag', 40),
     ('Online-Galerie', 'Online verfuegbar sobald die Fotobox zurueck ist - nicht live waehrend der Party', '🌐', 2000, 'toggle', NULL, 50),
     ('Live aufs Smartphone', 'Fotos direkt aufs Handy per QR-Code - sofort teilbar', '📱', 2900, 'toggle', NULL, 60),
@@ -193,14 +193,14 @@ INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort
 -- .gitignore-Ausnahme), echte Kunden-Uploads bleiben weiterhin ignoriert.
 INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents) VALUES
     ('Standard 4er-Collage',   NULL,          4, 1800, 1200, 'preset_standard.png',            1, 0),
-    ('Hochzeit Elegant',       'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_elegant.png',    0, 300),
-    ('Hochzeit Rustikal',      'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_rustikal.png',   0, 300),
-    ('Hochzeit Modern',        'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_modern.png',     0, 300),
+    ('Hochzeit Elegant',       'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_elegant.png',    0, 0),
+    ('Hochzeit Rustikal',      'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_rustikal.png',   0, 0),
+    ('Hochzeit Modern',        'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_modern.png',     0, 0),
     ('Geburtstag Bunt',        'Geburtstag',  4, 1800, 1200, 'preset_geburtstag_bunt.png',     0, 0),
     ('Geburtstag Kids',        'Geburtstag',  4, 1800, 1200, 'preset_geburtstag_kids.png',     0, 0),
     ('Geburtstag Glamour',     'Geburtstag',  4, 1800, 1200, 'preset_geburtstag_glamour.png',  0, 0),
-    ('Business Klassisch',     'Business',    4, 1800, 1200, 'preset_business_klassisch.png',  0, 300),
-    ('Business Modern',        'Business',    4, 1800, 1200, 'preset_business_modern.png',     0, 300),
+    ('Business Klassisch',     'Business',    4, 1800, 1200, 'preset_business_klassisch.png',  0, 0),
+    ('Business Modern',        'Business',    4, 1800, 1200, 'preset_business_modern.png',     0, 0),
     ('Silvester Party',        'Party',       4, 1800, 1200, 'preset_silvester.png',           0, 0),
     ('Regenbogen',             'Party',       4, 1800, 1200, 'preset_regenbogen.png',          0, 0),
     ('Sommerfest',             'Sommer',      4, 1800, 1200, 'preset_sommerfest.png',          0, 0),
@@ -227,7 +227,7 @@ CROSS JOIN (
 INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents) VALUES
     ('1 Bild (Vollformat)',    'Format', 1, 1800, 1200, 'preset_format_1bild.png',    0, 300),
     ('2 Bilder nebeneinander', 'Format', 2, 1800, 1200, 'preset_format_2bilder.png', 0, 300),
-    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder.png', 0, 300);
+    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder.png', 0, 0);
 
 INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
 SELECT id, 0, 40, 40, 1720, 1120 FROM layouts WHERE name = '1 Bild (Vollformat)';

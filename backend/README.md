@@ -319,8 +319,7 @@ Antwort (Auszug):
   ],
   "booking": {"customer_name": "Julia Mueller", "event_date": "2026-10-03"},
   "extras": [
-    {"name": "Einzelne Bilder drucken", "quantity": 1},
-    {"name": "Mehrfachabzug", "quantity": 3}
+    {"name": "Einzelne Bilder drucken", "quantity": 1}
   ]
 }
 ```
@@ -329,9 +328,12 @@ Antwort (Auszug):
 fuers On-Box-Admin-Menue (Panel unter **Boxen → Layouts & Zugang**, leer =
 kein Schutz). `booking`/`extras` gehoeren zur naechsten bestaetigten
 Buchung dieser Box (`event_date >= CURDATE()`, sonst `null`/`[]`) - die Box
-matcht Extra-Namen fest gegen "Einzelne Bilder drucken"/"Mehrfachabzug"
-(siehe `main.py::extras_flags()`), ein Umbenennen dieser beiden Extras im
-Panel wuerde die Zuordnung also brechen.
+matcht den Extra-Namen fest gegen "Einzelne Bilder drucken" (siehe
+`main.py::extras_flags()`), ein Umbenennen dieses Extras im Panel wuerde
+die Zuordnung also brechen. Ist das Extra gebucht, kann am Ende der
+Session ein Foto fuer einen Zusatzdruck ausgewaehlt und bis zu
+`MAX_INDIVIDUAL_PRINT_COPIES` (aktuell 3, fest in main.py) mal einzeln
+gedruckt werden - keine zweite Extra-Buchung fuer die Anzahl noetig.
 
 ### `GET /frame.php?file=<name>.png`
 

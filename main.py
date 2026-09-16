@@ -33,7 +33,7 @@ PAGE_COLLAGE = 5
 PAGE_LOCKED = 6
 
 EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
-EXTRA_MULTI_COPY = "mehrfachabzug"
+MAX_INDIVIDUAL_PRINT_COPIES = 3
 
 
 def setup_logging():
@@ -93,19 +93,14 @@ def pil_to_pixmap(img, max_w, max_h):
 
 
 def extras_flags(extras):
-    """Liest die zwei fest verdrahteten Sonderoptionen aus den gebuchten
-    Extras (Namensabgleich, siehe backend/README.md): ob ueberhaupt ein
-    Einzelbild zusaetzlich gedruckt werden darf, und falls "Mehrfachabzug"
-    dazugebucht wurde, wie viele Abzuege davon maximal erlaubt sind."""
-    allow_individual = False
-    multi_copy_max = 0
+    """Prueft, ob das fest verdrahtete Extra "Einzelne Bilder drucken"
+    gebucht wurde (Namensabgleich, siehe backend/README.md) - erlaubt dann
+    am Ende der Session ein Foto fuer einen Zusatzdruck auszuwaehlen und
+    bis zu MAX_INDIVIDUAL_PRINT_COPIES mal einzeln zu drucken."""
     for extra in extras:
-        name = str(extra.get("name", "")).strip().lower()
-        if name == EXTRA_INDIVIDUAL_PRINTS:
-            allow_individual = True
-        elif name == EXTRA_MULTI_COPY:
-            multi_copy_max = max(multi_copy_max, int(extra.get("quantity", 0)))
-    return allow_individual, multi_copy_max
+        if str(extra.get("name", "")).strip().lower() == EXTRA_INDIVIDUAL_PRINTS:
+            return True
+    return False
 
 
 def return_lock_active(booking):
@@ -235,7 +230,7 @@ class Fotobox(QWidget):
         self._pending_shot = None
         self.collage_result = None
 
-        self.allow_individual_print, self.multi_copy_max = extras_flags(cloudsync.get_extras())
+        self.allow_individual_print = extras_flags(cloudsync.get_extras())
         self.selected_print_index = None
         self.print_copies = 1
 
@@ -365,7 +360,7 @@ class Fotobox(QWidget):
 
         # Seite 4: GESAMTUEBERSICHT (alle Bilder; falls "Einzelne Bilder
         # drucken" gebucht wurde, kann eins fuer einen Zusatzdruck ausgewaehlt
-        # werden, mit "Mehrfachabzug" zusaetzlich die Anzahl der Abzuege)
+        # werden, dazu die Anzahl der Abzuege bis MAX_INDIVIDUAL_PRINT_COPIES)
         p_review = QWidget()
         l_review = QVBoxLayout(p_review)
         l_review.addWidget(QLabel("Alle Bilder"))
@@ -716,9 +711,7 @@ class Fotobox(QWidget):
                 lbl.setPixmap(pix)
                 self.review_thumbs_box.addWidget(lbl)
 
-        self.review_copies_row_widget.setVisible(
-            self.allow_individual_print and self.multi_copy_max > 1
-        )
+        self.review_copies_row_widget.setVisible(self.allow_individual_print)
         self._update_copies_label()
 
     def _select_print_photo(self, index):
@@ -726,7 +719,7 @@ class Fotobox(QWidget):
         self._refresh_review_thumbs()
 
     def _change_print_copies(self, delta):
-        self.print_copies = max(1, min(self.multi_copy_max, self.print_copies + delta))
+        self.print_copies = max(1, min(MAX_INDIVIDUAL_PRINT_COPIES, self.print_copies + delta))
         self._update_copies_label()
 
     def _update_copies_label(self):

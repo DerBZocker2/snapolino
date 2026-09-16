@@ -186,5 +186,5 @@ class OutputWorker(QThread):
         self._running = False
         # Grosszuegige Wartezeit: seit _wait_for_job() wartet ein einzelner
         # Druckauftrag bis zu PRINT_JOB_TIMEOUT Sekunden auf den Spooler,
-        # bei "Mehrfachabzug" ggf. mehrfach hintereinander.
+        # bei mehreren Abzuegen des Einzeldrucks ggf. mehrfach hintereinander.
         self.wait(5 * 60 * 1000)

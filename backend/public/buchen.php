@@ -63,6 +63,11 @@ foreach ($layouts as $layout) {
 $extraLayouts = array_values(array_filter($layouts, static fn (array $l): bool => !$l['is_default']));
 $activeExtras = fetch_active_extras();
 
+// Maximal 3 Zusatzformate pro Buchung waehlbar (das Standardlayout kommt
+// immer automatisch dazu) - clientseitig deaktiviert JS weitere
+// Checkboxen, hier serverseitig zusaetzlich als Schutz vor manuellem POST.
+const MAX_EXTRA_LAYOUTS = 3;
+
 // ---------- Schritt 2: Reservierung anlegen ----------
 if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -167,10 +172,12 @@ if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             unlink($tmpPath);
         }
     } else {
-        $selectedLayoutIds = array_unique(array_merge(
-            [(int) $defaultLayout['id']],
-            array_map('intval', $_POST['layout_ids'] ?? [])
-        ));
+        // array_slice kappt still auf MAX_EXTRA_LAYOUTS, statt einen Fehler zu
+        // zeigen - normalerweise verhindert das JS im Formular schon, dass
+        // mehr angehakt werden, das hier ist nur die serverseitige Absicherung
+        // gegen einen manuellen POST.
+        $extraLayoutIds = array_slice(array_map('intval', $_POST['layout_ids'] ?? []), 0, MAX_EXTRA_LAYOUTS);
+        $selectedLayoutIds = array_unique(array_merge([(int) $defaultLayout['id']], $extraLayoutIds));
 
         db()->beginTransaction();
         delete_custom_layouts_for_booking((int) $booking['id']);
@@ -465,6 +472,7 @@ require __DIR__ . '/_site_header.php';
                         <?php endif; ?>
 
                         <?php if ($extraLayouts): ?>
+                            <p class="muted" style="margin-top:0;">Bis zu <?= MAX_EXTRA_LAYOUTS ?> Zusatzformate wählbar - alle kostenlos, außer den 1- und 2-Bilder-Formaten.</p>
                             <div class="design-gallery">
                                 <?php foreach ($extraLayouts as $layout): ?>
                                     <label class="design-card" data-cat="<?= htmlspecialchars((string) ($layout['category'] ?? ''), ENT_QUOTES) ?>">
@@ -472,7 +480,7 @@ require __DIR__ . '/_site_header.php';
                                             <?= in_array((int) $layout['id'], $chosenLayoutIds, true) ? 'checked' : '' ?>>
                                         <img src="layout_preview.php?id=<?= (int) $layout['id'] ?>" alt="<?= htmlspecialchars($layout['name'], ENT_QUOTES) ?>" loading="lazy">
                                         <span class="design-card-name"><?= htmlspecialchars($layout['name'], ENT_QUOTES) ?></span>
-                                        <span class="design-card-price">+<?= money_from_cents((int) $layout['surcharge_cents']) ?></span>
+                                        <span class="design-card-price"><?= $layout['surcharge_cents'] > 0 ? '+' . money_from_cents((int) $layout['surcharge_cents']) : 'kostenlos' ?></span>
                                         <button type="button" class="design-card-customize" data-customize="<?= (int) $layout['id'] ?>">Anpassen</button>
                                     </label>
                                 <?php endforeach; ?>
@@ -558,6 +566,19 @@ require __DIR__ . '/_site_header.php';
                         });
                     });
                 });
+
+                var maxExtraLayouts = <?= MAX_EXTRA_LAYOUTS ?>;
+                var layoutCheckboxes = document.querySelectorAll('.design-card input[type=checkbox]');
+                function updateLayoutCheckboxLimit() {
+                    var checkedCount = 0;
+                    layoutCheckboxes.forEach(function (cb) { if (cb.checked) checkedCount++; });
+                    layoutCheckboxes.forEach(function (cb) {
+                        cb.disabled = !cb.checked && checkedCount >= maxExtraLayouts;
+                        cb.closest('.design-card').classList.toggle('design-card-disabled', cb.disabled);
+                    });
+                }
+                layoutCheckboxes.forEach(function (cb) { cb.addEventListener('change', updateLayoutCheckboxLimit); });
+                updateLayoutCheckboxLimit();
 
                 var options = document.querySelectorAll('.design-option');
                 var panels = { gallery: document.getElementById('panel-gallery'), designer: document.getElementById('panel-designer'), upload: document.getElementById('panel-upload') };
@@ -979,7 +1000,10 @@ require __DIR__ . '/_site_header.php';
                             <strong><?= htmlspecialchars($defaultLayout['name'] ?? 'Standard', ENT_QUOTES) ?></strong>
                             <?php foreach ($chosenLayoutRows as $l): ?>
                                 <?php if (!$l['is_default']): ?>
-                                    <div><?= htmlspecialchars($l['name'], ENT_QUOTES) ?> (+<?= money_from_cents((int) $l['surcharge_cents']) ?>)</div>
+                                    <div>
+                                        <?= htmlspecialchars($l['name'], ENT_QUOTES) ?>
+                                        (<?= $l['surcharge_cents'] > 0 ? '+' . money_from_cents((int) $l['surcharge_cents']) : 'kostenlos' ?>)
+                                    </div>
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </div>
