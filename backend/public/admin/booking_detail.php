@@ -89,34 +89,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $resolution = (string) ($_POST['resolution'] ?? '');
 
-                db()->beginTransaction();
-                db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ? WHERE id = ?')
-                    ->execute([$newEventDate, $pricing['total'], $pricing['discount_cents'], $bookingId]);
-
-                db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$bookingId]);
-                $ins = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
-                foreach ($newLayoutIds as $layoutId) {
-                    $ins->execute([$bookingId, $layoutId]);
-                }
-
-                db()->prepare('DELETE FROM booking_extras WHERE booking_id = ?')->execute([$bookingId]);
-                $ins = db()->prepare('INSERT INTO booking_extras (booking_id, extra_id, quantity) VALUES (?, ?, ?)');
-                foreach ($newExtraSelections as $extraId => $qty) {
-                    $ins->execute([$bookingId, $extraId, $qty]);
-                }
-                db()->commit();
-
-                sync_booking_to_box($bookingId);
-
-                $stmt = db()->prepare('SELECT * FROM bookings WHERE id = ?');
-                $stmt->execute([$bookingId]);
-                $booking = $stmt->fetch();
-
                 if ($action === 'resolve_addon' && $resolution === 'charge' && $delta > 0) {
+                    // Wichtig: die Aenderung wird hier bewusst NOCH NICHT auf die
+                    // Buchung angewendet - sonst waere sie schon aktiv (und auf der
+                    // Box sichtbar), bevor der Kunde ueberhaupt bezahlt hat. Sie
+                    // landet nur als "pending_changes_json" bei der Zusatzzahlung
+                    // und wird erst von mark_addon_charge_paid() (Stripe-Webhook)
+                    // uebernommen.
                     $description = 'Nachträgliche Änderung an deiner Buchung vom ' . $booking['event_date'];
+                    $pendingChangesJson = json_encode([
+                        'event_date' => $newEventDate,
+                        'layout_ids' => $newLayoutIds,
+                        'extra_selections' => $newExtraSelections,
+                        'total_price_cents' => $pricing['total'],
+                        'discount_cents' => $pricing['discount_cents'],
+                    ]);
                     db()->prepare(
-                        'INSERT INTO booking_addon_charges (booking_id, description, amount_cents) VALUES (?, ?, ?)'
-                    )->execute([$bookingId, $description, $delta]);
+                        'INSERT INTO booking_addon_charges (booking_id, description, amount_cents, pending_changes_json) VALUES (?, ?, ?, ?)'
+                    )->execute([$bookingId, $description, $delta, $pendingChangesJson]);
                     $addonChargeId = (int) db()->lastInsertId();
 
                     $baseUrl = rtrim((string) backend_config()['base_url'], '/');
@@ -136,6 +126,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         error_log('Zusatzzahlung: Stripe-Session konnte nicht erstellt werden (Buchung #' . $bookingId . ')');
                     }
+                } else {
+                    db()->beginTransaction();
+                    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ? WHERE id = ?')
+                        ->execute([$newEventDate, $pricing['total'], $pricing['discount_cents'], $bookingId]);
+
+                    db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$bookingId]);
+                    $ins = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
+                    foreach ($newLayoutIds as $layoutId) {
+                        $ins->execute([$bookingId, $layoutId]);
+                    }
+
+                    db()->prepare('DELETE FROM booking_extras WHERE booking_id = ?')->execute([$bookingId]);
+                    $ins = db()->prepare('INSERT INTO booking_extras (booking_id, extra_id, quantity) VALUES (?, ?, ?)');
+                    foreach ($newExtraSelections as $extraId => $qty) {
+                        $ins->execute([$bookingId, $extraId, $qty]);
+                    }
+                    db()->commit();
+
+                    sync_booking_to_box($bookingId);
                 }
 
                 header('Location: booking_detail.php?id=' . $bookingId . '&gespeichert=1');
@@ -177,6 +186,10 @@ if ($booking['box_id']) {
     $stmt->execute([$booking['box_id']]);
     $boxName = $stmt->fetchColumn() ?: null;
 }
+
+$stmt = db()->prepare('SELECT * FROM booking_addon_charges WHERE booking_id = ? ORDER BY created_at DESC');
+$stmt->execute([$bookingId]);
+$addonCharges = $stmt->fetchAll();
 
 // Fuer die erneute Anzeige des Formulars nach einer abgebrochenen/noch zu
 // bestaetigenden Aenderung die vorgeschlagenen statt der gespeicherten
@@ -265,6 +278,27 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         </td></tr>
     </table>
 </section>
+
+<?php if ($addonCharges): ?>
+    <section class="panel">
+        <h2>Zusatzzahlungen</h2>
+        <table class="key-table">
+            <?php foreach ($addonCharges as $charge): ?>
+                <tr>
+                    <th><?= htmlspecialchars($charge['description'], ENT_QUOTES) ?></th>
+                    <td>
+                        <?= money_from_cents((int) $charge['amount_cents']) ?>
+                        <?php if ($charge['paid_at']): ?>
+                            <span class="badge">Bezahlt am <?= htmlspecialchars($charge['paid_at'], ENT_QUOTES) ?> – Änderung übernommen</span>
+                        <?php else: ?>
+                            <span class="muted-text">Zahlung ausstehend – die Änderung wird erst nach Zahlungseingang auf die Buchung übernommen.</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    </section>
+<?php endif; ?>
 
 <?php if ($pendingEdit): ?>
     <section class="panel">

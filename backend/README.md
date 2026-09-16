@@ -429,6 +429,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0009_legal_pages.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0010_free_designs_and_single_print.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0011_customer_accounts.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0012_addon_charge_pending_changes.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -476,6 +477,14 @@ ergaenzt `bookings` um `customer_account_id` (nachtraeglich fuer
 Bestandsbuchungen ueber die E-Mail-Adresse befuellt) und
 `edit_unlocked_by_admin` (siehe "Kundenkonten" und "Admin: Buchungen
 nachtraeglich bearbeiten" oben).
+
+Migration 0012 ergaenzt `booking_addon_charges` um `pending_changes_json`:
+waehlt der Admin bei einer nachtraeglichen Aenderung "Zahlungslink an Kunde
+senden", wird die Aenderung (Eventdatum/Layouts/Extras/neuer Gesamtpreis)
+ab jetzt erst hier zwischengespeichert und NICHT sofort auf die Buchung
+angewendet - das passiert erst in `mark_addon_charge_paid()`, wenn Stripe
+per Webhook die Zahlung bestaetigt. "Kostenlos uebernehmen" bleibt weiterhin
+sofort wirksam.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

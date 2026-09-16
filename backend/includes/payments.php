@@ -45,7 +45,10 @@ function mark_booking_paid(int $bookingId, string $paymentIntentId): void
 
 // Verarbeitet die erfolgreiche Zahlung einer nachtraeglichen Zusatzkosten-
 // Nachforderung (siehe booking_addon_charges, admin/booking_detail.php).
-// Idempotent wie mark_booking_paid().
+// Die vom Admin vorgeschlagene Aenderung (pending_changes_json) wurde bei
+// der Erstellung des Zahlungslinks bewusst NICHT auf die Buchung angewendet -
+// das passiert erst hier, also erst wenn Stripe die Zahlung tatsaechlich
+// bestaetigt hat. Idempotent wie mark_booking_paid().
 function mark_addon_charge_paid(int $addonChargeId): void
 {
     $stmt = db()->prepare('SELECT * FROM booking_addon_charges WHERE id = ?');
@@ -57,4 +60,40 @@ function mark_addon_charge_paid(int $addonChargeId): void
     }
 
     db()->prepare('UPDATE booking_addon_charges SET paid_at = NOW() WHERE id = ?')->execute([$addonChargeId]);
+
+    $pending = $charge['pending_changes_json'] ? json_decode((string) $charge['pending_changes_json'], true) : null;
+    if (!is_array($pending)) {
+        return;
+    }
+
+    $bookingId = (int) $charge['booking_id'];
+    $layoutIds = array_map('intval', (array) ($pending['layout_ids'] ?? []));
+    $extraSelections = [];
+    foreach ((array) ($pending['extra_selections'] ?? []) as $extraId => $qty) {
+        $extraSelections[(int) $extraId] = (int) $qty;
+    }
+
+    db()->beginTransaction();
+    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ? WHERE id = ?')
+        ->execute([
+            (string) ($pending['event_date'] ?? ''),
+            (int) ($pending['total_price_cents'] ?? 0),
+            (int) ($pending['discount_cents'] ?? 0),
+            $bookingId,
+        ]);
+
+    db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$bookingId]);
+    $ins = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
+    foreach ($layoutIds as $layoutId) {
+        $ins->execute([$bookingId, $layoutId]);
+    }
+
+    db()->prepare('DELETE FROM booking_extras WHERE booking_id = ?')->execute([$bookingId]);
+    $ins = db()->prepare('INSERT INTO booking_extras (booking_id, extra_id, quantity) VALUES (?, ?, ?)');
+    foreach ($extraSelections as $extraId => $qty) {
+        $ins->execute([$bookingId, $extraId, $qty]);
+    }
+    db()->commit();
+
+    sync_booking_to_box($bookingId);
 }

@@ -120,14 +120,19 @@ CREATE TABLE IF NOT EXISTS bookings (
 -- gebuchte Aenderungen anfordert (statt sie kostenlos zu uebernehmen) -
 -- eigene, kleine Stripe-Checkout-Session pro Nachforderung, unabhaengig
 -- von der Haupt-Session der Buchung selbst.
+-- pending_changes_json haelt Eventdatum/Layouts/Extras/neuen Gesamtpreis der
+-- vom Admin vorgeschlagenen Aenderung, solange sie noch nicht bezahlt ist -
+-- erst mark_addon_charge_paid() wendet sie auf die Buchung an (siehe
+-- Migration 0012).
 CREATE TABLE IF NOT EXISTS booking_addon_charges (
-    id                 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    booking_id         INT UNSIGNED NOT NULL,
-    description        VARCHAR(255) NOT NULL,
-    amount_cents       INT UNSIGNED NOT NULL,
-    stripe_session_id  VARCHAR(255) NULL,
-    paid_at            DATETIME NULL,
-    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    booking_id            INT UNSIGNED NOT NULL,
+    description           VARCHAR(255) NOT NULL,
+    amount_cents          INT UNSIGNED NOT NULL,
+    pending_changes_json  TEXT NULL,
+    stripe_session_id     VARCHAR(255) NULL,
+    paid_at               DATETIME NULL,
+    created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
