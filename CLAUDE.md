@@ -156,7 +156,21 @@ Angebot" waehlen (dann wie bisher `status = angefragt`, keine Zahlung).
 Rechnungen: fortlaufende Nummer (`invoice_counters`, ein Zaehler pro Jahr),
 PDF per FPDF, Versand per SMTP (PHPMailer) - beide Bibliotheken ohne
 Composer eingebunden (`backend/includes/lib/`), Rechnungsdaten
-(Name/Adresse/§19-Hinweis) im Panel unter **Einstellungen** pflegbar.
+(Name/Adresse/§19-Hinweis, zusaetzlich Kontakt-E-Mail/Telefon) im Panel
+unter **Einstellungen** pflegbar - dieselben Angaben speisen auch
+Impressum und Datenschutzerklaerung (siehe unten).
+
+**Rechtliche Pflichtseiten** (`impressum.php`, `datenschutz.php`,
+`agb.php`, verlinkt im Footer jeder oeffentlichen Seite ueber
+`_site_header.php`/`_site_footer.php`) ziehen Name/Anschrift/Kontakt aus
+denselben Settings wie die Rechnung; fehlende Angaben werden sichtbar als
+"[... bitte ergaenzen]" markiert statt sie stillschweigend wegzulassen.
+Schritt 5 verlangt zusaetzlich eine Checkbox "AGB und Datenschutzerklaerung
+akzeptiert", deren Zeitpunkt in `bookings.agb_accepted_at` als Nachweis
+gespeichert wird (im Panel unter Buchungsdetails sichtbar). Das
+Admin-Panel wird auf keiner oeffentlichen Seite verlinkt (kein
+"Admin-Login" mehr auf Startseite/Buchungsseite) - Zugriff nur ueber die
+direkte URL `admin/login.php`.
 
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch

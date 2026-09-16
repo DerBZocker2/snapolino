@@ -10,6 +10,8 @@ $priceLabel = base_price_label();
 $businessName = (string) get_setting('business_name', '');
 $businessAddress = (string) get_setting('business_address', '');
 $businessTaxNote = (string) get_setting('business_tax_note', '');
+$businessEmail = (string) get_setting('business_email', '');
+$businessPhone = (string) get_setting('business_phone', '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -19,9 +21,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $businessName = trim((string) ($_POST['business_name'] ?? ''));
     $businessAddress = trim((string) ($_POST['business_address'] ?? ''));
     $businessTaxNote = trim((string) ($_POST['business_tax_note'] ?? ''));
+    $businessEmail = trim((string) ($_POST['business_email'] ?? ''));
+    $businessPhone = trim((string) ($_POST['business_phone'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
+    }
+    if ($businessEmail !== '' && !filter_var($businessEmail, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Bitte eine gültige Kontakt-E-Mail-Adresse angeben.';
     }
 
     if (!$errors) {
@@ -30,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('business_name', $businessName);
         set_setting('business_address', $businessAddress);
         set_setting('business_tax_note', $businessTaxNote);
+        set_setting('business_email', $businessEmail);
+        set_setting('business_phone', $businessPhone);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -58,15 +67,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </label>
         </div>
 
-        <h2>Rechnungsdaten</h2>
-        <p class="muted-text">Erscheint als Absender auf jeder automatisch erzeugten Rechnungs-PDF, die nach einer Zahlung per E-Mail verschickt wird.</p>
+        <h2>Rechnungs- &amp; Kontaktdaten</h2>
+        <p class="muted-text">Erscheint als Absender auf jeder automatisch erzeugten Rechnungs-PDF sowie im
+            Impressum und in der Datenschutzerklärung auf der Buchungsseite (siehe <a href="../impressum.php" target="_blank">Impressum</a>,
+            <a href="../datenschutz.php" target="_blank">Datenschutz</a>) - bitte vollständig und korrekt ausfüllen.</p>
         <label>Name / Firma
             <input type="text" name="business_name" value="<?= htmlspecialchars($businessName, ENT_QUOTES) ?>">
         </label>
         <label>Anschrift (mehrzeilig, z.B. Straße Hausnummer und PLZ Ort in je einer Zeile)
             <textarea name="business_address" rows="2"><?= htmlspecialchars($businessAddress, ENT_QUOTES) ?></textarea>
         </label>
-        <label>Steuerlicher Hinweis auf der Rechnung
+        <div class="grid3">
+            <label>Kontakt-E-Mail
+                <input type="email" name="business_email" value="<?= htmlspecialchars($businessEmail, ENT_QUOTES) ?>">
+            </label>
+            <label>Telefon (optional, fürs Impressum)
+                <input type="text" name="business_phone" value="<?= htmlspecialchars($businessPhone, ENT_QUOTES) ?>">
+            </label>
+        </div>
+        <label>Steuerlicher Hinweis (Rechnung &amp; Impressum, z.B. §19 UStG-Hinweis oder USt-IdNr.)
             <input type="text" name="business_tax_note" value="<?= htmlspecialchars($businessTaxNote, ENT_QUOTES) ?>">
         </label>
 

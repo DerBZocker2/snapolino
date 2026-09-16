@@ -95,6 +95,9 @@ if ($booking['box_id']) {
             <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>
         </td></tr>
         <tr><th>Schriftliches Angebot gewünscht</th><td><?= $booking['wants_quote'] ? 'Ja' : 'Nein' ?></td></tr>
+        <tr><th>AGB &amp; Datenschutz akzeptiert</th><td>
+            <?= $booking['agb_accepted_at'] ? htmlspecialchars($booking['agb_accepted_at'], ENT_QUOTES) : '—' ?>
+        </td></tr>
         <tr><th>Nachricht</th><td><?= $booking['message'] ? nl2br(htmlspecialchars($booking['message'], ENT_QUOTES)) : '—' ?></td></tr>
         <tr><th>Zugeordnete Box</th><td><?= $boxName ? htmlspecialchars($boxName, ENT_QUOTES) : '—' ?></td></tr>
         <tr><th>Angefragt am</th><td><?= htmlspecialchars($booking['created_at'], ENT_QUOTES) ?></td></tr>
