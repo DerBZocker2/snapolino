@@ -63,6 +63,19 @@ CREATE TABLE IF NOT EXISTS box_layouts (
     FOREIGN KEY (layout_id) REFERENCES layouts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Kundenkonto pro E-Mail-Adresse, Login per zeitlich begrenztem Code statt
+-- Passwort (siehe includes/customer_auth.php). Wird automatisch beim
+-- Anlegen einer Reservierung erstellt/wiederverwendet.
+CREATE TABLE IF NOT EXISTS customer_accounts (
+    id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email                  VARCHAR(190) NOT NULL UNIQUE,
+    login_code             VARCHAR(10) NULL,
+    login_code_expires_at  DATETIME NULL,
+    login_code_attempts    INT UNSIGNED NOT NULL DEFAULT 0,
+    login_code_sent_at     DATETIME NULL,
+    created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Buchungen von der oeffentlichen Webseite, entstehen als "reserviert"
 -- (Schritt 2 des Assistenten: nur Name/E-Mail/Datum, haelt den Termin),
 -- werden zu "angefragt" sobald der Assistent komplett durchlaufen ist.
@@ -75,6 +88,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
     customer_email         VARCHAR(190) NOT NULL,
+    customer_account_id    INT UNSIGNED NULL,
     customer_phone         VARCHAR(40) NULL,
     customer_street        VARCHAR(150) NULL,
     customer_zip           VARCHAR(10) NULL,
@@ -91,13 +105,30 @@ CREATE TABLE IF NOT EXISTS bookings (
     total_price_cents      INT UNSIGNED NULL,
     wants_quote            TINYINT(1) NOT NULL DEFAULT 0,
     agb_accepted_at        DATETIME NULL,
+    edit_unlocked_by_admin TINYINT(1) NOT NULL DEFAULT 0,
     paid_at                DATETIME NULL,
     invoice_number         VARCHAR(30) NULL UNIQUE,
     created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (box_id) REFERENCES boxes(id) ON DELETE SET NULL,
+    FOREIGN KEY (customer_account_id) REFERENCES customer_accounts(id) ON DELETE SET NULL,
     INDEX idx_event_date (event_date),
     INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Zusatzkosten, die ein Admin nachtraeglich fuer nicht urspruenglich
+-- gebuchte Aenderungen anfordert (statt sie kostenlos zu uebernehmen) -
+-- eigene, kleine Stripe-Checkout-Session pro Nachforderung, unabhaengig
+-- von der Haupt-Session der Buchung selbst.
+CREATE TABLE IF NOT EXISTS booking_addon_charges (
+    id                 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    booking_id         INT UNSIGNED NOT NULL,
+    description        VARCHAR(255) NOT NULL,
+    amount_cents       INT UNSIGNED NOT NULL,
+    stripe_session_id  VARCHAR(255) NULL,
+    paid_at            DATETIME NULL,
+    created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Gutscheincodes, im Panel unter "Gutscheine" angelegt. redemption_count

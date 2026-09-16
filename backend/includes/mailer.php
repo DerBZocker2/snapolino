@@ -6,35 +6,49 @@ require_once __DIR__ . '/lib/PHPMailer/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
+// Baut einen fertig konfigurierten PHPMailer auf, oder null wenn SMTP nicht
+// eingerichtet ist (includes/config.php) - von allen send_*_email()-
+// Funktionen hier gemeinsam genutzt.
+function create_smtp_mailer(): ?PHPMailer
+{
+    $cfg = backend_config();
+    if ((string) ($cfg['smtp_host'] ?? '') === '') {
+        return null;
+    }
+
+    $mail = new PHPMailer(true);
+    $mail->isSMTP();
+    $mail->Host = $cfg['smtp_host'];
+    $mail->Port = (int) ($cfg['smtp_port'] ?? 587);
+    $mail->SMTPAuth = true;
+    $mail->Username = (string) ($cfg['smtp_user'] ?? '');
+    $mail->Password = (string) ($cfg['smtp_pass'] ?? '');
+    $mail->SMTPSecure = $mail->Port === 465 ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->CharSet = 'UTF-8';
+    $mail->setFrom((string) $cfg['smtp_from_email'], (string) ($cfg['smtp_from_name'] ?? 'Snapolino'));
+
+    return $mail;
+}
+
 // Verschickt die Buchungsbestaetigung mit der Rechnung als Anhang per SMTP.
 // Gibt false zurueck (statt zu werfen), wenn SMTP nicht konfiguriert ist
 // oder der Versand fehlschlaegt - die Buchung bleibt in jedem Fall bestaetigt,
 // ein fehlgeschlagener Mailversand darf das nicht rueckgaengig machen.
 function send_booking_confirmation_email(array $booking, string $invoicePdfPath): bool
 {
-    $cfg = backend_config();
-    if ((string) ($cfg['smtp_host'] ?? '') === '') {
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
         error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
         return false;
     }
 
-    $mail = new PHPMailer(true);
     try {
-        $mail->isSMTP();
-        $mail->Host = $cfg['smtp_host'];
-        $mail->Port = (int) ($cfg['smtp_port'] ?? 587);
-        $mail->SMTPAuth = true;
-        $mail->Username = (string) ($cfg['smtp_user'] ?? '');
-        $mail->Password = (string) ($cfg['smtp_pass'] ?? '');
-        $mail->SMTPSecure = $mail->Port === 465 ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->CharSet = 'UTF-8';
-
-        $mail->setFrom((string) $cfg['smtp_from_email'], (string) ($cfg['smtp_from_name'] ?? 'Snapolino'));
         $mail->addAddress($booking['customer_email'], $booking['customer_name']);
         $mail->addAttachment($invoicePdfPath, 'Rechnung-' . $booking['invoice_number'] . '.pdf');
 
         $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
         $total = money_from_cents((int) $booking['total_price_cents']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
 
         $mail->Subject = 'Buchungsbestätigung & Rechnung – Snapolino (' . $eventDate . ')';
         $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
@@ -42,12 +56,73 @@ function send_booking_confirmation_email(array $booking, string $invoicePdfPath)
             . "die Fotobox ist für den " . $eventDate . " fest für dich reserviert.\n\n"
             . "Die Rechnung findest du im Anhang dieser E-Mail.\n\n"
             . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
-            . "Viele Grüße\n" . (string) ($cfg['smtp_from_name'] ?? 'Snapolino');
+            . "Viele Grüße\n" . $fromName;
 
         $mail->send();
         return true;
     } catch (PHPMailerException $e) {
         error_log('Mailversand fehlgeschlagen (Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt den Login-Code fuers Kundenkonto (siehe includes/customer_auth.php).
+function send_customer_login_code_email(string $email, string $code): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Login-Code fuer ' . $email . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($email);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Dein Anmeldecode – Snapolino';
+        $mail->Body = "Hallo,\n\n"
+            . "dein Anmeldecode fuer dein Snapolino-Konto lautet:\n\n"
+            . $code . "\n\n"
+            . "Der Code ist " . CUSTOMER_LOGIN_CODE_TTL_MINUTES . " Minuten gueltig. "
+            . "Falls du diesen Code nicht angefordert hast, kannst du diese E-Mail ignorieren.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Login-Code fuer ' . $email . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt einen Stripe-Zahlungslink fuer eine nachtraeglich vom Admin
+// hinzugefuegte Leistung, die nicht kostenlos uebernommen werden soll
+// (siehe booking_addon_charges, admin/booking_detail.php).
+function send_addon_charge_payment_link_email(array $booking, string $description, int $amountCents, string $paymentUrl): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Zusatzzahlung Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Zusaetzliche Zahlung zu deiner Buchung – Snapolino';
+        $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "zu deiner Buchung wurde folgende zusaetzliche Leistung hinzugefuegt:\n\n"
+            . $description . " – " . money_from_cents($amountCents) . "\n\n"
+            . "Du kannst das hier sicher per Kreditkarte, Klarna o.ae. bezahlen:\n"
+            . $paymentUrl . "\n\n"
+            . "Bei Fragen melde dich gerne bei uns.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Zusatzzahlung Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
         return false;
     }
 }

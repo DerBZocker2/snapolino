@@ -88,6 +88,34 @@ function bump_boxes_for_layout(int $layoutId): void
     $stmt->execute([$layoutId]);
 }
 
+// Nach einer nachtraeglichen Admin-Aenderung an einer bereits einer Box
+// zugeordneten Buchung (siehe admin/booking_detail.php): neu gewuenschte
+// Layouts nach box_layouts uebertragen (wie beim urspruenglichen
+// Bestaetigen, siehe assign_box_and_confirm()) und die config_version in
+// jedem Fall erhoehen, damit auch reine Extra-/Datumsaenderungen (die
+// api.php dynamisch mitliefert, aber am ?since-Preflight vorbei stumpf
+// gecacht bleiben wuerden) beim naechsten Sync tatsaechlich ankommen.
+function sync_booking_to_box(int $bookingId): void
+{
+    $stmt = db()->prepare('SELECT box_id FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $boxId = (int) $stmt->fetchColumn();
+    if ($boxId <= 0) {
+        return;
+    }
+
+    $stmt = db()->prepare('SELECT layout_id FROM booking_layouts WHERE booking_id = ?');
+    $stmt->execute([$bookingId]);
+    $layoutIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $ins = db()->prepare('INSERT IGNORE INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
+    foreach ($layoutIds as $layoutId) {
+        $ins->execute([$boxId, (int) $layoutId]);
+    }
+
+    bump_box_version($boxId);
+}
+
 function money_from_cents(int $cents): string
 {
     return number_format($cents / 100, 2, ',', '.') . ' EUR';

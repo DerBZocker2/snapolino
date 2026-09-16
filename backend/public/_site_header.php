@@ -42,6 +42,7 @@ function legal_value(string $value, string $placeholder): string
     <nav>
         <a href="/"<?= nav_link_class('home', $activeNav) ?>>Start</a>
         <a href="/buchen.php"<?= nav_link_class('buchen', $activeNav) ?>>Jetzt buchen</a>
+        <a href="/konto.php"<?= nav_link_class('konto', $activeNav) ?>>Mein Konto</a>
         <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES) ?>">Kontakt</a>
     </nav>
 </header>

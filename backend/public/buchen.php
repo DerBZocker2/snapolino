@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/customer_auth.php';
 require_once __DIR__ . '/../includes/stripe.php';
 
 // Muss vor jeder Ausgabe passieren: csrf_field()/check_csrf() greifen auf die
@@ -47,9 +48,21 @@ function stepper_html(int $current): string
 $token = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
 $booking = $step >= 3 ? fetch_booking_by_token($token) : null;
 
-if ($step >= 3 && (!$booking || $booking['status'] !== 'reserviert')) {
+if ($step >= 3 && !$booking) {
     header('Location: buchen.php?step=1');
     exit;
+}
+
+// Buchungen, die abschliessend bestaetigt sind (bezahlt oder Admin hat eine
+// Angebots-Buchung manuell bestaetigt) sowie abgelehnte/stornierte lassen
+// sich nicht mehr aendern - ausser ein Admin hat die Bearbeitung fuer genau
+// diese eine Buchung ausdruecklich wieder freigeschaltet (siehe
+// booking_detail.php). Ein POST auf eine gesperrte Buchung wird abgelehnt,
+// statt die Aenderung stillschweigend zu speichern.
+$bookingLocked = $step >= 3 && !booking_customer_editable($booking);
+if ($bookingLocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    http_response_code(403);
+    exit('Diese Buchung ist bereits abgeschlossen und kann nicht mehr geändert werden.');
 }
 
 $layouts = fetch_all_layouts();
@@ -102,11 +115,12 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         $newToken = random_key(24);
+        $accountId = find_or_create_customer_account($email);
         $stmt = db()->prepare(
-            'INSERT INTO bookings (edit_token, customer_name, customer_email, event_date, status)
-             VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO bookings (edit_token, customer_name, customer_email, customer_account_id, event_date, status)
+             VALUES (?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$newToken, trim($firstName . ' ' . $lastName), $email, $eventDate, 'reserviert']);
+        $stmt->execute([$newToken, trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, 'reserviert']);
         $newBookingId = (int) db()->lastInsertId();
 
         $stmt = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
@@ -337,6 +351,17 @@ require __DIR__ . '/_site_header.php';
             <?php endif; ?>
             <p class="muted" style="margin-top:16px;">
                 Fragen in der Zwischenzeit? Schreib uns einfach an
+                <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES) ?>"><?= htmlspecialchars($contactEmail, ENT_QUOTES) ?></a>.
+            </p>
+        </div>
+    <?php elseif ($bookingLocked): ?>
+        <h2>Fotobox buchen</h2>
+        <div class="panel-box" style="max-width:520px;margin:0 auto;text-align:center;">
+            <h3>Diese Buchung ist bereits abgeschlossen</h3>
+            <p class="muted">
+                Sie kann nicht mehr geändert werden. In deinem
+                <a href="konto.php">Konto</a> kannst du sie dir jederzeit ansehen. Falls doch noch
+                etwas geändert werden muss, melde dich einfach bei uns:
                 <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES) ?>"><?= htmlspecialchars($contactEmail, ENT_QUOTES) ?></a>.
             </p>
         </div>
@@ -609,12 +634,16 @@ require __DIR__ . '/_site_header.php';
                 function currentLayout() { return layoutById(parseInt(baseSelect.value, 10)); }
 
                 var customSlots = null;
+                var textPos = null;
                 var HANDLE_RADIUS = 8;
                 var MIN_SLOT_SIZE = 60;
+                var TEXT_HANDLE_RADIUS = 10;
                 function resetSlots() {
-                    customSlots = currentLayout().slots.map(function (s) {
+                    var layout = currentLayout();
+                    customSlots = layout.slots.map(function (s) {
                         return { x: s.x, y: s.y, width: s.width, height: s.height };
                     });
+                    textPos = { x: layout.canvas_width / 2, y: layout.canvas_height - 20 };
                 }
 
                 function drawDesign(targetCtx, w, h, layout, slots, scale, showOutlines) {
@@ -655,7 +684,7 @@ require __DIR__ . '/_site_header.php';
                         targetCtx.font = 'bold ' + Math.round(18 * scale) + 'px "Segoe UI", Arial, sans-serif';
                         targetCtx.textAlign = 'center';
                         targetCtx.textBaseline = 'middle';
-                        targetCtx.fillText(text, w / 2, h - 20 * scale);
+                        targetCtx.fillText(text, textPos.x * scale, textPos.y * scale);
                     }
 
                     // Foto-Slots ausschneiden (transparent), damit die Kamera-Bilder durchscheinen.
@@ -688,6 +717,20 @@ require __DIR__ . '/_site_header.php';
                             targetCtx.stroke();
                         });
                         targetCtx.restore();
+
+                        // Ziehpunkt am Text, falls einer eingegeben wurde - frei
+                        // im Bild verschiebbar statt fest unten zentriert.
+                        if (text) {
+                            targetCtx.save();
+                            targetCtx.fillStyle = '#17c3b2';
+                            targetCtx.strokeStyle = '#fff';
+                            targetCtx.lineWidth = 2;
+                            targetCtx.beginPath();
+                            targetCtx.arc(textPos.x * scale, textPos.y * scale, TEXT_HANDLE_RADIUS, 0, Math.PI * 2);
+                            targetCtx.fill();
+                            targetCtx.stroke();
+                            targetCtx.restore();
+                        }
                     }
                 }
 
@@ -714,9 +757,11 @@ require __DIR__ . '/_site_header.php';
                 });
 
                 // Fotoflaechen im Vorschau-Canvas per Maus verschieben und am
-                // Ziehpunkt unten rechts in der Groesse anpassen.
+                // Ziehpunkt unten rechts in der Groesse anpassen, der Text
+                // ebenso frei verschieben (siehe textPos).
                 var drag = null;
                 var resize = null;
+                var textDrag = null;
                 function canvasPoint(ev) {
                     var rect = canvas.getBoundingClientRect();
                     return {
@@ -744,10 +789,22 @@ require __DIR__ . '/_site_header.php';
                     }
                     return -1;
                 }
+                function isAtTextHandle(p, scale) {
+                    if (!textInput.value.trim()) {
+                        return false;
+                    }
+                    var hx = textPos.x * scale, hy = textPos.y * scale;
+                    return Math.hypot(p.x - hx, p.y - hy) <= TEXT_HANDLE_RADIUS + 4;
+                }
                 canvas.addEventListener('mousedown', function (ev) {
                     var layout = currentLayout();
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
+
+                    if (isAtTextHandle(p, scale)) {
+                        textDrag = { startX: p.x, startY: p.y, origX: textPos.x, origY: textPos.y };
+                        return;
+                    }
 
                     var handleIdx = slotAtHandle(p, scale);
                     if (handleIdx !== -1) {
@@ -767,6 +824,14 @@ require __DIR__ . '/_site_header.php';
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
 
+                    if (textDrag) {
+                        var dtx = (p.x - textDrag.startX) / scale;
+                        var dty = (p.y - textDrag.startY) / scale;
+                        textPos.x = Math.max(0, Math.min(layout.canvas_width, textDrag.origX + dtx));
+                        textPos.y = Math.max(0, Math.min(layout.canvas_height, textDrag.origY + dty));
+                        refreshPreview();
+                        return;
+                    }
                     if (resize) {
                         var s = customSlots[resize.index];
                         var dw = (p.x - resize.startX) / scale;
@@ -786,15 +851,15 @@ require __DIR__ . '/_site_header.php';
                         return;
                     }
 
-                    if (slotAtHandle(p, scale) !== -1) {
-                        canvas.style.cursor = 'nwse-resize';
+                    if (isAtTextHandle(p, scale) || slotAtHandle(p, scale) !== -1) {
+                        canvas.style.cursor = slotAtHandle(p, scale) !== -1 ? 'nwse-resize' : 'move';
                     } else if (slotAtPoint(p, scale) !== -1) {
                         canvas.style.cursor = 'grab';
                     } else {
                         canvas.style.cursor = 'default';
                     }
                 });
-                document.addEventListener('mouseup', function () { drag = null; resize = null; });
+                document.addEventListener('mouseup', function () { drag = null; resize = null; textDrag = null; });
 
                 document.querySelectorAll('[data-customize]').forEach(function (btn) {
                     btn.addEventListener('click', function (ev) {

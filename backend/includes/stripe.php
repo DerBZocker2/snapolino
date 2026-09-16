@@ -71,6 +71,40 @@ function create_stripe_checkout_session(array $booking, array $lineItems, string
     return stripe_request('POST', 'checkout/sessions', $params);
 }
 
+// Erstellt eine Checkout Session fuer eine nachtraeglich vom Admin
+// hinzugefuegte Leistung, die nicht kostenlos uebernommen werden soll
+// (siehe booking_addon_charges, admin/booking_detail.php) - eigene, von der
+// Haupt-Buchung unabhaengige Session mit eigenen Metadaten, damit
+// stripe_webhook.php beide Faelle auseinanderhalten kann.
+function create_addon_charge_checkout_session(
+    array $booking,
+    int $addonChargeId,
+    string $description,
+    int $amountCents,
+    string $successUrl,
+    string $cancelUrl
+): ?array {
+    $params = [
+        'mode' => 'payment',
+        'success_url' => $successUrl,
+        'cancel_url' => $cancelUrl,
+        'customer_email' => $booking['customer_email'],
+        'metadata' => [
+            'addon_charge_id' => (string) $addonChargeId,
+        ],
+        'line_items' => [[
+            'quantity' => 1,
+            'price_data' => [
+                'currency' => 'eur',
+                'unit_amount' => $amountCents,
+                'product_data' => ['name' => $description],
+            ],
+        ]],
+    ];
+
+    return stripe_request('POST', 'checkout/sessions', $params);
+}
+
 // Prueft die Signatur eines eingehenden Stripe-Webhooks. $payload ist der
 // rohe Request-Body, $sigHeader der Inhalt des Headers "Stripe-Signature".
 // Liefert das dekodierte Event-Array oder null, wenn die Signatur nicht

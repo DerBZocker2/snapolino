@@ -31,12 +31,16 @@ if ($event === null) {
 
 if (($event['type'] ?? '') === 'checkout.session.completed') {
     $session = $event['data']['object'] ?? [];
-    $bookingId = (int) ($session['metadata']['booking_id'] ?? 0);
+    $metadata = $session['metadata'] ?? [];
+    $bookingId = (int) ($metadata['booking_id'] ?? 0);
+    $addonChargeId = (int) ($metadata['addon_charge_id'] ?? 0);
     $paymentIntent = (string) ($session['payment_intent'] ?? '');
     $paid = ($session['payment_status'] ?? '') === 'paid';
 
-    if ($bookingId > 0 && $paid) {
+    if ($paid && $bookingId > 0) {
         mark_booking_paid($bookingId, $paymentIntent);
+    } elseif ($paid && $addonChargeId > 0) {
+        mark_addon_charge_paid($addonChargeId);
     }
 }
 

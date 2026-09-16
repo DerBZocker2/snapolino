@@ -42,3 +42,19 @@ function mark_booking_paid(int $bookingId, string $paymentIntentId): void
         error_log('Rechnung/Mail fehlgeschlagen fuer Buchung #' . $bookingId . ': ' . $e->getMessage());
     }
 }
+
+// Verarbeitet die erfolgreiche Zahlung einer nachtraeglichen Zusatzkosten-
+// Nachforderung (siehe booking_addon_charges, admin/booking_detail.php).
+// Idempotent wie mark_booking_paid().
+function mark_addon_charge_paid(int $addonChargeId): void
+{
+    $stmt = db()->prepare('SELECT * FROM booking_addon_charges WHERE id = ?');
+    $stmt->execute([$addonChargeId]);
+    $charge = $stmt->fetch();
+
+    if (!$charge || $charge['paid_at'] !== null) {
+        return;
+    }
+
+    db()->prepare('UPDATE booking_addon_charges SET paid_at = NOW() WHERE id = ?')->execute([$addonChargeId]);
+}
