@@ -202,15 +202,23 @@ kann Eventdatum, Layouts und Extras direkt aendern (Checkbox-Liste analog
 zum Assistenten). Erhoeht die Aenderung bei einer bereits `bestaetigt`en
 Buchung den Gesamtpreis ueber das bisher Gebuchte/Bezahlte hinaus, fragt
 eine Zwischenseite nach, ob die Differenz **kostenlos uebernommen** oder
-per **neuem Stripe-Zahlungslink** an den Kunden nachgefordert werden soll
-(eigene `booking_addon_charges`-Zeile + eigene Checkout-Session,
-`stripe_webhook.php` unterscheidet per Metadata `booking_id` vs.
-`addon_charge_id` zwischen Erst- und Nachzahlung). Speichert eine
-Aenderung eine bereits einer Box zugeordnete Buchung, ueberträgt
-`sync_booking_to_box()` neue Layouts nach `box_layouts` und erhoeht in
-jedem Fall die `config_version` (auch bei reinen Extra-/Datumsaenderungen,
-die `api.php` sonst nur dynamisch, aber am `?since`-Preflight vorbei
-mitliefern wuerde). Das individuelle Design einer Buchung
+per **neuem Stripe-Zahlungslink** an den Kunden nachgefordert werden soll.
+"Kostenlos uebernehmen" wird sofort auf die Buchung angewendet. Bei
+"Zahlungslink senden" dagegen wird die gewuenschte Aenderung (Datum/
+Layouts/Extras/neuer Gesamtpreis) zunaechst nur in der neuen
+`booking_addon_charges`-Zeile als `pending_changes_json` zwischengespeichert
+(eigene Checkout-Session, `stripe_webhook.php` unterscheidet per Metadata
+`booking_id` vs. `addon_charge_id` zwischen Erst- und Nachzahlung) - die
+Buchung selbst (und damit auch, was die Box anzeigt) bleibt unveraendert,
+bis Stripe die Zahlung per Webhook bestaetigt und `mark_addon_charge_paid()`
+die gespeicherte Aenderung tatsaechlich uebernimmt. So wird ein bezahlpflichtiges
+Extra nie schon aktiv, bevor der Kunde wirklich bezahlt hat. Erst dabei
+ueberträgt `sync_booking_to_box()` (falls die Buchung bereits einer Box
+zugeordnet ist) neue Layouts nach `box_layouts` und erhoeht die
+`config_version` (auch bei reinen Extra-/Datumsaenderungen, die `api.php`
+sonst nur dynamisch, aber am `?since`-Preflight vorbei mitliefern wuerde).
+In der Buchungsdetailansicht sieht der Admin alle Zusatzzahlungen dieser
+Buchung samt Status (offen/bezahlt). Das individuelle Design einer Buchung
 (`layouts.is_custom = 1`, unsichtbar im allgemeinen Panel) laesst sich
 direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer

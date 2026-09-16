@@ -112,9 +112,9 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
 
         $mail->Subject = 'Zusaetzliche Zahlung zu deiner Buchung – Snapolino';
         $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
-            . "zu deiner Buchung wurde folgende zusaetzliche Leistung hinzugefuegt:\n\n"
+            . "fuer deine Buchung wurde folgende zusaetzliche Leistung vorgeschlagen:\n\n"
             . $description . " – " . money_from_cents($amountCents) . "\n\n"
-            . "Du kannst das hier sicher per Kreditkarte, Klarna o.ae. bezahlen:\n"
+            . "Sie wird erst nach Zahlungseingang wirksam. Du kannst hier sicher per Kreditkarte, Klarna o.ae. bezahlen:\n"
             . $paymentUrl . "\n\n"
             . "Bei Fragen melde dich gerne bei uns.\n\n"
             . "Viele Grüße\n" . $fromName;

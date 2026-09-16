@@ -803,3 +803,119 @@ button:hover { background: var(--accent-dark); }
 }
 .coupon-row input[type=text] { margin-top: 0; }
 .coupon-row .button-secondary { flex-shrink: 0; white-space: nowrap; }
+
+/* ---------- Startseite: Party-Deko & FAQ-Akkordeon ---------- */
+
+.hero { position: relative; overflow: hidden; }
+
+.confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 9px;
+    height: 13px;
+    border-radius: 2px;
+    opacity: 0.85;
+    animation-name: confetti-fall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+@keyframes confetti-fall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0.9; }
+    100% { transform: translateY(320px) rotate(340deg); opacity: 0; }
+}
+
+.hero .button {
+    animation: btn-pop 2.6s ease-in-out infinite;
+}
+
+@keyframes btn-pop {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.035); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .confetti-piece { animation: none; display: none; }
+    .hero .button { animation: none; }
+}
+
+.photo-strip {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: 0 auto 8px;
+    max-width: 760px;
+    padding: 0 20px;
+}
+
+.photo-strip .polaroid {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 8px 18px;
+    box-shadow: 0 10px 22px rgba(44, 36, 64, 0.10);
+    transition: transform 0.2s ease;
+}
+.photo-strip .polaroid:nth-child(1) { transform: rotate(-4deg); }
+.photo-strip .polaroid:nth-child(2) { transform: rotate(3deg); }
+.photo-strip .polaroid:nth-child(3) { transform: rotate(-2deg); }
+.photo-strip .polaroid:hover { transform: scale(1.06) rotate(0deg); }
+
+.photo-strip .polaroid svg {
+    display: block;
+    width: 96px;
+    height: 72px;
+    border-radius: 3px;
+}
+
+@media (max-width: 600px) {
+    .photo-strip .polaroid svg { width: 72px; height: 54px; }
+}
+
+.feature-card .icon { transition: transform 0.2s ease; }
+.feature-card:hover .icon { transform: scale(1.12) rotate(-4deg); }
+
+#faq details.panel-box {
+    padding: 0;
+    overflow: hidden;
+}
+
+#faq details.panel-box summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 18px 24px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+#faq details.panel-box summary::-webkit-details-marker { display: none; }
+
+#faq details.panel-box summary::after {
+    content: "+";
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--accent2);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+#faq details.panel-box[open] summary::after { transform: rotate(45deg); }
+
+#faq details.panel-box summary:hover { color: var(--accent2-dark); }
+
+#faq details.panel-box .faq-answer {
+    padding: 0 24px 20px;
+}
+
+#faq details.panel-box .faq-answer p { margin: 0; }

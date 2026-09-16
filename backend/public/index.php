@@ -24,6 +24,16 @@ require __DIR__ . '/_site_header.php';
 ?>
 
 <section class="hero">
+    <div class="confetti" aria-hidden="true">
+        <span class="confetti-piece" style="left:8%;background:var(--accent);animation-duration:3.2s;animation-delay:0s;"></span>
+        <span class="confetti-piece" style="left:20%;background:var(--accent2);animation-duration:2.6s;animation-delay:0.4s;"></span>
+        <span class="confetti-piece" style="left:32%;background:var(--teal);animation-duration:3.6s;animation-delay:0.9s;"></span>
+        <span class="confetti-piece" style="left:48%;background:var(--accent);animation-duration:2.9s;animation-delay:0.2s;"></span>
+        <span class="confetti-piece" style="left:62%;background:var(--accent2);animation-duration:3.3s;animation-delay:1.1s;"></span>
+        <span class="confetti-piece" style="left:75%;background:var(--teal);animation-duration:2.7s;animation-delay:0.6s;"></span>
+        <span class="confetti-piece" style="left:86%;background:var(--accent);animation-duration:3.1s;animation-delay:1.4s;"></span>
+        <span class="confetti-piece" style="left:94%;background:var(--accent2);animation-duration:2.8s;animation-delay:0.1s;"></span>
+    </div>
     <h1>Fotobox-Vermietung für deine <span class="accent-text">Veranstaltung</span></h1>
     <p>
         Selbstbedienungs-Fotobox mit Sofortdruck – wir schicken sie dir bequem
@@ -40,6 +50,32 @@ require __DIR__ . '/_site_header.php';
         Keine Zahlungsdaten für die Reservierung nötig · Sichere Zahlung über Stripe · Made in Deutschland
     </p>
 </section>
+
+<div class="photo-strip" aria-hidden="true">
+    <div class="polaroid">
+        <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg">
+            <rect width="96" height="72" fill="#2c2440"/>
+            <circle cx="48" cy="38" r="16" fill="#ff6f59"/>
+            <circle cx="48" cy="38" r="9" fill="#fffaf5"/>
+            <path d="M30 20h10l4-6h8l4 6h10v6H30z" fill="#6c5ce7"/>
+        </svg>
+    </div>
+    <div class="polaroid">
+        <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg">
+            <rect width="96" height="72" fill="#6c5ce7"/>
+            <circle cx="34" cy="46" r="14" fill="#fffaf5"/>
+            <circle cx="64" cy="40" r="18" fill="#17c3b2"/>
+            <circle cx="60" cy="34" r="4" fill="#fffaf5"/>
+        </svg>
+    </div>
+    <div class="polaroid">
+        <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg">
+            <rect width="96" height="72" fill="#ff6f59"/>
+            <path d="M12 60L36 24l16 20 10-12 22 28z" fill="#fffaf5"/>
+            <circle cx="72" cy="20" r="7" fill="#fffaf5"/>
+        </svg>
+    </div>
+</div>
 
 <section class="section" id="ablauf">
     <h2>So funktioniert's</h2>
@@ -95,33 +131,62 @@ require __DIR__ . '/_site_header.php';
 
 <section class="section" id="faq">
     <h2>Häufige Fragen</h2>
-    <div class="panel-box">
-        <h3>Muss jemand die Fotobox bedienen?</h3>
-        <p class="muted">Nein. Deine Gäste tippen ein Layout an, schauen in die Kamera und der
-            Countdown startet automatisch – ganz ohne Personal.</p>
-    </div>
-    <div class="panel-box">
-        <h3>Was ist im Lieferumfang enthalten?</h3>
-        <p class="muted">Die fertig eingerichtete Fotobox inkl. Drucker, Kamera und deinem
-            gewählten Design – einfach auspacken, aufstellen und einschalten.</p>
-    </div>
-    <div class="panel-box">
-        <h3>Wie lange vorher sollte ich buchen?</h3>
-        <p class="muted">Je früher, desto besser – vor allem an Wochenenden in der Hochsaison sind
+    <p class="lead">Frage antippen, Antwort erscheint.</p>
+
+    <details class="panel-box">
+        <summary>Muss jemand die Fotobox bedienen?</summary>
+        <div class="faq-answer"><p>Nein. Deine Gäste tippen ein Layout an, schauen in die Kamera und der
+            Countdown startet automatisch – ganz ohne Personal.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Was ist im Lieferumfang enthalten?</summary>
+        <div class="faq-answer"><p>Die fertig eingerichtete Fotobox inkl. Drucker, Kamera und deinem
+            gewählten Design – einfach auspacken, aufstellen und einschalten.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Brauche ich Internet vor Ort?</summary>
+        <div class="faq-answer"><p>Nein. Die Box ist offline-first und speichert alles lokal – für
+            Aufnahme, Anzeige und Druck brauchst du kein WLAN am Veranstaltungsort.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Wie viele Fotos landen auf einem Ausdruck?</summary>
+        <div class="faq-answer"><p>Standard sind 4 Bilder pro Collage. Auf Wunsch kannst du bei der
+            Buchung zusätzlich Layouts mit 1, 2 oder 3 Fotos dazuwählen (bis zu drei
+            Zusatzformate gleichzeitig) – deine Gäste entscheiden dann direkt an der Box,
+            welches Format sie nehmen möchten. Ist zusätzlich "Einzelne Bilder drucken"
+            gebucht, lässt sich am Ende jeder Session außerdem ein einzelnes Foto mehrfach
+            als Extra-Abzug drucken.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Wie gestalte ich mein Design?</summary>
+        <div class="faq-answer"><p>Du hast drei Wege: eine fertige Design-Vorlage aus unserer Galerie
+            wählen, im kostenlosen Online-Designer Farbe, Muster und Text selbst anpassen,
+            oder ein eigenes PNG mit transparenten Fotoflächen hochladen.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Kann ich meine Buchung nachträglich ändern?</summary>
+        <div class="faq-answer"><p>Ja. Sobald du deine E-Mail-Adresse zum Reservieren angegeben hast,
+            kannst du dich unter <a href="konto.php">Mein Konto</a> per E-Mail-Code einloggen
+            und dort Datum, Design und Extras anpassen, solange noch nicht bezahlt wurde.
+            Danach ist die Buchung nur noch einsehbar.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Wie lange vorher sollte ich buchen?</summary>
+        <div class="faq-answer"><p>Je früher, desto besser – vor allem an Wochenenden in der Hochsaison sind
             Termine schnell vergeben. Eine Reservierung ist zunächst
-            <?= RESERVATION_HOLD_DAYS ?> Tage unverbindlich möglich.</p>
-    </div>
-    <div class="panel-box">
-        <h3>Kann ich stornieren?</h3>
-        <p class="muted">Ja, die genauen Fristen und Bedingungen findest du in unseren
-            <a href="agb.php">AGB</a>.</p>
-    </div>
-    <div class="panel-box">
-        <h3>Sind meine Zahlungsdaten sicher?</h3>
-        <p class="muted">Ja. Die Zahlung läuft komplett über den Zahlungsdienstleister Stripe –
+            <?= RESERVATION_HOLD_DAYS ?> Tage unverbindlich möglich.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Kann ich stornieren?</summary>
+        <div class="faq-answer"><p>Ja, die genauen Fristen und Bedingungen findest du in unseren
+            <a href="agb.php">AGB</a>.</p></div>
+    </details>
+    <details class="panel-box">
+        <summary>Sind meine Zahlungsdaten sicher?</summary>
+        <div class="faq-answer"><p>Ja. Die Zahlung läuft komplett über den Zahlungsdienstleister Stripe –
             deine Kartendaten erreichen unseren Server nie. Details dazu in unserer
-            <a href="datenschutz.php">Datenschutzerklärung</a>.</p>
-    </div>
+            <a href="datenschutz.php">Datenschutzerklärung</a>.</p></div>
+    </details>
 </section>
 
 <?php require __DIR__ . '/_site_footer.php'; ?>
