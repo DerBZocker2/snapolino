@@ -283,6 +283,62 @@ und Datenschutzerklaerung akzeptiert"; der Zeitpunkt wird als Nachweis in
 `bookings.agb_accepted_at` gespeichert und ist im Panel bei den
 Buchungsdetails sichtbar.
 
+## Kundenkonten (`konto.php`)
+
+Beim Anlegen einer Reservierung (Schritt 2) wird automatisch ein Konto zur
+angegebenen E-Mail-Adresse angelegt/wiederverwendet
+(`find_or_create_customer_account()`, `includes/customer_auth.php`) und
+mit der Buchung verknuepft (`bookings.customer_account_id`). Login unter
+`/konto.php` funktioniert ganz ohne Passwort: E-Mail eintragen, 6-stelligen
+Code aus der Mail eingeben (15 Minuten gueltig, max. 5 Fehlversuche pro
+Code, mindestens 60 Sekunden zwischen zwei angeforderten Codes). Nach dem
+Login zeigt das Konto alle Buchungen dieser Adresse (auch Alt-Buchungen
+von vor Einfuehrung dieser Funktion - Migration 0011 verknuepft sie
+nachtraeglich ueber die E-Mail-Adresse) mit einem Link zum Weiterbearbeiten
+(fuehrt zum bestehenden `edit_token`-Link von `buchen.php`) oder, wenn die
+Buchung bereits abgeschlossen ist, zum reinen Ansehen.
+
+Eine Buchung ist fuer den Kunden bearbeitbar, solange sie noch
+`reserviert` oder `angefragt` ist. Sobald sie `bestaetigt` ist (bezahlt
+oder Admin hat eine Angebots-Buchung manuell bestaetigt), blockiert
+`buchen.php` Schritt 2-5 serverseitig (`booking_customer_editable()`) -
+ausser ein Admin hat die Bearbeitung fuer genau diese eine Buchung wieder
+freigeschaltet (`bookings.edit_unlocked_by_admin`, Schalter in
+`admin/booking_detail.php` - fuer den Fall, dass dem Kunden nachtraeglich
+ein Fehler auffaellt, z.B. eine falsche Adresse).
+
+## Admin: Buchungen nachtraeglich bearbeiten
+
+Im Panel unter **Buchungen → Details** kann ein Admin Eventdatum, Layouts
+und Extras einer Buchung direkt aendern - dieselbe Checkbox-Auswahl wie im
+Buchungsassistenten. Erhoeht die Aenderung bei einer bereits `bestaetigt`en
+Buchung den Gesamtpreis ueber das bisher Gebuchte/Bezahlte hinaus, fragt
+eine Zwischenseite nach, wie damit umgegangen werden soll:
+
+- **Kostenlos uebernehmen**: neuer Gesamtpreis wird gespeichert, keine
+  weitere Zahlung eingefordert (z.B. Kulanz).
+- **Zahlungslink an Kunde senden**: die Preisdifferenz wird als eigene
+  Zeile in `booking_addon_charges` angelegt, dafuer eine eigene Stripe-
+  Checkout-Session erstellt (`create_addon_charge_checkout_session()`) und
+  ein Zahlungslink per Mail verschickt. `stripe_webhook.php` unterscheidet
+  anhand der Metadata (`booking_id` fuer die Erstzahlung, `addon_charge_id`
+  fuer eine Nachforderung) und markiert die jeweils richtige Zeile als
+  bezahlt.
+
+Wird dabei eine bereits einer Box zugeordnete Buchung veraendert, ueberträgt
+`sync_booking_to_box()` neu gewuenschte Layouts nach `box_layouts` (wie
+beim urspruenglichen Bestaetigen) und erhoeht in jedem Fall die
+`config_version` der Box - auch bei einer reinen Extra- oder
+Datumsaenderung, die `api.php` sonst zwar dynamisch mitliefern wuerde,
+aber am guenstigen `?since`-Preflight vorbei stumpf gecacht bliebe.
+
+Das individuelle Design einer Buchung (Online-Designer/Upload,
+`layouts.is_custom = 1`, taucht im allgemeinen Panel unter **Layouts**
+nicht auf) laesst sich direkt aus den Buchungsdetails heraus ansehen bzw.
+anpassen - ein Link fuehrt zu `layout_form.php?id=<id>`, das ohne weitere
+Anpassung auch fuer Custom-Layouts funktioniert (dort gibt es sonst keinen
+Einstiegspunkt dafuer).
+
 ## Schnittstelle fuer die Box
 
 ### `GET /api.php?box=<box_key>`
@@ -371,6 +427,8 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0007_coupons_and_billing_address.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0008_box_admin_pin_and_booking_sync.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0009_legal_pages.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0010_free_designs_and_single_print.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0011_customer_accounts.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -406,6 +464,19 @@ die Box" oben) - im Panel unter **Boxen → Layouts & Zugang** pflegbar.
 Migration 0009 seedet `business_email`/`business_phone` in `settings` und
 ergaenzt `bookings` um `agb_accepted_at` (siehe "Rechtliche Seiten" oben).
 
+Migration 0010 setzt `layouts.surcharge_cents` auf 0 fuer alle Formate
+ausser 1-/2-Bild (bleibt pro Layout im Panel weiterhin editierbar) und
+benennt das Extra "Mehrfachdruck" in "Einzelne Bilder drucken" um (siehe
+main.py `EXTRA_INDIVIDUAL_PRINTS`/`MAX_INDIVIDUAL_PRINT_COPIES` in
+CLAUDE.md - das Extra hiess vorher nicht so, wie main.py es erwartet
+hatte, das Feature lief also nie).
+
+Migration 0011 legt `customer_accounts` und `booking_addon_charges` an,
+ergaenzt `bookings` um `customer_account_id` (nachtraeglich fuer
+Bestandsbuchungen ueber die E-Mail-Adresse befuellt) und
+`edit_unlocked_by_admin` (siehe "Kundenkonten" und "Admin: Buchungen
+nachtraeglich bearbeiten" oben).
+
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
 
@@ -413,8 +484,9 @@ meldung statt abzustuerzen.
 
 - E-Mail-Benachrichtigung nur bei erfolgreicher Zahlung, nicht bei einer
   reinen Angebotsanfrage (dort weiterhin nur im Panel sichtbar).
-- Online-Designer bietet nur Farbe/Muster/Text plus verschiebbare
-  Fotoflaechen, kein Logo-Upload oder frei platzierbare Textelemente.
+- Online-Designer bietet nur Farbe/Muster plus verschiebbare Fotoflaechen
+  und ein einzelnes, frei platzierbares Textelement, kein Logo-Upload,
+  keine mehreren Textelemente.
 - Stripe-Webhook verschickt Rechnung/Mail synchron in der Webhook-Antwort;
   bei SMTP-Ausfaellen dauert die Antwort laenger (Bestaetigung selbst ist
   davon unabhaengig, nur die Mail muesste dann manuell nachverschickt

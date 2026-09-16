@@ -181,6 +181,41 @@ Admin-Panel wird auf keiner oeffentlichen Seite verlinkt (kein
 "Admin-Login" mehr auf Startseite/Buchungsseite) - Zugriff nur ueber die
 direkte URL `admin/login.php`.
 
+**Kundenkonten** (`konto.php`, `includes/customer_auth.php`): ein Konto
+pro E-Mail-Adresse, Login per 6-stelligem Code per Mail statt Passwort
+(15 Minuten gueltig, max. 5 Fehlversuche, 60s Sperre zwischen zwei
+Codes). Wird automatisch beim Anlegen einer Reservierung angelegt/
+wiederverwendet (`bookings.customer_account_id`). Nach Login zeigt das
+Konto alle Buchungen dieser E-Mail-Adresse (auch Alt-Buchungen von vor
+Einfuehrung der Kontenfunktion, per Migration ueber die E-Mail-Adresse
+verknuepft) mit Bearbeiten-Link (fuehrt zum bestehenden `edit_token`-Link
+in `buchen.php`) oder Ansehen-Link. Eine Buchung ist fuer den Kunden
+bearbeitbar, solange sie noch `reserviert`/`angefragt` ist, oder wenn ein
+Admin sie trotz `bestaetigt`-Status ausdruecklich wieder freigeschaltet
+hat (`bookings.edit_unlocked_by_admin`, Button in booking_detail.php) -
+`buchen.php` selbst blockt Schritt 2-5 serverseitig fuer nicht (mehr)
+bearbeitbare Buchungen (`booking_customer_editable()`), zeigt stattdessen
+einen Hinweis "Buchung abgeschlossen".
+
+**Admin-Bearbeitung von Buchungen** (`admin/booking_detail.php`): Admin
+kann Eventdatum, Layouts und Extras direkt aendern (Checkbox-Liste analog
+zum Assistenten). Erhoeht die Aenderung bei einer bereits `bestaetigt`en
+Buchung den Gesamtpreis ueber das bisher Gebuchte/Bezahlte hinaus, fragt
+eine Zwischenseite nach, ob die Differenz **kostenlos uebernommen** oder
+per **neuem Stripe-Zahlungslink** an den Kunden nachgefordert werden soll
+(eigene `booking_addon_charges`-Zeile + eigene Checkout-Session,
+`stripe_webhook.php` unterscheidet per Metadata `booking_id` vs.
+`addon_charge_id` zwischen Erst- und Nachzahlung). Speichert eine
+Aenderung eine bereits einer Box zugeordnete Buchung, ueberträgt
+`sync_booking_to_box()` neue Layouts nach `box_layouts` und erhoeht in
+jedem Fall die `config_version` (auch bei reinen Extra-/Datumsaenderungen,
+die `api.php` sonst nur dynamisch, aber am `?since`-Preflight vorbei
+mitliefern wuerde). Das individuelle Design einer Buchung
+(`layouts.is_custom = 1`, unsichtbar im allgemeinen Panel) laesst sich
+direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
+`layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
+Custom-Layouts funktioniert).
+
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
 - Keine Umlaute in Code-Kommentaren (Encoding-Probleme bei PyInstaller)
@@ -208,9 +243,10 @@ kann sie nicht abfangen).
   falls ein Fehlerzustand weiterhin nicht erkannt wird
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
-- Online-Designer bietet nur Farbe/Muster/Text plus verschieb- und
-  größenveränderbare Fotoflächen, kein Logo-Upload oder frei platzierbare
-  Textelemente
+- Online-Designer bietet nur Farbe/Muster plus verschieb- und
+  größenveränderbare Fotoflächen sowie ein einzelnes, frei platzierbares
+  Textelement (per Ziehpunkt verschiebbar, feste Schriftgröße/-farbe) -
+  kein Logo-Upload, keine mehreren Textelemente
 - Stripe-Webhook-Verarbeitung ist synchron (PDF-Erzeugung + Mailversand
   laufen direkt in der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das
   die Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern
