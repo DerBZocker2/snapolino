@@ -59,6 +59,18 @@ function create_stripe_checkout_session(array $booking, array $lineItems, string
         'metadata' => [
             'booking_id' => (string) $booking['id'],
         ],
+        // Laesst Stripe zusaetzlich zur eigenen Rechnung (invoice_number,
+        // generate_invoice_pdf()) automatisch eine eigene, bei Stripe
+        // gehostete Rechnung erstellen (siehe mark_booking_paid()) - unsere
+        // fortlaufende Nummer bleibt die massgebliche fuer die Buchhaltung.
+        'invoice_creation' => [
+            'enabled' => true,
+            'invoice_data' => [
+                'custom_fields' => [
+                    ['name' => 'Buchung', 'value' => 'Snapolino #' . $booking['id']],
+                ],
+            ],
+        ],
     ];
 
     foreach (array_values($lineItems) as $i => $item) {
@@ -92,6 +104,16 @@ function create_addon_charge_checkout_session(
         'metadata' => [
             'addon_charge_id' => (string) $addonChargeId,
         ],
+        // Zusatzzahlungen hatten bisher gar keine Rechnung - bekommen jetzt
+        // ebenfalls eine bei Stripe gehostete (siehe mark_addon_charge_paid()).
+        'invoice_creation' => [
+            'enabled' => true,
+            'invoice_data' => [
+                'custom_fields' => [
+                    ['name' => 'Buchung', 'value' => 'Snapolino #' . $booking['id']],
+                ],
+            ],
+        ],
         'line_items' => [[
             'quantity' => 1,
             'price_data' => [
@@ -103,6 +125,26 @@ function create_addon_charge_checkout_session(
     ];
 
     return stripe_request('POST', 'checkout/sessions', $params);
+}
+
+// Liest eine von Stripe erstellte Rechnung (siehe invoice_creation oben),
+// u.a. fuer 'invoice_pdf' (direkter PDF-Download) und 'hosted_invoice_url'
+// (Ansicht bei Stripe). Liefert null bei einem Fehler.
+function fetch_stripe_invoice(string $invoiceId): ?array
+{
+    return stripe_request('GET', 'invoices/' . urlencode($invoiceId));
+}
+
+// Loest den Versand der Stripe-Rechnung per E-Mail direkt durch Stripe aus
+// (zusaetzlich zu unserer eigenen Bestaetigungsmail). Best-effort: ein
+// Fehlschlag hier darf die Zahlung/Buchung nicht beeintraechtigen, die
+// Rechnung bleibt in jedem Fall bei Stripe abrufbar (hosted_invoice_url).
+function send_stripe_invoice(string $invoiceId): void
+{
+    $result = stripe_request('POST', 'invoices/' . urlencode($invoiceId) . '/send');
+    if ($result === null) {
+        error_log('Stripe: Rechnung ' . $invoiceId . ' konnte nicht per Mail verschickt werden (bleibt bei Stripe abrufbar).');
+    }
 }
 
 // Prueft die Signatur eines eingehenden Stripe-Webhooks. $payload ist der

@@ -108,6 +108,11 @@ CREATE TABLE IF NOT EXISTS bookings (
     edit_unlocked_by_admin TINYINT(1) NOT NULL DEFAULT 0,
     paid_at                DATETIME NULL,
     invoice_number         VARCHAR(30) NULL UNIQUE,
+    -- Stripe erstellt zusaetzlich zur eigenen Rechnung (invoice_number) eine
+    -- eigene, bei Stripe gehostete Rechnung (siehe Migration 0013).
+    stripe_invoice_id         VARCHAR(255) NULL,
+    stripe_invoice_pdf_url    VARCHAR(500) NULL,
+    stripe_invoice_hosted_url VARCHAR(500) NULL,
     created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (box_id) REFERENCES boxes(id) ON DELETE SET NULL,
@@ -132,6 +137,11 @@ CREATE TABLE IF NOT EXISTS booking_addon_charges (
     pending_changes_json  TEXT NULL,
     stripe_session_id     VARCHAR(255) NULL,
     paid_at               DATETIME NULL,
+    -- Zusatzzahlungen bekommen ebenfalls eine eigene, bei Stripe gehostete
+    -- Rechnung (siehe Migration 0013) - vorher gab es dafuer gar keine.
+    stripe_invoice_id         VARCHAR(255) NULL,
+    stripe_invoice_pdf_url    VARCHAR(500) NULL,
+    stripe_invoice_hosted_url VARCHAR(500) NULL,
     created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

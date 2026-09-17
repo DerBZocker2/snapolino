@@ -253,6 +253,17 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         <tr><th>Gesamtpreis</th><td>
             <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>
         </td></tr>
+        <?php if ($booking['invoice_number']): ?>
+            <tr><th>Rechnung</th><td>
+                <?= htmlspecialchars($booking['invoice_number'], ENT_QUOTES) ?>
+                <?php if ($booking['stripe_invoice_hosted_url']): ?>
+                    · <a href="<?= htmlspecialchars($booking['stripe_invoice_hosted_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener">bei Stripe ansehen</a>
+                <?php endif; ?>
+                <?php if ($booking['stripe_invoice_pdf_url']): ?>
+                    · <a href="<?= htmlspecialchars($booking['stripe_invoice_pdf_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener">PDF</a>
+                <?php endif; ?>
+            </td></tr>
+        <?php endif; ?>
         <tr><th>Schriftliches Angebot gewünscht</th><td><?= $booking['wants_quote'] ? 'Ja' : 'Nein' ?></td></tr>
         <tr><th>AGB &amp; Datenschutz akzeptiert</th><td>
             <?= $booking['agb_accepted_at'] ? htmlspecialchars($booking['agb_accepted_at'], ENT_QUOTES) : '—' ?>
@@ -290,6 +301,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
                         <?= money_from_cents((int) $charge['amount_cents']) ?>
                         <?php if ($charge['paid_at']): ?>
                             <span class="badge">Bezahlt am <?= htmlspecialchars($charge['paid_at'], ENT_QUOTES) ?> – Änderung übernommen</span>
+                            <?php if ($charge['stripe_invoice_hosted_url']): ?>
+                                · <a href="<?= htmlspecialchars($charge['stripe_invoice_hosted_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener">Rechnung bei Stripe</a>
+                            <?php endif; ?>
                         <?php else: ?>
                             <span class="muted-text">Zahlung ausstehend – die Änderung wird erst nach Zahlungseingang auf die Buchung übernommen.</span>
                         <?php endif; ?>

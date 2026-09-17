@@ -154,16 +154,23 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
    Preisuebersicht (`calc_booking_pricing()`, kombiniert `calc_booking_total()`
    mit einem eingeloesten Gutschein). Zwei Wege zum Abschluss:
    - **Jetzt bezahlen** (Standardfall): erstellt eine Stripe Checkout
-     Session (`create_stripe_checkout_session()`) und leitet zur von Stripe
-     gehosteten Kassenseite weiter - keine Kartendaten beruehren den
-     eigenen Server. Erst der **Webhook** `stripe_webhook.php` (Event
-     `checkout.session.completed`, Signatur per `verify_stripe_webhook()`
-     geprueft) bestaetigt die Buchung endgueltig
+     Session (`create_stripe_checkout_session()`, mit `invoice_creation`
+     aktiviert) und leitet zur von Stripe gehosteten Kassenseite weiter -
+     keine Kartendaten beruehren den eigenen Server. Erst der **Webhook**
+     `stripe_webhook.php` (Event `checkout.session.completed`, Signatur per
+     `verify_stripe_webhook()` geprueft) bestaetigt die Buchung endgueltig
      (`payments.php::mark_booking_paid()`): Status `bestaetigt`, Box
-     automatisch zugewiesen (wenn eindeutig moeglich), Rechnungsnummer
-     vergeben, Rechnungs-PDF erzeugt und per Mail verschickt. Der Redirect
-     des Browsers zurueck auf die Erfolgsseite ist nur fuers UI gedacht und
-     bestaetigt selbst nichts.
+     automatisch zugewiesen (wenn eindeutig moeglich), eigene fortlaufende
+     Rechnungsnummer vergeben, eigenes Rechnungs-PDF erzeugt und per Mail
+     verschickt. Zusaetzlich holt `store_stripe_invoice()` die von Stripe
+     bei der Checkout-Session automatisch erstellte Rechnung ab
+     (PDF-Link/Ansichtslink, `bookings.stripe_invoice_*`) und laesst Stripe
+     sie selbst per Mail verschicken (`send_stripe_invoice()`) - die
+     eigene Rechnungsnummer bleibt die massgebliche fuer die Buchhaltung,
+     die Stripe-Rechnung ist eine zusaetzliche, bei Stripe dauerhaft
+     gespeicherte Kopie (Link auch in der eigenen Bestaetigungsmail und im
+     Panel bei den Buchungsdetails). Der Redirect des Browsers zurueck auf
+     die Erfolgsseite ist nur fuers UI gedacht und bestaetigt selbst nichts.
    - **"Ich möchte vorab nur ein schriftliches Angebot"** (Checkbox): keine
      Zahlung, Status wird wie bisher `angefragt`, Admin bearbeitet die
      Anfrage im Panel von Hand.
@@ -255,6 +262,10 @@ anfragen.
    der Datenschutzerklaerung auf der Buchungsseite. Voreingestellt ist der
    Kleinunternehmer-Hinweis nach § 19 UStG; bei Regelbesteuerung hier den
    Text anpassen und ggf. Umsatzsteuer-ID ergaenzen.
+6. **Geschaeftsprofil bei Stripe** unter **Dashboard -> Einstellungen ->
+   Unternehmen** ausfuellen (Name, Anschrift) - diese Angaben erscheinen
+   auf der zusaetzlichen, von Stripe automatisch erstellten Rechnung
+   (siehe oben), unabhaengig von den Rechnungsdaten im eigenen Panel.
 
 Zum Testen: Stripe im Test-Modus lassen (Kreditkartennummer
 `4242 4242 4242 4242`, beliebiges zukuenftiges Datum/CVC) und mit der
@@ -331,7 +342,11 @@ eine Zwischenseite nach, wie damit umgegangen werden soll:
   ein Zahlungslink per Mail verschickt. `stripe_webhook.php` unterscheidet
   anhand der Metadata (`booking_id` fuer die Erstzahlung, `addon_charge_id`
   fuer eine Nachforderung) und markiert die jeweils richtige Zeile als
-  bezahlt.
+  bezahlt. Fuer diese Nachforderungen gibt es keine eigene fortlaufende
+  Rechnungsnummer wie bei der Hauptbuchung - stattdessen stellt Stripe
+  dafuer automatisch eine eigene Rechnung aus (`invoice_creation`, wie bei
+  der Hauptbuchung), die per Mail an den Kunden geht und im Panel bei den
+  Buchungsdetails verlinkt ist.
 
 Wird dabei eine bereits einer Box zugeordnete Buchung veraendert, ueberträgt
 `sync_booking_to_box()` neu gewuenschte Layouts nach `box_layouts` (wie
@@ -438,6 +453,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0010_free_designs_and_single_print.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0011_customer_accounts.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0012_addon_charge_pending_changes.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0013_stripe_invoices.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -493,6 +509,10 @@ ab jetzt erst hier zwischengespeichert und NICHT sofort auf die Buchung
 angewendet - das passiert erst in `mark_addon_charge_paid()`, wenn Stripe
 per Webhook die Zahlung bestaetigt. "Kostenlos uebernehmen" bleibt weiterhin
 sofort wirksam.
+
+Migration 0013 ergaenzt `bookings` und `booking_addon_charges` um
+`stripe_invoice_id`/`stripe_invoice_pdf_url`/`stripe_invoice_hosted_url` -
+siehe "Zahlung (Stripe) und Rechnungen einrichten" oben.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

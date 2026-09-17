@@ -50,11 +50,15 @@ function send_booking_confirmation_email(array $booking, string $invoicePdfPath)
         $total = money_from_cents((int) $booking['total_price_cents']);
         $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
 
+        $stripeInvoiceNote = !empty($booking['stripe_invoice_hosted_url'])
+            ? "\nZusaetzlich findest du sie dauerhaft bei unserem Zahlungsdienstleister Stripe:\n" . $booking['stripe_invoice_hosted_url'] . "\n"
+            : '';
+
         $mail->Subject = 'Buchungsbestätigung & Rechnung – Snapolino (' . $eventDate . ')';
         $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
             . "vielen Dank für deine Buchung! Deine Zahlung über " . $total . " ist eingegangen, "
             . "die Fotobox ist für den " . $eventDate . " fest für dich reserviert.\n\n"
-            . "Die Rechnung findest du im Anhang dieser E-Mail.\n\n"
+            . "Die Rechnung findest du im Anhang dieser E-Mail.\n" . $stripeInvoiceNote . "\n"
             . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
             . "Viele Grüße\n" . $fromName;
 
@@ -123,6 +127,42 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
         return true;
     } catch (PHPMailerException $e) {
         error_log('Mailversand fehlgeschlagen (Zusatzzahlung Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt die Bestaetigung, sobald eine Zusatzzahlung tatsaechlich
+// eingegangen ist (siehe mark_addon_charge_paid()). Fuer diese kleinen
+// Nachforderungen gibt es keine eigene fortlaufende Rechnungsnummer wie bei
+// der Hauptbuchung - die Rechnung dafuer stellt stattdessen Stripe aus
+// (invoice_creation, siehe stripe.php), $hostedInvoiceUrl verlinkt sie.
+function send_addon_charge_paid_email(array $booking, string $description, int $amountCents, ?string $hostedInvoiceUrl): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Zusatzzahlung bezahlt, Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+        $invoiceNote = $hostedInvoiceUrl
+            ? "\nDie Rechnung dazu findest du hier:\n" . $hostedInvoiceUrl . "\n"
+            : '';
+
+        $mail->Subject = 'Zahlung erhalten – Snapolino';
+        $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "danke, deine Zahlung ist eingegangen:\n\n"
+            . $description . " – " . money_from_cents($amountCents) . "\n\n"
+            . "Die Aenderung ist jetzt auf deiner Buchung aktiv.\n" . $invoiceNote . "\n"
+            . "Bei Fragen melde dich gerne bei uns.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Zusatzzahlung bezahlt, Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
         return false;
     }
 }
