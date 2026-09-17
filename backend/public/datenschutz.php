@@ -36,6 +36,13 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             Telefonnummer, Rechnungsadresse, Eventdatum, gewähltes Design sowie gebuchte Extras -,
             um deine Anfrage zu bearbeiten und den Mietvertrag durchzuführen (Art. 6 Abs. 1 lit. b
             DSGVO, Vertragserfüllung bzw. vorvertragliche Maßnahmen).</p>
+        <p><strong>Bei der Adresseingabe:</strong> Während du im letzten Schritt des
+            Buchungsassistenten deine Straße eintippst, wird der eingegebene Text an den
+            Adresssuchdienst Photon (komoot GmbH, Bundesallee 23, 10717 Berlin, basierend auf
+            OpenStreetMap-Daten) übermittelt, um dir passende Adressvorschläge samt Postleitzahl
+            und Ort anzuzeigen. Das ist rein optional - du kannst die Felder auch ohne
+            Vorschlagsauswahl von Hand ausfüllen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO
+            (berechtigtes Interesse an korrekten Adressdaten).</p>
         <p><strong>Bei einer Zahlung:</strong> Für die Zahlungsabwicklung nutzen wir den
             Zahlungsdienstleister Stripe (Stripe Payments Europe, Ltd.). Dabei werden die für die
             Zahlung notwendigen Daten (u.a. Name, Zahlungsbetrag, Zahlungsmittel) direkt an Stripe
@@ -66,8 +73,9 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
         <p>Wir speichern deine Buchungsdaten so lange, wie es für die Durchführung des
             Mietvertrags erforderlich ist, sowie anschließend im Rahmen der gesetzlichen
             Aufbewahrungsfristen für Geschäfts- und Rechnungsunterlagen (derzeit in der Regel 8
-            Jahre gemäß § 147 AO, § 257 HGB). Unverbindliche Reservierungen, die nicht zu einer
-            Buchung werden, löschen wir automatisch nach Ablauf der Reservierungsfrist.</p>
+            Jahre gemäß § 147 AO, § 257 HGB). Eine automatische Löschung nicht zustande gekommener
+            Anfragen ist aktuell noch nicht umgesetzt; bis dahin bitte für eine Löschung einfach
+            die oben genannte Kontakt-E-Mail-Adresse nutzen.</p>
 
         <h3>5. Deine Rechte</h3>
         <p>Dir stehen nach der DSGVO folgende Rechte bezüglich deiner personenbezogenen Daten zu:</p>

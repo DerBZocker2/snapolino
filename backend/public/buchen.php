@@ -32,7 +32,7 @@ function fetch_booking_by_token(string $token): ?array
 
 function stepper_html(int $current): string
 {
-    $steps = [1 => 'Datum wählen', 2 => 'Reservieren', 3 => 'Design wählen', 4 => 'Extras', 5 => 'Zusammenfassung'];
+    $steps = [1 => 'Datum wählen', 2 => 'Kontaktdaten', 3 => 'Design wählen', 4 => 'Extras', 5 => 'Zusammenfassung'];
     $html = '<div class="stepper">';
     foreach ($steps as $num => $label) {
         $state = $num < $current ? 'done' : ($num === $current ? 'active' : 'todo');
@@ -81,7 +81,7 @@ $activeExtras = fetch_active_extras();
 // Checkboxen, hier serverseitig zusaetzlich als Schutz vor manuellem POST.
 const MAX_EXTRA_LAYOUTS = 3;
 
-// ---------- Schritt 2: Reservierung anlegen ----------
+// ---------- Schritt 2: Buchungsanfrage anlegen ----------
 if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
 
@@ -120,7 +120,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'INSERT INTO bookings (edit_token, customer_name, customer_email, customer_account_id, event_date, status)
              VALUES (?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$newToken, trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, 'reserviert']);
+        $stmt->execute([$newToken, trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, 'angefragt']);
         $newBookingId = (int) db()->lastInsertId();
 
         $stmt = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
@@ -386,8 +386,8 @@ require __DIR__ . '/_site_header.php';
                 <a href="buchen.php?step=1">Ändern</a>
             </div>
             <div class="panel-box" style="max-width:480px;margin:0 auto;">
-                <h3>Termin reservieren</h3>
-                <p class="muted">Sichere dir deinen Wunschtermin. Die Reservierung ist <?= RESERVATION_HOLD_DAYS ?> Tage kostenlos und unverbindlich.</p>
+                <h3>Deinen Termin anfragen</h3>
+                <p class="muted">Gib deine Kontaktdaten ein, um deinen Wunschtermin anzufragen - im nächsten Schritt wählst du Design und Extras.</p>
                 <p class="price-line">
                     <?= money_from_cents(base_price_cents()) ?>
                     <span class="muted"><?= htmlspecialchars(base_price_label(), ENT_QUOTES) ?></span>
@@ -401,7 +401,7 @@ require __DIR__ . '/_site_header.php';
                         <label>Nachname *<input type="text" name="last_name" required></label>
                     </div>
                     <label>E-Mail-Adresse *<input type="email" name="email" required></label>
-                    <button type="submit">Termin jetzt reservieren</button>
+                    <button type="submit">Jetzt anfragen</button>
                     <p class="muted" style="text-align:center;">Keine Zahlungsdaten nötig. Wir senden dir eine E-Mail mit allen Details.</p>
                 </form>
             </div>
@@ -1152,11 +1152,15 @@ require __DIR__ . '/_site_header.php';
 
                         <label>Telefon<input type="text" name="customer_phone" value="<?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?>"></label>
                         <label>Straße und Hausnummer *
-                            <input type="text" name="customer_street" required value="<?= htmlspecialchars((string) $booking['customer_street'], ENT_QUOTES) ?>">
+                            <div class="address-autocomplete">
+                                <input type="text" name="customer_street" id="customer_street" autocomplete="off" required value="<?= htmlspecialchars((string) $booking['customer_street'], ENT_QUOTES) ?>">
+                                <div id="address-suggestions" class="address-suggestions" hidden></div>
+                            </div>
                         </label>
+                        <p class="muted" style="margin-top:-10px;font-size:12px;">Adresse eintippen und aus den Vorschlägen wählen - PLZ und Ort werden automatisch ausgefüllt. Geht auch ohne, dann bitte von Hand ausfüllen.</p>
                         <div class="grid2">
-                            <label>PLZ *<input type="text" name="customer_zip" required value="<?= htmlspecialchars((string) $booking['customer_zip'], ENT_QUOTES) ?>"></label>
-                            <label>Ort *<input type="text" name="customer_city" required value="<?= htmlspecialchars((string) $booking['customer_city'], ENT_QUOTES) ?>"></label>
+                            <label>PLZ *<input type="text" name="customer_zip" id="customer_zip" required value="<?= htmlspecialchars((string) $booking['customer_zip'], ENT_QUOTES) ?>"></label>
+                            <label>Ort *<input type="text" name="customer_city" id="customer_city" required value="<?= htmlspecialchars((string) $booking['customer_city'], ENT_QUOTES) ?>"></label>
                         </div>
 
                         <label class="checkbox">
@@ -1286,6 +1290,74 @@ require __DIR__ . '/_site_header.php';
                 var companyField = document.getElementById('company-name-field');
                 companyCb.addEventListener('change', function () {
                     companyField.hidden = !companyCb.checked;
+                });
+
+                // Adress-Autocomplete ueber Photon (komoot, oeffentliche
+                // OpenStreetMap-Suche, siehe datenschutz.php) - rein
+                // optionale Hilfe, bei Fehler/Timeout bleiben die drei
+                // Felder ganz normal von Hand ausfuellbar.
+                var streetInput = document.getElementById('customer_street');
+                var zipInput = document.getElementById('customer_zip');
+                var cityInput = document.getElementById('customer_city');
+                var suggestionsBox = document.getElementById('address-suggestions');
+                var debounceTimer = null;
+                var activeController = null;
+
+                function hideSuggestions() {
+                    suggestionsBox.hidden = true;
+                    suggestionsBox.innerHTML = '';
+                }
+
+                function showSuggestions(features) {
+                    suggestionsBox.innerHTML = '';
+                    var shown = 0;
+                    features.forEach(function (feature) {
+                        var p = feature.properties || {};
+                        if (p.countrycode !== 'DE' || !p.postcode || !p.city || !p.street) {
+                            return;
+                        }
+                        var streetLine = p.street + (p.housenumber ? ' ' + p.housenumber : '');
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'address-suggestion';
+                        btn.textContent = streetLine + ', ' + p.postcode + ' ' + p.city;
+                        btn.addEventListener('click', function () {
+                            streetInput.value = streetLine;
+                            zipInput.value = p.postcode;
+                            cityInput.value = p.city;
+                            hideSuggestions();
+                        });
+                        suggestionsBox.appendChild(btn);
+                        shown++;
+                    });
+                    suggestionsBox.hidden = shown === 0;
+                }
+
+                streetInput.addEventListener('input', function () {
+                    var query = streetInput.value.trim();
+                    clearTimeout(debounceTimer);
+                    if (query.length < 4) {
+                        hideSuggestions();
+                        return;
+                    }
+                    debounceTimer = setTimeout(function () {
+                        if (activeController) {
+                            activeController.abort();
+                        }
+                        activeController = ('AbortController' in window) ? new AbortController() : null;
+                        fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(query) + '&lang=de&limit=8', {
+                            signal: activeController ? activeController.signal : undefined,
+                        })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) { showSuggestions(data.features || []); })
+                            .catch(function () { /* Dienst nicht erreichbar - Felder bleiben manuell ausfuellbar */ });
+                    }, 350);
+                });
+
+                document.addEventListener('click', function (ev) {
+                    if (ev.target !== streetInput && !suggestionsBox.contains(ev.target)) {
+                        hideSuggestions();
+                    }
                 });
             })();
             </script>

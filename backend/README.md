@@ -98,12 +98,16 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
 1. **Datum waehlen** - Kalender zeigt nur wirklich blockierte Tage (siehe
    unten), inkl. `BOOKING_BUFFER_DAYS` Puffer vor/nach dem Event fuer Hin-
    und Ruecksand.
-2. **Reservieren** - Name/E-Mail legen eine Zeile in `bookings` mit Status
-   `reserviert` an (das Standard-Layout landet direkt in `booking_layouts`)
-   und vergeben einen `edit_token`, mit dem der Assistent die Buchung ueber
-   alle weiteren Schritte hinweg wiederfindet (Token steht in der URL, keine
-   PHP-Session noetig - der Kunde kann die Seite also schliessen und mit dem
-   Link aus der Bestaetigungsmail spaeter weitermachen).
+2. **Kontaktdaten** - Name/E-Mail legen eine Zeile in `bookings` direkt mit
+   Status `angefragt` an (das Standard-Layout landet direkt in
+   `booking_layouts`) und vergeben einen `edit_token`, mit dem der Assistent
+   die Buchung ueber alle weiteren Schritte hinweg wiederfindet (Token steht
+   in der URL, keine PHP-Session noetig - der Kunde kann die Seite also
+   schliessen und mit dem Link aus der Bestaetigungsmail spaeter
+   weitermachen). Es gibt keine unverbindliche Zwischenstufe - da nur eine
+   Box existiert, blockiert die Anfrage den Kalender sofort und dauerhaft,
+   bis ein Admin sie ablehnt/storniert oder sie bestaetigt/bezahlt wird
+   (siehe "Verfuegbarkeit" unten).
 3. **Design waehlen** - drei Wege, alle speichern das Ergebnis in
    `booking_layouts`:
    - **Fertige Vorlage**: nach Kategorie filterbare Galerie der Layouts aus
@@ -150,7 +154,12 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
    Typ als Ein/Aus-Schalter oder mit Mengenauswahl, Preis kann auch negativ
    sein (Rabatt, z.B. "Ohne Druck").
 5. **Zusammenfassung** - strukturierte Rechnungsadresse (Strasse/PLZ/Ort,
-   optional Firma), Versand-Zeitplan, Gutscheincode-Einloesung und
+   optional Firma; das Strasse-Feld schlaegt beim Tippen passende Adressen
+   ueber den oeffentlichen Adresssuchdienst Photon (komoot, basierend auf
+   OpenStreetMap) vor und fuellt PLZ/Ort damit automatisch korrekt - Klick
+   auf einen Vorschlag oder normal von Hand ausfuellen, Ergebnisse ohne
+   Land Deutschland werden clientseitig herausgefiltert), Versand-Zeitplan,
+   Gutscheincode-Einloesung und
    Preisuebersicht (`calc_booking_pricing()`, kombiniert `calc_booking_total()`
    mit einem eingeloesten Gutschein). Zwei Wege zum Abschluss:
    - **Jetzt bezahlen** (Standardfall): erstellt eine Stripe Checkout
@@ -185,15 +194,17 @@ Buchung tatsaechlich `bestaetigt` wird (bezahlt oder Admin bestaetigt eine
 Angebots-Buchung, beides laeuft durch `assign_box_and_confirm()`) - ein
 abgebrochener Checkout verbraucht damit kein Kontingent.
 
-Eine `reserviert`-Buchung, die **nicht** innerhalb von `RESERVATION_HOLD_DAYS`
-(14 Tage) zu `angefragt` wird, blockiert den Kalender danach nicht mehr
-(`fetch_blocked_dates()` prueft das per Zeitfenster, kein Cron noetig).
+Jede `angefragt`-Buchung blockiert den Kalender dauerhaft, es gibt keine
+automatisch verfallende Zwischenstufe mehr (`fetch_blocked_dates()` prueft
+einfach `status IN ('angefragt', 'bestaetigt')`, kein Cron noetig) - eine
+abgebrochene Anfrage muss also im Panel unter **Buchungen** aktiv
+abgelehnt/storniert werden, um den Termin wieder freizugeben.
 
 Im Panel unter **Buchungen**:
 - **Ablehnen**/**Stornieren** setzen den Status, eine stornierte oder
   abgelehnte Buchung blockiert den Kalender nicht mehr.
-- Die Liste zeigt den Gesamtpreis (leer, solange die Buchung noch bei
-  `reserviert` haengt), das Detail zusaetzlich die gewaehlten Extras und ob
+- Die Liste zeigt den Gesamtpreis (leer, solange die Buchung Schritt 5 noch
+  nicht erreicht hat), das Detail zusaetzlich die gewaehlten Extras und ob
   ein schriftliches Angebot gewuenscht wurde.
 - Eine `angefragt`-Buchung wird nicht mehr hier bestaetigt, sondern unter
   **Boxen** per Drag & Drop einer Box zugeordnet (siehe unten) - das
@@ -304,7 +315,7 @@ Buchungsdetails sichtbar.
 
 ## Kundenkonten (`konto.php`)
 
-Beim Anlegen einer Reservierung (Schritt 2) wird automatisch ein Konto zur
+Beim Anlegen einer Buchungsanfrage (Schritt 2) wird automatisch ein Konto zur
 angegebenen E-Mail-Adresse angelegt/wiederverwendet
 (`find_or_create_customer_account()`, `includes/customer_auth.php`) und
 mit der Buchung verknuepft (`bookings.customer_account_id`). Login unter
@@ -318,7 +329,7 @@ nachtraeglich ueber die E-Mail-Adresse) mit einem Link zum Weiterbearbeiten
 Buchung bereits abgeschlossen ist, zum reinen Ansehen.
 
 Eine Buchung ist fuer den Kunden bearbeitbar, solange sie noch
-`reserviert` oder `angefragt` ist. Sobald sie `bestaetigt` ist (bezahlt
+`angefragt` ist. Sobald sie `bestaetigt` ist (bezahlt
 oder Admin hat eine Angebots-Buchung manuell bestaetigt), blockiert
 `buchen.php` Schritt 2-5 serverseitig (`booking_customer_editable()`) -
 ausser ein Admin hat die Bearbeitung fuer genau diese eine Buchung wieder
@@ -454,6 +465,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0011_customer_accounts.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0012_addon_charge_pending_changes.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0013_stripe_invoices.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0014_remove_reservation_status.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -513,6 +525,11 @@ sofort wirksam.
 Migration 0013 ergaenzt `bookings` und `booking_addon_charges` um
 `stripe_invoice_id`/`stripe_invoice_pdf_url`/`stripe_invoice_hosted_url` -
 siehe "Zahlung (Stripe) und Rechnungen einrichten" oben.
+
+Migration 0014 hebt bestehende `reserviert`-Datensaetze auf `angefragt` an
+und setzt den Standardwert der Spalte `status` entsprechend um - es gibt
+ab jetzt keine unverbindliche Reservierung mehr, jede Terminwahl ist sofort
+eine echte, den Kalender blockierende Anfrage (siehe "Ablauf" oben).
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

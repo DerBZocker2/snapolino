@@ -76,11 +76,11 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
     created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Buchungen von der oeffentlichen Webseite, entstehen als "reserviert"
--- (Schritt 2 des Assistenten: nur Name/E-Mail/Datum, haelt den Termin),
--- werden zu "angefragt" sobald der Assistent komplett durchlaufen ist.
--- box_id bleibt leer, bis ein Admin die Anfrage bestaetigt und eine
--- physische Box zuordnet.
+-- Buchungen von der oeffentlichen Webseite, entstehen bereits ab Schritt 2
+-- des Assistenten (Name/E-Mail/Datum) direkt als "angefragt" und blockieren
+-- den Kalender sofort - es gibt keine unverbindliche Zwischenstufe, da nur
+-- eine Box existiert. box_id bleibt leer, bis ein Admin die Anfrage
+-- bestaetigt und eine physische Box zuordnet.
 CREATE TABLE IF NOT EXISTS bookings (
     id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     edit_token             VARCHAR(64) NULL UNIQUE,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     discount_cents         INT UNSIGNED NOT NULL DEFAULT 0,
     event_date             DATE NOT NULL,
     box_id                 INT UNSIGNED NULL,
-    status                 VARCHAR(20) NOT NULL DEFAULT 'reserviert',
+    status                 VARCHAR(20) NOT NULL DEFAULT 'angefragt',
     message                TEXT NULL,
     admin_note             TEXT NULL,
     total_price_cents      INT UNSIGNED NULL,

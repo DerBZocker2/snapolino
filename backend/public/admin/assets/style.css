@@ -356,7 +356,6 @@ td.actions button, td.actions .button, td.actions .button-secondary {
     font-size: 12px;
     font-weight: 600;
 }
-.status-reserviert { background: #f2edfa; color: var(--accent2-dark); }
 .status-angefragt  { background: #fff3cd; color: #8a6d00; }
 .status-bestaetigt { background: #e9fbf7; color: #0f8f81; }
 .status-abgelehnt  { background: var(--danger-bg); color: var(--danger); }

@@ -41,13 +41,13 @@ $statusFilter = (string) ($_GET['status'] ?? '');
 if ($statusFilter !== '' && in_array($statusFilter, BOOKING_STATUSES, true)) {
     $stmt = db()->prepare(
         "SELECT * FROM bookings WHERE status = ?
-         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'reserviert', 'abgelehnt', 'storniert'), event_date"
+         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
     );
     $stmt->execute([$statusFilter]);
 } else {
     $stmt = db()->query(
         "SELECT * FROM bookings
-         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'reserviert', 'abgelehnt', 'storniert'), event_date"
+         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
     );
 }
 $bookings = $stmt->fetchAll();

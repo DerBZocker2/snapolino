@@ -110,12 +110,15 @@ im Panel angezeigt).
 
 ## Buchungssystem
 Kunden buchen öffentlich unter `/buchen.php`, ein 5-Schritte-Assistent
-(Datum → Reservierung → Design → Extras → Zusammenfassung, siehe
-`backend/README.md`). Eine Reservierung hält den Termin 14 Tage
-unverbindlich (`RESERVATION_HOLD_DAYS`, Status `reserviert`) und wird erst
-mit der Zusammenfassung zu `angefragt`. Der Kalender blockiert auf
-`angefragt`/`bestätigt` sowie frische `reserviert`-Eintraege, inkl.
-`BOOKING_BUFFER_DAYS` Tage Puffer vor/nach dem Event für Versand.
+(Datum → Kontaktdaten → Design → Extras → Zusammenfassung, siehe
+`backend/README.md`). Es gibt keine unverbindliche Zwischenstufe mehr -
+bereits Schritt 2 (Name/E-Mail) legt die Buchung direkt mit Status
+`angefragt` an, da aktuell nur eine Box existiert und sich eine
+automatisch verfallende Reservierung (frueher `RESERVATION_HOLD_DAYS`
+Tage, Status `reserviert`) dafuer nicht lohnt. Der Kalender blockiert auf
+`angefragt`/`bestätigt`, inkl. `BOOKING_BUFFER_DAYS` Tage Puffer vor/nach
+dem Event für Versand - eine abgebrochene Anfrage bleibt also bis zum
+manuellen Ablehnen/Stornieren im Panel blockiert (kein Cronjob).
 Im Panel unter **Buchungen** ablehnen/stornieren. Eine Box zuordnen (und
 damit gleichzeitig bestätigen) passiert unter **Boxen** per Drag & Drop:
 Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe
@@ -150,8 +153,12 @@ Layout-Vorlagen (auch mit anderer Fotoanzahl) im Panel per Drag-Editor an
 (`layout_form.php`) statt Pixel-Koordinaten von Hand einzutippen.
 
 Schritt 5 (Zusammenfassung): zweispaltiges Layout, links strukturierte
-Rechnungsadresse (Strasse/PLZ/Ort, optional Firma), rechts eine sticky
-Buchungsuebersicht mit Gutscheincode-Einloesung. Gutscheine (Prozent oder
+Rechnungsadresse (Strasse/PLZ/Ort, optional Firma) - waehrend der Eingabe
+schlaegt eine Autocomplete gegen den oeffentlichen Adresssuchdienst Photon
+(komoot, OpenStreetMap-Daten, siehe `datenschutz.php`) passende Adressen
+vor und fuellt PLZ/Ort automatisch korrekt aus; rein optional, ohne
+Vorschlagsauswahl bleiben die drei Felder normal von Hand ausfuellbar,
+rechts eine sticky Buchungsuebersicht mit Gutscheincode-Einloesung. Gutscheine (Prozent oder
 Festbetrag, optional Ablaufdatum/Kontingent) werden im Panel unter
 **Gutscheine** angelegt; `redemption_count` zaehlt erst hoch, wenn die
 Buchung wirklich bestaetigt wird (bezahlt oder Admin bestaetigt eine
@@ -193,13 +200,13 @@ direkte URL `admin/login.php`.
 **Kundenkonten** (`konto.php`, `includes/customer_auth.php`): ein Konto
 pro E-Mail-Adresse, Login per 6-stelligem Code per Mail statt Passwort
 (15 Minuten gueltig, max. 5 Fehlversuche, 60s Sperre zwischen zwei
-Codes). Wird automatisch beim Anlegen einer Reservierung angelegt/
+Codes). Wird automatisch beim Anlegen einer Buchungsanfrage angelegt/
 wiederverwendet (`bookings.customer_account_id`). Nach Login zeigt das
 Konto alle Buchungen dieser E-Mail-Adresse (auch Alt-Buchungen von vor
 Einfuehrung der Kontenfunktion, per Migration ueber die E-Mail-Adresse
 verknuepft) mit Bearbeiten-Link (fuehrt zum bestehenden `edit_token`-Link
 in `buchen.php`) oder Ansehen-Link. Eine Buchung ist fuer den Kunden
-bearbeitbar, solange sie noch `reserviert`/`angefragt` ist, oder wenn ein
+bearbeitbar, solange sie noch `angefragt` ist, oder wenn ein
 Admin sie trotz `bestaetigt`-Status ausdruecklich wieder freigeschaltet
 hat (`bookings.edit_unlocked_by_admin`, Button in booking_detail.php) -
 `buchen.php` selbst blockt Schritt 2-5 serverseitig fuer nicht (mehr)

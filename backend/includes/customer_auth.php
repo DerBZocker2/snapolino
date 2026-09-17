@@ -150,12 +150,12 @@ function customer_account_bookings(int $accountId): array
 }
 
 // Ob eine Buchung fuer den Kunden noch aenderbar ist: solange sie noch
-// nicht abschliessend bestaetigt ist (reserviert/angefragt), oder wenn ein
-// Admin die Bearbeitung fuer diese eine Buchung ausdruecklich wieder
-// freigeschaltet hat (siehe booking_detail.php).
+// nicht abschliessend bestaetigt ist (angefragt), oder wenn ein Admin die
+// Bearbeitung fuer diese eine Buchung ausdruecklich wieder freigeschaltet
+// hat (siehe booking_detail.php).
 function booking_customer_editable(array $booking): bool
 {
-    if (in_array($booking['status'], ['reserviert', 'angefragt'], true)) {
+    if ($booking['status'] === 'angefragt') {
         return true;
     }
     return $booking['status'] === 'bestaetigt' && (int) $booking['edit_unlocked_by_admin'] === 1;
