@@ -520,7 +520,7 @@ require __DIR__ . '/_site_header.php';
 
                 <!-- Panel 2: Online-Designer -->
                 <div class="design-panel" id="panel-designer" hidden>
-                    <p class="muted">Wähle Farben, ein Muster und optional einen Text. Die Fotoflächen (gestrichelt) kannst du direkt im Bild per Maus verschieben.</p>
+                    <p class="muted">Wähle Farben und ein Muster, füge beliebig viele Texte und Sticker/Emojis hinzu und ziehe sie direkt im Bild an die gewünschte Stelle. Die Fotoflächen (gestrichelt) lassen sich ebenso per Maus verschieben und in der Größe anpassen.</p>
                     <div class="designer-layout">
                         <canvas id="designer-canvas" width="600" height="400"></canvas>
                         <div class="designer-controls">
@@ -540,7 +540,17 @@ require __DIR__ . '/_site_header.php';
                                     <option value="stripes">Streifen</option>
                                 </select>
                             </label>
-                            <label>Text (optional)<input type="text" id="designer-text" maxlength="40" placeholder="z.B. Julia &amp; Tom"></label>
+                            <div class="designer-elements">
+                                <div class="designer-elements-head">
+                                    <span>Text &amp; Sticker</span>
+                                    <div class="designer-elements-actions">
+                                        <button type="button" id="designer-add-text" class="button-secondary">+ Text</button>
+                                        <button type="button" id="designer-add-sticker" class="button-secondary">+ Sticker</button>
+                                    </div>
+                                </div>
+                                <div id="designer-sticker-picker" class="designer-sticker-picker" hidden></div>
+                                <div id="designer-elements-list" class="designer-elements-list"></div>
+                            </div>
                             <button type="button" id="designer-reset" class="button-secondary">Fotoflächen zurücksetzen</button>
                             <button type="button" id="designer-save">Design übernehmen</button>
                         </div>
@@ -622,7 +632,9 @@ require __DIR__ . '/_site_header.php';
                 var bgInput = document.getElementById('designer-bg');
                 var accentInput = document.getElementById('designer-accent');
                 var patternSelect = document.getElementById('designer-pattern');
-                var textInput = document.getElementById('designer-text');
+                var elementsList = document.getElementById('designer-elements-list');
+                var stickerPicker = document.getElementById('designer-sticker-picker');
+                var STICKERS = ['🎉', '🎊', '🎈', '🥳', '🍾', '🥂', '❤️', '💍', '👰', '🤵', '🎂', '🌟', '✨', '🎶', '🕺', '💃', '📸', '😄', '👍', '🌸', '☀️', '❄️', '🎄'];
 
                 function layoutById(id) {
                     for (var i = 0; i < layouts.length; i++) {
@@ -634,17 +646,143 @@ require __DIR__ . '/_site_header.php';
                 function currentLayout() { return layoutById(parseInt(baseSelect.value, 10)); }
 
                 var customSlots = null;
-                var textPos = null;
+                // Text-/Sticker-Elemente bleiben beim Wechsel des Basis-Layouts oder
+                // beim Zuruecksetzen der Fotoflaechen bewusst erhalten (alle Layouts
+                // teilen sich dieselbe Leinwandgroesse, siehe schema.sql) - nur ein
+                // explizites Entfernen in der Liste loescht ein Element.
+                var elements = [];
                 var HANDLE_RADIUS = 8;
                 var MIN_SLOT_SIZE = 60;
-                var TEXT_HANDLE_RADIUS = 10;
+                var ELEMENT_HANDLE_RADIUS = 9;
                 function resetSlots() {
                     var layout = currentLayout();
                     customSlots = layout.slots.map(function (s) {
                         return { x: s.x, y: s.y, width: s.width, height: s.height };
                     });
-                    textPos = { x: layout.canvas_width / 2, y: layout.canvas_height - 20 };
                 }
+
+                function elementFont(el, scale) {
+                    var size = Math.max(1, Math.round(el.size * scale));
+                    return el.type === 'sticker'
+                        ? size + 'px "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
+                        : 'bold ' + size + 'px "Segoe UI", Arial, sans-serif';
+                }
+
+                function elementBounds(el, scale) {
+                    ctx.font = elementFont(el, scale);
+                    var w = ctx.measureText(el.content || '').width;
+                    var h = el.size * scale * 1.2;
+                    var cx = el.x * scale, cy = el.y * scale;
+                    return { cx: cx, cy: cy, left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 };
+                }
+
+                function elementAtPoint(p, scale) {
+                    for (var i = elements.length - 1; i >= 0; i--) {
+                        var b = elementBounds(elements[i], scale);
+                        if (p.x >= b.left && p.x <= b.right && p.y >= b.top && p.y <= b.bottom) {
+                            return i;
+                        }
+                    }
+                    return -1;
+                }
+
+                function renderElementsList() {
+                    elementsList.innerHTML = '';
+                    elements.forEach(function (el, idx) {
+                        var row = document.createElement('div');
+                        row.className = 'designer-element-row';
+
+                        if (el.type === 'text') {
+                            var textField = document.createElement('input');
+                            textField.type = 'text';
+                            textField.maxLength = 40;
+                            textField.value = el.content;
+                            textField.addEventListener('input', function () {
+                                el.content = textField.value;
+                                refreshPreview();
+                            });
+                            row.appendChild(textField);
+
+                            var colorField = document.createElement('input');
+                            colorField.type = 'color';
+                            colorField.value = el.color;
+                            colorField.addEventListener('input', function () {
+                                el.color = colorField.value;
+                                refreshPreview();
+                            });
+                            row.appendChild(colorField);
+                        } else {
+                            var emojiSpan = document.createElement('span');
+                            emojiSpan.className = 'designer-element-emoji';
+                            emojiSpan.textContent = el.content;
+                            row.appendChild(emojiSpan);
+                        }
+
+                        var sizeField = document.createElement('input');
+                        sizeField.type = 'range';
+                        sizeField.min = el.type === 'sticker' ? 40 : 16;
+                        sizeField.max = el.type === 'sticker' ? 300 : 160;
+                        sizeField.value = el.size;
+                        sizeField.title = 'Größe';
+                        sizeField.addEventListener('input', function () {
+                            el.size = parseInt(sizeField.value, 10);
+                            refreshPreview();
+                        });
+                        row.appendChild(sizeField);
+
+                        var removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'designer-element-remove';
+                        removeBtn.textContent = '×';
+                        removeBtn.title = 'Entfernen';
+                        removeBtn.addEventListener('click', function () {
+                            elements.splice(idx, 1);
+                            renderElementsList();
+                            refreshPreview();
+                        });
+                        row.appendChild(removeBtn);
+
+                        elementsList.appendChild(row);
+                    });
+                }
+
+                document.getElementById('designer-add-text').addEventListener('click', function () {
+                    var layout = currentLayout();
+                    elements.push({
+                        type: 'text',
+                        content: 'Dein Text',
+                        color: accentInput.value,
+                        size: 60,
+                        x: layout.canvas_width / 2,
+                        y: layout.canvas_height - 20,
+                    });
+                    renderElementsList();
+                    refreshPreview();
+                });
+
+                document.getElementById('designer-add-sticker').addEventListener('click', function () {
+                    stickerPicker.hidden = !stickerPicker.hidden;
+                });
+
+                STICKERS.forEach(function (emoji) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = emoji;
+                    btn.addEventListener('click', function () {
+                        var layout = currentLayout();
+                        elements.push({
+                            type: 'sticker',
+                            content: emoji,
+                            size: 120,
+                            x: layout.canvas_width / 2,
+                            y: layout.canvas_height / 2,
+                        });
+                        stickerPicker.hidden = true;
+                        renderElementsList();
+                        refreshPreview();
+                    });
+                    stickerPicker.appendChild(btn);
+                });
 
                 function drawDesign(targetCtx, w, h, layout, slots, scale, showOutlines) {
                     targetCtx.clearRect(0, 0, w, h);
@@ -678,14 +816,14 @@ require __DIR__ . '/_site_header.php';
                     targetCtx.lineWidth = 3 * scale;
                     targetCtx.strokeRect(10 * scale, 10 * scale, w - 20 * scale, h - 20 * scale);
 
-                    var text = textInput.value.trim();
-                    if (text) {
-                        targetCtx.fillStyle = accent;
-                        targetCtx.font = 'bold ' + Math.round(18 * scale) + 'px "Segoe UI", Arial, sans-serif';
-                        targetCtx.textAlign = 'center';
-                        targetCtx.textBaseline = 'middle';
-                        targetCtx.fillText(text, textPos.x * scale, textPos.y * scale);
-                    }
+                    targetCtx.textAlign = 'center';
+                    targetCtx.textBaseline = 'middle';
+                    elements.forEach(function (el) {
+                        if (!el.content) { return; }
+                        targetCtx.fillStyle = el.type === 'sticker' ? '#000000' : el.color;
+                        targetCtx.font = elementFont(el, scale);
+                        targetCtx.fillText(el.content, el.x * scale, el.y * scale);
+                    });
 
                     // Foto-Slots ausschneiden (transparent), damit die Kamera-Bilder durchscheinen.
                     targetCtx.save();
@@ -718,19 +856,20 @@ require __DIR__ . '/_site_header.php';
                         });
                         targetCtx.restore();
 
-                        // Ziehpunkt am Text, falls einer eingegeben wurde - frei
-                        // im Bild verschiebbar statt fest unten zentriert.
-                        if (text) {
-                            targetCtx.save();
-                            targetCtx.fillStyle = '#17c3b2';
-                            targetCtx.strokeStyle = '#fff';
-                            targetCtx.lineWidth = 2;
+                        // Ziehpunkt an jedem Text-/Sticker-Element - frei im Bild
+                        // verschiebbar statt fest positioniert.
+                        targetCtx.save();
+                        targetCtx.fillStyle = '#17c3b2';
+                        targetCtx.strokeStyle = '#fff';
+                        targetCtx.lineWidth = 2;
+                        elements.forEach(function (el) {
+                            var b = elementBounds(el, scale);
                             targetCtx.beginPath();
-                            targetCtx.arc(textPos.x * scale, textPos.y * scale, TEXT_HANDLE_RADIUS, 0, Math.PI * 2);
+                            targetCtx.arc(b.cx, b.cy, ELEMENT_HANDLE_RADIUS, 0, Math.PI * 2);
                             targetCtx.fill();
                             targetCtx.stroke();
-                            targetCtx.restore();
-                        }
+                        });
+                        targetCtx.restore();
                     }
                 }
 
@@ -740,7 +879,7 @@ require __DIR__ . '/_site_header.php';
                     drawDesign(ctx, canvas.width, canvas.height, layout, customSlots, scale, true);
                 }
 
-                [bgInput, accentInput, patternSelect, textInput].forEach(function (el) {
+                [bgInput, accentInput, patternSelect].forEach(function (el) {
                     el.addEventListener('input', refreshPreview);
                     el.addEventListener('change', refreshPreview);
                 });
@@ -749,6 +888,7 @@ require __DIR__ . '/_site_header.php';
                     refreshPreview();
                 });
                 resetSlots();
+                renderElementsList();
                 refreshPreview();
 
                 document.getElementById('designer-reset').addEventListener('click', function () {
@@ -757,11 +897,11 @@ require __DIR__ . '/_site_header.php';
                 });
 
                 // Fotoflaechen im Vorschau-Canvas per Maus verschieben und am
-                // Ziehpunkt unten rechts in der Groesse anpassen, der Text
-                // ebenso frei verschieben (siehe textPos).
+                // Ziehpunkt unten rechts in der Groesse anpassen, Text-/Sticker-
+                // Elemente ebenso frei verschieben (siehe elements).
                 var drag = null;
                 var resize = null;
-                var textDrag = null;
+                var elementDrag = null;
                 function canvasPoint(ev) {
                     var rect = canvas.getBoundingClientRect();
                     return {
@@ -789,20 +929,15 @@ require __DIR__ . '/_site_header.php';
                     }
                     return -1;
                 }
-                function isAtTextHandle(p, scale) {
-                    if (!textInput.value.trim()) {
-                        return false;
-                    }
-                    var hx = textPos.x * scale, hy = textPos.y * scale;
-                    return Math.hypot(p.x - hx, p.y - hy) <= TEXT_HANDLE_RADIUS + 4;
-                }
                 canvas.addEventListener('mousedown', function (ev) {
                     var layout = currentLayout();
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
 
-                    if (isAtTextHandle(p, scale)) {
-                        textDrag = { startX: p.x, startY: p.y, origX: textPos.x, origY: textPos.y };
+                    var elIdx = elementAtPoint(p, scale);
+                    if (elIdx !== -1) {
+                        var el = elements[elIdx];
+                        elementDrag = { index: elIdx, startX: p.x, startY: p.y, origX: el.x, origY: el.y };
                         return;
                     }
 
@@ -824,11 +959,12 @@ require __DIR__ . '/_site_header.php';
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
 
-                    if (textDrag) {
-                        var dtx = (p.x - textDrag.startX) / scale;
-                        var dty = (p.y - textDrag.startY) / scale;
-                        textPos.x = Math.max(0, Math.min(layout.canvas_width, textDrag.origX + dtx));
-                        textPos.y = Math.max(0, Math.min(layout.canvas_height, textDrag.origY + dty));
+                    if (elementDrag) {
+                        var el = elements[elementDrag.index];
+                        var dex = (p.x - elementDrag.startX) / scale;
+                        var dey = (p.y - elementDrag.startY) / scale;
+                        el.x = Math.max(0, Math.min(layout.canvas_width, elementDrag.origX + dex));
+                        el.y = Math.max(0, Math.min(layout.canvas_height, elementDrag.origY + dey));
                         refreshPreview();
                         return;
                     }
@@ -851,15 +987,15 @@ require __DIR__ . '/_site_header.php';
                         return;
                     }
 
-                    if (isAtTextHandle(p, scale) || slotAtHandle(p, scale) !== -1) {
-                        canvas.style.cursor = slotAtHandle(p, scale) !== -1 ? 'nwse-resize' : 'move';
-                    } else if (slotAtPoint(p, scale) !== -1) {
+                    if (slotAtHandle(p, scale) !== -1) {
+                        canvas.style.cursor = 'nwse-resize';
+                    } else if (elementAtPoint(p, scale) !== -1 || slotAtPoint(p, scale) !== -1) {
                         canvas.style.cursor = 'grab';
                     } else {
                         canvas.style.cursor = 'default';
                     }
                 });
-                document.addEventListener('mouseup', function () { drag = null; resize = null; textDrag = null; });
+                document.addEventListener('mouseup', function () { drag = null; resize = null; elementDrag = null; });
 
                 document.querySelectorAll('[data-customize]').forEach(function (btn) {
                     btn.addEventListener('click', function (ev) {

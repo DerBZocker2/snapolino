@@ -685,6 +685,88 @@ button:hover { background: var(--accent-dark); }
     padding: 2px;
 }
 
+/* ---------- Online-Designer: Text- und Sticker-Elemente ---------- */
+
+.designer-elements {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.designer-elements-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.designer-elements-actions { display: flex; gap: 6px; }
+.designer-elements-actions button { padding: 6px 10px; font-size: 12px; }
+
+.designer-sticker-picker {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    background: #f8f5ff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+
+.designer-sticker-picker button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-size: 20px;
+    line-height: 1;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 6px;
+}
+.designer-sticker-picker button:hover { background: #efe8fb; }
+
+.designer-elements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.designer-element-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #faf8ff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
+.designer-element-row input[type=text] { flex: 1; margin: 0; padding: 6px 8px; font-size: 13px; }
+.designer-element-row input[type=color] { width: 32px; height: 32px; padding: 0; }
+.designer-element-row input[type=range] { width: 70px; }
+
+.designer-element-emoji {
+    font-size: 20px;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.designer-element-remove {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.designer-element-remove:hover { color: var(--accent-dark); }
+
 /* ---------- Zusammenfassung (Schritt 5) ---------- */
 
 .summary-card {

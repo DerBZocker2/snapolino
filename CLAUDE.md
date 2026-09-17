@@ -136,8 +136,10 @@ Layouts sind kostenlos, ausser den 1-Bild- und 2-Bilder-Formaten (`layouts.surch
 weiterhin pro Layout im Panel unter Layouts editierbar - die Migration
 `0010_free_designs_and_single_print.sql` setzt nur den Ausgangswert).
 Online-Designer
-(Canvas-Editor für Farbe/Muster/Text mit per Maus verschieb- und am
-Eck-Ziehpunkt größenveränderbaren Fotoflächen, auch um eine Vorlage per
+(Canvas-Editor für Farbe/Muster mit per Maus verschieb- und am
+Eck-Ziehpunkt größenveränderbaren Fotoflächen, dazu beliebig viele frei
+platzierbare Text- und Sticker/Emoji-Elemente - je Element eigene
+Größe, Text-Elemente zusätzlich eigene Farbe -, auch um eine Vorlage per
 "Anpassen" umzugestalten) oder
 eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
 Flächen automatisch per Connected-Component-Analyse). Alle drei Wege legen
@@ -251,10 +253,11 @@ kann sie nicht abfangen).
   falls ein Fehlerzustand weiterhin nicht erkannt wird
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
-- Online-Designer bietet nur Farbe/Muster plus verschieb- und
-  größenveränderbare Fotoflächen sowie ein einzelnes, frei platzierbares
-  Textelement (per Ziehpunkt verschiebbar, feste Schriftgröße/-farbe) -
-  kein Logo-Upload, keine mehreren Textelemente
+- Online-Designer bietet Farbe/Muster, verschieb- und
+  größenveränderbare Fotoflächen sowie beliebig viele frei platzierbare
+  Text- und Sticker/Emoji-Elemente (Position per Maus, Größe je Element
+  per Schieberegler, bei Text zusätzlich Farbe) - kein Logo-/Bild-Upload
+  als Element, keine Rotation der Elemente
 - Stripe-Webhook-Verarbeitung ist synchron (PDF-Erzeugung + Mailversand
   laufen direkt in der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das
   die Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern
