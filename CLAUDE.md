@@ -169,7 +169,14 @@ PDF per FPDF, Versand per SMTP (PHPMailer) - beide Bibliotheken ohne
 Composer eingebunden (`backend/includes/lib/`), Rechnungsdaten
 (Name/Adresse/§19-Hinweis, zusaetzlich Kontakt-E-Mail/Telefon) im Panel
 unter **Einstellungen** pflegbar - dieselben Angaben speisen auch
-Impressum und Datenschutzerklaerung (siehe unten).
+Impressum und Datenschutzerklaerung (siehe unten). Zusaetzlich laesst
+`invoice_creation` bei der Stripe-Checkout-Session automatisch eine
+eigene, bei Stripe gehostete Rechnung entstehen (`payments.php::
+store_stripe_invoice()` holt PDF-/Ansichtslink ab und loest den Mailversand
+direkt durch Stripe aus, `send_stripe_invoice()`) - die eigene fortlaufende
+Nummer bleibt massgeblich fuer die Buchhaltung, die Stripe-Rechnung ist
+eine zusaetzliche, dauerhaft bei Stripe gespeicherte Kopie (Links dazu in
+der eigenen Bestaetigungsmail und im Panel bei den Buchungsdetails).
 
 **Rechtliche Pflichtseiten** (`impressum.php`, `datenschutz.php`,
 `agb.php`, verlinkt im Footer jeder oeffentlichen Seite ueber
@@ -219,8 +226,12 @@ ueberträgt `sync_booking_to_box()` (falls die Buchung bereits einer Box
 zugeordnet ist) neue Layouts nach `box_layouts` und erhoeht die
 `config_version` (auch bei reinen Extra-/Datumsaenderungen, die `api.php`
 sonst nur dynamisch, aber am `?since`-Preflight vorbei mitliefern wuerde).
+Fuer eine bezahlte Zusatzzahlung stellt Stripe automatisch eine eigene
+Rechnung aus und verschickt sie per Mail (`invoice_creation`, wie bei der
+Hauptbuchung - es gibt dafuer keine eigene fortlaufende Rechnungsnummer).
 In der Buchungsdetailansicht sieht der Admin alle Zusatzzahlungen dieser
-Buchung samt Status (offen/bezahlt). Das individuelle Design einer Buchung
+Buchung samt Status (offen/bezahlt) und Link zur jeweiligen Stripe-Rechnung.
+Das individuelle Design einer Buchung
 (`layouts.is_custom = 1`, unsichtbar im allgemeinen Panel) laesst sich
 direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer

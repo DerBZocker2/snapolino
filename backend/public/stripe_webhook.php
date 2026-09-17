@@ -35,12 +35,13 @@ if (($event['type'] ?? '') === 'checkout.session.completed') {
     $bookingId = (int) ($metadata['booking_id'] ?? 0);
     $addonChargeId = (int) ($metadata['addon_charge_id'] ?? 0);
     $paymentIntent = (string) ($session['payment_intent'] ?? '');
+    $stripeInvoiceId = (string) ($session['invoice'] ?? '') ?: null;
     $paid = ($session['payment_status'] ?? '') === 'paid';
 
     if ($paid && $bookingId > 0) {
-        mark_booking_paid($bookingId, $paymentIntent);
+        mark_booking_paid($bookingId, $paymentIntent, $stripeInvoiceId);
     } elseif ($paid && $addonChargeId > 0) {
-        mark_addon_charge_paid($addonChargeId);
+        mark_addon_charge_paid($addonChargeId, $stripeInvoiceId);
     }
 }
 
