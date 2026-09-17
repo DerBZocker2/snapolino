@@ -115,16 +115,24 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
      `sql/migrations/0006_format_templates.sql`). Jede Karte hat einen
      "Anpassen"-Knopf, der dieselbe Vorlage mit ihrer Slot-Geometrie in den
      Online-Designer laedt.
-   - **Online-Designer**: Canvas-Editor (Hintergrund-/Akzentfarbe, Muster,
-     optionaler Text), rendert clientseitig eine PNG mit der Slot-Geometrie
-     eines gewaehlten Basis-Layouts (die Foto-Slots werden per
+   - **Online-Designer**: Canvas-Editor (Hintergrund-/Akzentfarbe, Muster),
+     rendert clientseitig eine PNG mit der Slot-Geometrie eines gewaehlten
+     Basis-Layouts (die Foto-Slots werden per
      `globalCompositeOperation = 'destination-out'` transparent
      ausgeschnitten). Die Fotoflaechen selbst lassen sich direkt im Canvas
      per Maus verschieben (gestrichelter Umriss zur Orientierung, "Zuruecksetzen"
      stellt die Ausgangsposition wieder her) - die neuen Koordinaten werden
      als JSON mit abgeschickt (`custom_slots`, serverseitig via
      `validate_custom_slots()` geprueft, faellt bei verdaechtigen Werten auf
-     die Basis-Geometrie zurueck).
+     die Basis-Geometrie zurueck). Zusaetzlich beliebig viele Text- und
+     Sticker/Emoji-Elemente per "+ Text"/"+ Sticker" hinzufuegbar (`elements`
+     im JS, rein clientseitig - keine eigene Datenbankspalte), jedes einzeln
+     per Maus im Canvas verschiebbar sowie ueber die Liste darunter in
+     Inhalt/Farbe (nur Text) und Groesse (Schieberegler) anpassbar oder
+     entfernbar. Landen alle vor dem finalen Rendern auf demselben Canvas
+     wie Hintergrund/Muster/Fotoflaechen, es gibt also keinen separaten
+     Speicherpfad dafuer - das Endergebnis ist wie bisher nur die fertig
+     gerenderte PNG.
    - **Eigenes hochladen**: PNG mit transparenten Fotoflaechen hochladen.
      `detect_transparent_slots()` (includes/functions.php) erkennt die
      zusammenhaengenden transparenten Bereiche per Connected-Component-
@@ -493,9 +501,9 @@ meldung statt abzustuerzen.
 
 - E-Mail-Benachrichtigung nur bei erfolgreicher Zahlung, nicht bei einer
   reinen Angebotsanfrage (dort weiterhin nur im Panel sichtbar).
-- Online-Designer bietet nur Farbe/Muster plus verschiebbare Fotoflaechen
-  und ein einzelnes, frei platzierbares Textelement, kein Logo-Upload,
-  keine mehreren Textelemente.
+- Online-Designer bietet Farbe/Muster, verschiebbare Fotoflaechen sowie
+  beliebig viele frei platzierbare Text-/Sticker-Elemente, aber keinen
+  Logo-/Bild-Upload als Element und keine Rotation der Elemente.
 - Stripe-Webhook verschickt Rechnung/Mail synchron in der Webhook-Antwort;
   bei SMTP-Ausfaellen dauert die Antwort laenger (Bestaetigung selbst ist
   davon unabhaengig, nur die Mail muesste dann manuell nachverschickt
