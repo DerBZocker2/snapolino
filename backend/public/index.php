@@ -173,8 +173,8 @@ require __DIR__ . '/_site_header.php';
     <details class="panel-box">
         <summary>Wie lange vorher sollte ich buchen?</summary>
         <div class="faq-answer"><p>Je früher, desto besser – vor allem an Wochenenden in der Hochsaison sind
-            Termine schnell vergeben. Eine Reservierung ist zunächst
-            <?= RESERVATION_HOLD_DAYS ?> Tage unverbindlich möglich.</p></div>
+            Termine schnell vergeben. Da wir aktuell nur eine Box haben, ist mit dem Absenden
+            deiner Anfrage der Termin sofort für andere gesperrt, bis wir sie bearbeitet haben.</p></div>
     </details>
     <details class="panel-box">
         <summary>Kann ich stornieren?</summary>

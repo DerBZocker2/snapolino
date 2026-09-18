@@ -30,12 +30,13 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
 
         <h3>3. Vertragsschluss</h3>
         <p>Der Mieter wählt im Buchungsassistenten einen freien Termin, hinterlegt seine Kontakt-
-            und Rechnungsdaten sowie das gewünschte Design und optionale Extras. Eine Terminwahl
-            ist zunächst <?= RESERVATION_HOLD_DAYS ?> Tage unverbindlich reserviert. Der Vertrag
-            kommt zustande, sobald entweder die Zahlung über unseren Zahlungsdienstleister Stripe
-            erfolgreich abgeschlossen wurde oder wir eine angeforderte Buchung ohne
-            Sofortzahlung ausdrücklich bestätigen. Wählt der Mieter stattdessen "nur ein
-            schriftliches Angebot", entsteht durch die Anfrage allein noch kein Vertrag.</p>
+            und Rechnungsdaten sowie das gewünschte Design und optionale Extras. Mit dem Absenden
+            der Anfrage wird der Termin für andere Buchungen gesperrt, bis wir sie bearbeitet
+            haben. Der Vertrag kommt zustande, sobald entweder die Zahlung über unseren
+            Zahlungsdienstleister Stripe erfolgreich abgeschlossen wurde oder wir eine
+            angeforderte Buchung ohne Sofortzahlung ausdrücklich bestätigen. Wählt der Mieter
+            stattdessen "nur ein schriftliches Angebot", entsteht durch die Anfrage allein noch
+            kein Vertrag.</p>
 
         <h3>4. Preise und Zahlung</h3>
         <p>Es gelten die zum Zeitpunkt der Buchung im Buchungsassistenten angezeigten Preise
@@ -61,9 +62,9 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             jeweils im Rahmen der gesetzlichen Bestimmungen.</p>
 
         <h3>7. Stornierung durch den Mieter</h3>
-        <p>Solange eine Terminwahl noch als unverbindliche Reservierung geführt wird (siehe Ziffer
-            3), kann der Mieter jederzeit kostenfrei davon zurücktreten. Für bereits bestätigte
-            bzw. bezahlte Buchungen gilt:</p>
+        <p>Solange eine Anfrage noch nicht bestätigt bzw. bezahlt ist und damit noch kein Vertrag
+            zustande gekommen ist (siehe Ziffer 3), kann der Mieter jederzeit kostenfrei davon
+            zurücktreten. Für bereits bestätigte bzw. bezahlte Buchungen gilt:</p>
         <ul>
             <li>Stornierung bis 30 Tage vor dem Eventdatum: kostenfrei, bereits gezahlte Beträge
                 werden vollständig erstattet.</li>

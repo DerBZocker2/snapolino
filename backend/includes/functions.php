@@ -424,16 +424,9 @@ function next_invoice_number(): string
 // Eventtag selbst. Fester Puffer vor und nach dem Eventdatum.
 const BOOKING_BUFFER_DAYS = 3;
 
-// Solange eine Reservierung nicht durch den ganzen Assistenten bis
-// "angefragt" gelaufen ist, faellt sie nach dieser Frist wieder aus dem
-// Kalender - ganz ohne Cronjob, einfach beim Abfragen der Sperrtage
-// ignoriert (siehe fetch_blocked_dates).
-const RESERVATION_HOLD_DAYS = 14;
-
-const BOOKING_STATUSES = ['reserviert', 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'];
+const BOOKING_STATUSES = ['angefragt', 'bestaetigt', 'abgelehnt', 'storniert'];
 
 const BOOKING_STATUS_LABELS = [
-    'reserviert' => 'Reserviert (unvollständig)',
     'angefragt'  => 'Angefragt',
     'bestaetigt' => 'Bestätigt',
     'abgelehnt'  => 'Abgelehnt',
@@ -455,20 +448,14 @@ function booking_block_range(string $eventDate): array
     ];
 }
 
-// Alle Tage, die aktuell blockiert sind (inkl. Puffer): vollstaendige
-// Anfragen und bestaetigte Buchungen halten den Termin dauerhaft, eine
-// blosse Reservierung (Schritt 2 des Assistenten) nur fuer
-// RESERVATION_HOLD_DAYS - danach ist sie einfach verfallen.
+// Alle Tage, die aktuell blockiert sind (inkl. Puffer): jede echte
+// Buchungsanfrage haelt den Termin dauerhaft, bis ein Admin sie ablehnt
+// oder storniert - es gibt keine unverbindliche, automatisch verfallende
+// Zwischenstufe mehr (nur eine Box, da lohnt sich Cronjob-freies Verfallen
+// nicht - der Admin sichtet Anfragen ohnehin von Hand).
 function fetch_blocked_dates(): array
 {
-    $stmt = db()->prepare(
-        "SELECT event_date FROM bookings
-         WHERE status IN ('angefragt', 'bestaetigt')
-            OR (status = 'reserviert' AND created_at >= ?)"
-    );
-    $stmt->execute([
-        (new DateTimeImmutable('-' . RESERVATION_HOLD_DAYS . ' days'))->format('Y-m-d H:i:s'),
-    ]);
+    $stmt = db()->query("SELECT event_date FROM bookings WHERE status IN ('angefragt', 'bestaetigt')");
 
     $blocked = [];
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $eventDate) {
