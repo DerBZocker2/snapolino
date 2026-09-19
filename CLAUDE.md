@@ -102,14 +102,17 @@ naechsten Kunden vorzubereiten).
 - **Drucken im Worker-Thread**, damit die Box während der 41 s weiterläuft.
 - **Konfigurationswechsel nur zwischen Sessions**, nie mitten im Ablauf
   (`pending_cfg`).
-- **Fenster erst per `show()` anzeigen, dann erst `showFullScreen()`**
-  (im `if __name__ == "__main__":`-Block), nie direkt vollbildig ohne
-  vorheriges `show()`. Sonst kann die erste Layout-Berechnung (je nach
-  Windows-/Grafiktreiber-Kombination) auf einer kleineren Groesse als der
-  tatsaechlichen Bildschirmgroesse basieren - das fuehrte konkret dazu,
-  dass der "Weiter"-Knopf auf der WILLKOMMEN-Seite im echten Vollbild
-  unterhalb des sichtbaren Bereichs blieb, obwohl im normalen Fenstermodus
-  (Testen mit `fullscreen = false` in `box.ini`) alles korrekt aussah.
+- **Kein echtes `showFullScreen()` verwenden** (im
+  `if __name__ == "__main__":`-Block), sondern das Fenster randlos
+  (`Qt.FramelessWindowHint`) manuell per `setGeometry()` auf die volle
+  Bildschirmgeometrie setzen. Qts eigener Vollbild-Fenstermodus hat sich
+  auf manchen Windows-/Grafiktreiber-Kombinationen als unzuverlaessig
+  erwiesen (auch mit vorherigem `show()` vor `showFullScreen()` half es
+  nicht) - die erste Layout-Berechnung passte dann nicht zur tatsaechlichen
+  Bildschirmgroesse, wodurch z.B. der "Weiter"-Knopf auf der
+  WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs haengen blieb, obwohl
+  im normalen Fenstermodus (Testen mit `fullscreen = false` in `box.ini`)
+  alles korrekt aussah.
 - Dateien atomar schreiben (`os.replace`), kein halber Zustand nach Stromausfall.
 
 ## Cloud-Backend

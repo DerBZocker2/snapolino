@@ -928,15 +928,21 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = Fotobox()
     if config.FULLSCREEN:
-        # Erst normal zeigen, dann erst auf Vollbild wechseln - direktes
-        # showFullScreen() auf einem noch nie gezeigten Fenster liefert bei
-        # manchen Windows-/Grafiktreiber-Kombinationen eine erste Layout-
-        # Berechnung, die nicht zur tatsaechlichen (viel groesseren)
-        # Bildschirmgroesse passt. Dadurch blieb z.B. der "Weiter"-Knopf auf
-        # der WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs haengen,
-        # obwohl im normalen Fenstermodus alles korrekt aussah.
+        # Qts eigener Vollbild-Fenstermodus (showFullScreen()) hat sich auf
+        # manchen Windows-/Grafiktreiber-Kombinationen als unzuverlaessig
+        # erwiesen: die erste Layout-Berechnung passte nicht zur tatsaechlichen
+        # Bildschirmgroesse (auch nicht mit vorherigem show()), wodurch z.B.
+        # der "Weiter"-Knopf auf der WILLKOMMEN-Seite unterhalb des
+        # sichtbaren Bereichs haengen blieb, obwohl im normalen Fenstermodus
+        # alles korrekt aussah. Stattdessen das Fenster ohne Rahmen manuell
+        # auf die volle Bildschirmgeometrie setzen - das erzwingt eine ganz
+        # normale Layout-Berechnung fuer eine explizit bekannte Groesse,
+        # statt sich auf Qts/Windows' internen Vollbild-Zustandswechsel zu
+        # verlassen.
+        screen_geo = app.primaryScreen().geometry()
+        win.setWindowFlags(win.windowFlags() | Qt.FramelessWindowHint)
+        win.setGeometry(screen_geo)
         win.show()
-        win.showFullScreen()
     else:
         win.resize(1000, 700)
         win.show()
