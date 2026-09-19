@@ -116,6 +116,29 @@ naechsten Kunden vorzubereiten).
   "Weiter"-Knopf auf der WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs
   haengen blieb, obwohl im normalen Fenstermodus (Testen mit
   `fullscreen = false` in `box.ini`) alles korrekt aussah.
+- **`set_dpi_aware()`** (main.py, `SetProcessDpiAwareness`/`SetProcessDPIAware`
+  per ctypes) **vor der ersten QApplication-Instanz aufrufen.** Ohne explizite
+  DPI-Awareness meldet Windows je nach Version/Kompatibilitaetseinstellung
+  eine virtualisierte (skalierte) statt der tatsaechlichen Bildschirm-
+  aufloesung - das war die eigentliche Ursache dafuer, dass
+  `availableGeometry()` je nach Rechner/Skalierung einen anderen Wert
+  lieferte und das Vollbild-Fenster falsch berechnet wurde.
+- **Aktionsbuttons per `setMinimumHeight()` statt `setFixedHeight()`**
+  (WILLKOMMEN-Weiter, Wiederholen/Weiter, Neu starten/Drucken,
+  Rahmenauswahl, Uebersicht-Weiter). Ein fixiertes Widget kann Qt nie
+  verkleinern, egal wie wenig Platz uebrig ist (kleiner Bildschirm, DPI-
+  Skalierung) - dann wird stattdessen das zuletzt hinzugefuegte Widget
+  (meist der Haupt-Button) unterhalb des sichtbaren Bereichs abgeschnitten.
+  Mit einer Mindestgroesse bleiben die Buttons touch-tauglich, koennen bei
+  echtem Platzmangel aber nachgeben statt zu verschwinden.
+- **Rahmenauswahl (BEREIT) und Fotouebersicht (GESAMTUEBERSICHT) laufen in
+  einer `QScrollArea`**, nicht direkt im Layout - bei vielen Rahmen/Fotos
+  (z.B. mehrere Zusatzformate oder ein Layout mit vielen Slots) wuerde die
+  Summe der Mindestgroessen sonst den Bildschirm uebersteigen koennen, ohne
+  Ausweichmoeglichkeit. Die Fotouebersicht-Kacheln haben ausserdem eine
+  feste Groesse (`REVIEW_THUMB_SIZE`) unabhaengig vom Seitenverhaeltnis des
+  jeweiligen Fotos, sonst waeren sie je nach Rahmenformat unterschiedlich
+  gross.
 - Dateien atomar schreiben (`os.replace`), kein halber Zustand nach Stromausfall.
 
 ## Cloud-Backend

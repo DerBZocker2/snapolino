@@ -7,11 +7,11 @@ from logging.handlers import RotatingFileHandler
 
 import cv2
 from PIL import Image
-from PySide6.QtCore import Qt, QTimer, QThread, Signal
+from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication, QDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QStackedWidget, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 import cloudsync
@@ -34,6 +34,7 @@ PAGE_LOCKED = 6
 
 EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
 MAX_INDIVIDUAL_PRINT_COPIES = 3
+REVIEW_THUMB_SIZE = 220  # Kachelgroesse in der Gesamtuebersicht, siehe _refresh_review_thumbs()
 
 
 def setup_logging():
@@ -59,6 +60,25 @@ def keep_awake():
 
 def release_awake():
     ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS)
+
+
+def set_dpi_aware():
+    """Muss vor der ersten QApplication-Instanz aufgerufen werden. Ohne
+    explizite DPI-Awareness-Deklaration behandelt Windows einen Prozess je
+    nach Version/Kompatibilitaetseinstellung als nicht DPI-bewusst und
+    meldet ihm eine virtualisierte (hoch-/herunterskalierte) statt der
+    tatsaechlichen Bildschirmaufloesung - das fuehrte dazu, dass
+    app.primaryScreen().availableGeometry() je nach Rechner/Windows-
+    Skalierung einen anderen Wert lieferte als die wirkliche Bildschirmgroesse,
+    wodurch das Vollbild-Fenster (siehe __main__) zu klein oder zu gross
+    berechnet wurde und z.B. Buttons am unteren Rand abgeschnitten waren."""
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+    except (AttributeError, OSError):
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except (AttributeError, OSError):
+            pass
 
 
 def crop_to_ratio(frame, ratio):
@@ -307,7 +327,14 @@ class Fotobox(QWidget):
         self.welcome_label.setStyleSheet("font-size: 30px;")
         self.welcome_label.setWordWrap(True)
         self.btn_welcome_continue = QPushButton("Weiter")
-        self.btn_welcome_continue.setFixedHeight(90)
+        # setMinimumHeight statt setFixedHeight: ein fixiertes Widget kann
+        # Qt nie verkleinern, egal wie wenig Platz uebrig ist - reicht der
+        # verfuegbare Platz nicht (kleiner Bildschirm, DPI-Skalierung),
+        # wird das dann trotzdem ueberstehende Widget unterhalb des
+        # sichtbaren Bereichs abgeschnitten statt verkleinert. Mit einer
+        # Mindestgroesse bleibt der Knopf touch-tauglich, kann aber bei
+        # echtem Platzmangel etwas nachgeben statt zu verschwinden.
+        self.btn_welcome_continue.setMinimumHeight(90)
         self.btn_welcome_continue.setStyleSheet(
             "font-size: 34px; background: #27ae60; color: white; border-radius: 12px;"
         )
@@ -326,8 +353,20 @@ class Fotobox(QWidget):
         subtitle0 = QLabel("Zum Starten auf einen Rahmen tippen")
         subtitle0.setStyleSheet("font-size: 16px; color: #aaa;")
         l0.addWidget(subtitle0)
+        # In einer QScrollArea statt direkt im Layout, damit viele Rahmen
+        # (mehrere zusaetzliche Formate pro Buchung moeglich) bei wenig
+        # Bildschirmhoehe scrollen statt ueber den sichtbaren Bereich
+        # hinauszuwachsen - die Buttons behalten dabei ihre volle,
+        # gut lesbare Groesse samt Vorschaubild.
         self.layout_choice_box = QVBoxLayout()
-        l0.addLayout(self.layout_choice_box, 1)
+        choice_container = QWidget()
+        choice_container.setLayout(self.layout_choice_box)
+        choice_container.setStyleSheet("background: transparent;")
+        choice_scroll = QScrollArea()
+        choice_scroll.setWidgetResizable(True)
+        choice_scroll.setWidget(choice_container)
+        choice_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        l0.addWidget(choice_scroll, 1)
         self.pages.addWidget(p0)
 
         # Seite 2: LIVE + COUNTDOWN
@@ -347,7 +386,7 @@ class Fotobox(QWidget):
         self.btn_retake = QPushButton("Wiederholen")
         self.btn_accept = QPushButton("Weiter")
         for b, col in ((self.btn_retake, "#7f8c8d"), (self.btn_accept, "#27ae60")):
-            b.setFixedHeight(80)
+            b.setMinimumHeight(80)
             b.setStyleSheet(
                 f"font-size: 26px; background: {col}; color: white; border-radius: 12px;"
             )
@@ -365,10 +404,19 @@ class Fotobox(QWidget):
         l_review = QVBoxLayout(p_review)
         l_review.addWidget(QLabel("Alle Bilder"))
 
+        # In einer QScrollArea, damit viele Fotos (Layouts mit mehr Slots)
+        # horizontal scrollen statt die Seite in die Breite zu sprengen oder
+        # die Kacheln unkontrolliert zu verkleinern.
         self.review_thumbs_box = QHBoxLayout()
         thumbs_container = QWidget()
         thumbs_container.setLayout(self.review_thumbs_box)
-        l_review.addWidget(thumbs_container, 1)
+        thumbs_container.setStyleSheet("background: transparent;")
+        thumbs_scroll = QScrollArea()
+        thumbs_scroll.setWidgetResizable(True)
+        thumbs_scroll.setWidget(thumbs_container)
+        thumbs_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        thumbs_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        l_review.addWidget(thumbs_scroll, 1)
 
         self.review_copies_row_widget = QWidget()
         copies_row = QHBoxLayout(self.review_copies_row_widget)
@@ -392,7 +440,7 @@ class Fotobox(QWidget):
         l_review.addWidget(self.review_copies_row_widget)
 
         self.btn_review_continue = QPushButton("Weiter")
-        self.btn_review_continue.setFixedHeight(90)
+        self.btn_review_continue.setMinimumHeight(90)
         self.btn_review_continue.setStyleSheet(
             "font-size: 34px; background: #27ae60; color: white; border-radius: 12px;"
         )
@@ -409,7 +457,7 @@ class Fotobox(QWidget):
         self.btn_restart = QPushButton("Neu starten")
         self.btn_print = QPushButton("Drucken")
         for b, col in ((self.btn_restart, "#7f8c8d"), (self.btn_print, "#27ae60")):
-            b.setFixedHeight(80)
+            b.setMinimumHeight(80)
             b.setStyleSheet(
                 f"font-size: 26px; background: {col}; color: white; border-radius: 12px;"
             )
@@ -444,7 +492,7 @@ class Fotobox(QWidget):
             if layout.get("surcharge_cents"):
                 label += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
             btn = QPushButton(label)
-            btn.setFixedHeight(100)
+            btn.setMinimumHeight(100)
             btn.setStyleSheet(
                 "font-size: 22px; background: #2980b9; color: white; border-radius: 10px;"
                 " text-align: left; padding-left: 10px;"
@@ -692,6 +740,13 @@ class Fotobox(QWidget):
         self._start_slot_capture()
 
     def accept_slot(self):
+        # Schutz gegen ein schnelles Doppel-Tippen auf "Weiter": ohne diese
+        # Pruefung wuerde ein zweiter, kurz danach eintreffender Klick
+        # self._pending_shot (bereits auf None gesetzt) erneut anhaengen und
+        # damit ein None in slot_frames einschleusen, was spaeter beim
+        # Collagenbau (crop_to_ratio() auf None) abstuerzen wuerde.
+        if self._pending_shot is None:
+            return
         self.slot_frames.append(self._pending_shot)
         self._pending_shot = None
         if len(self.slot_frames) < self.selected_layout["slot_count"]:
@@ -714,13 +769,20 @@ class Fotobox(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
+        # Feste Kachelgroesse (REVIEW_THUMB_SIZE), unabhaengig von der tatsaechlichen
+        # Groesse der skalierten Pixmap: to_pixmap() erhaelt das Seitenverhaeltnis,
+        # bei Layouts mit unterschiedlichen Slot-Seitenverhaeltnissen waeren die
+        # Buttons sonst unterschiedlich gross (z.B. ein breites Foto schmaler als
+        # ein quadratisches) - die Kachelgroesse bleibt so fuer alle Fotos
+        # gleich, das Bild wird darin nur zentriert (setIconSize/AlignCenter
+        # groesser als die Pixmap selbst).
         for i, frame in enumerate(self.slot_frames):
-            pix = to_pixmap(frame, 220, 220)
+            pix = to_pixmap(frame, REVIEW_THUMB_SIZE, REVIEW_THUMB_SIZE)
             if self.allow_individual_print:
                 btn = QPushButton()
                 btn.setIcon(QIcon(pix))
-                btn.setIconSize(pix.size())
-                btn.setFixedSize(pix.width() + 16, pix.height() + 16)
+                btn.setIconSize(QSize(REVIEW_THUMB_SIZE, REVIEW_THUMB_SIZE))
+                btn.setFixedSize(REVIEW_THUMB_SIZE + 16, REVIEW_THUMB_SIZE + 16)
                 btn.setCheckable(True)
                 btn.setChecked(i == self.selected_print_index)
                 btn.setStyleSheet(
@@ -732,6 +794,8 @@ class Fotobox(QWidget):
             else:
                 lbl = QLabel()
                 lbl.setPixmap(pix)
+                lbl.setAlignment(Qt.AlignCenter)
+                lbl.setFixedSize(REVIEW_THUMB_SIZE + 16, REVIEW_THUMB_SIZE + 16)
                 self.review_thumbs_box.addWidget(lbl)
 
         self.review_copies_row_widget.setVisible(self.allow_individual_print)
@@ -836,6 +900,7 @@ class Fotobox(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("Admin-PIN")
         dialog.setStyleSheet("background: #222; color: #eee;")
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout(dialog)
 
         display = QLineEdit()
@@ -860,6 +925,8 @@ class Fotobox(QWidget):
                 btn.clicked.connect(lambda checked=False, d=key: display.setText((display.text() + d)[:20]))
         layout.addLayout(grid)
 
+        dialog.raise_()
+        dialog.activateWindow()
         accepted = dialog.exec() == QDialog.Accepted
         return display.text() if accepted else None
 
@@ -867,6 +934,7 @@ class Fotobox(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("Admin-Menü")
         dialog.setStyleSheet("background: #222; color: #eee;")
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout(dialog)
 
         booking = cloudsync.get_booking()
@@ -899,6 +967,8 @@ class Fotobox(QWidget):
         btn_ok.clicked.connect(dialog.accept)
         layout.addWidget(btn_ok)
 
+        dialog.raise_()
+        dialog.activateWindow()
         dialog.exec()
 
     # ---------- Beenden ----------
@@ -923,6 +993,7 @@ class Fotobox(QWidget):
 
 if __name__ == "__main__":
     setup_logging()
+    set_dpi_aware()
     keep_awake()
     cloudsync.sync()
     app = QApplication(sys.argv)
