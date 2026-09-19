@@ -257,58 +257,97 @@ INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort
     ('Ohne Druck', 'Fotobox ohne Druckfunktion - guenstiger, falls nur digitale Fotos gewuenscht sind', '♻️', -5000, 'toggle', NULL, 70);
 
 -- Standardlayout: 4 Bilder als 2x2-Collage auf 10x15cm quer (1800x1200 px,
--- ca. 300dpi). Alle Presets unten teilen sich dieselben Slot-Koordinaten,
--- damit sie ohne weiteres Zutun im Panel sofort einsatzbereit sind - nur
--- der Rahmen (frame_file) unterscheidet sich. Die PNGs liegen als
+-- ca. 300dpi). Vier verschiedene Foto-Anordnungen (grid/hero/strip/stack,
+-- siehe backend/tools/generate_presets.py) statt eines einzigen geteilten
+-- 2x2-Rasters - jede Anordnung hat ihre eigene Slot-Geometrie, nur Layouts
+-- derselben Anordnung teilen sich Koordinaten. Die PNGs liegen als
 -- mitgelieferte Design-Vorlagen unter storage/frames/preset_*.png (siehe
 -- .gitignore-Ausnahme), echte Kunden-Uploads bleiben weiterhin ignoriert.
 INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents) VALUES
-    ('Standard 4er-Collage',   NULL,          4, 1800, 1200, 'preset_standard.png',            1, 0),
-    ('Hochzeit Elegant',       'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_elegant.png',    0, 0),
-    ('Hochzeit Rustikal',      'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_rustikal.png',   0, 0),
-    ('Hochzeit Modern',        'Hochzeit',    4, 1800, 1200, 'preset_hochzeit_modern.png',     0, 0),
-    ('Geburtstag Bunt',        'Geburtstag',  4, 1800, 1200, 'preset_geburtstag_bunt.png',     0, 0),
-    ('Geburtstag Kids',        'Geburtstag',  4, 1800, 1200, 'preset_geburtstag_kids.png',     0, 0),
-    ('Geburtstag Glamour',     'Geburtstag',  4, 1800, 1200, 'preset_geburtstag_glamour.png',  0, 0),
-    ('Business Klassisch',     'Business',    4, 1800, 1200, 'preset_business_klassisch.png',  0, 0),
-    ('Business Modern',        'Business',    4, 1800, 1200, 'preset_business_modern.png',     0, 0),
-    ('Silvester Party',        'Party',       4, 1800, 1200, 'preset_silvester.png',           0, 0),
-    ('Regenbogen',             'Party',       4, 1800, 1200, 'preset_regenbogen.png',          0, 0),
-    ('Sommerfest',             'Sommer',      4, 1800, 1200, 'preset_sommerfest.png',          0, 0),
-    ('Gartenparty',            'Sommer',      4, 1800, 1200, 'preset_gartenparty.png',         0, 0),
-    ('Babyparty Blau',         'Baby',        4, 1800, 1200, 'preset_baby_boy.png',            0, 0),
-    ('Babyparty Rosa',         'Baby',        4, 1800, 1200, 'preset_baby_girl.png',           0, 0),
-    ('Weihnachten Klassisch',  'Weihnachten', 4, 1800, 1200, 'preset_weihnachten_klassisch.png', 0, 0),
-    ('Weihnachten Elegant',    'Weihnachten', 4, 1800, 1200, 'preset_weihnachten_elegant.png', 0, 0),
-    ('Modern Schwarz',         'Neutral',     4, 1800, 1200, 'preset_neutral_schwarz.png',     0, 0),
-    ('Modern Weiss',           'Neutral',     4, 1800, 1200, 'preset_neutral_weiss.png',       0, 0);
+    ('Standard 4er-Collage', NULL, 4, 1800, 1200, 'preset_standard_v2.png', 1, 0),
+    ('Business Klassisch', 'Business', 4, 1800, 1200, 'preset_business_klassisch_v2.png', 0, 0),
+    ('Weihnachten Klassisch', 'Weihnachten', 4, 1800, 1200, 'preset_weihnachten_klassisch_v2.png', 0, 0),
+    ('Modern Schwarz', 'Neutral', 4, 1800, 1200, 'preset_neutral_schwarz_v2.png', 0, 0),
+    ('Modern Weiss', 'Neutral', 4, 1800, 1200, 'preset_neutral_weiss_v2.png', 0, 0),
+    ('Hochzeit Elegant', 'Hochzeit', 4, 1800, 1200, 'preset_hochzeit_elegant_v2.png', 0, 0),
+    ('Hochzeit Modern', 'Hochzeit', 4, 1800, 1200, 'preset_hochzeit_modern_v2.png', 0, 0),
+    ('Geburtstag Glamour', 'Geburtstag', 4, 1800, 1200, 'preset_geburtstag_glamour_v2.png', 0, 0),
+    ('Business Modern', 'Business', 4, 1800, 1200, 'preset_business_modern_v2.png', 0, 0),
+    ('Weihnachten Elegant', 'Weihnachten', 4, 1800, 1200, 'preset_weihnachten_elegant_v2.png', 0, 0),
+    ('Geburtstag Bunt', 'Geburtstag', 4, 1800, 1200, 'preset_geburtstag_bunt_v2.png', 0, 0),
+    ('Silvester Party', 'Party', 4, 1800, 1200, 'preset_silvester_v2.png', 0, 0),
+    ('Regenbogen', 'Party', 4, 1800, 1200, 'preset_regenbogen_v2.png', 0, 0),
+    ('Sommerfest', 'Sommer', 4, 1800, 1200, 'preset_sommerfest_v2.png', 0, 0),
+    ('Hochzeit Rustikal', 'Hochzeit', 4, 1800, 1200, 'preset_hochzeit_rustikal_v2.png', 0, 0),
+    ('Geburtstag Kids', 'Geburtstag', 4, 1800, 1200, 'preset_geburtstag_kids_v2.png', 0, 0),
+    ('Gartenparty', 'Sommer', 4, 1800, 1200, 'preset_gartenparty_v2.png', 0, 0),
+    ('Babyparty Blau', 'Baby', 4, 1800, 1200, 'preset_baby_boy_v2.png', 0, 0),
+    ('Babyparty Rosa', 'Baby', 4, 1800, 1200, 'preset_baby_girl_v2.png', 0, 0);
 
+-- Anordnung "grid":
 INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
 SELECT id, s.slot_index, s.x, s.y, s.width, s.height
 FROM layouts
 CROSS JOIN (
-    SELECT 0 AS slot_index, 40  AS x, 40  AS y, 850 AS width, 550 AS height
-    UNION ALL SELECT 1, 910, 40,  850, 550
-    UNION ALL SELECT 2, 40,  610, 850, 550
-    UNION ALL SELECT 3, 910, 610, 850, 550
-) AS s;
+    SELECT 0 AS slot_index, 50 AS x, 50 AS y, 835 AS width, 535 AS height
+    UNION ALL SELECT 1, 915, 50, 835, 535
+    UNION ALL SELECT 2, 50, 615, 835, 535
+    UNION ALL SELECT 3, 915, 615, 835, 535
+) AS s
+WHERE layouts.name IN ('Standard 4er-Collage', 'Business Klassisch', 'Weihnachten Klassisch', 'Modern Schwarz', 'Modern Weiss');
+
+-- Anordnung "hero":
+INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
+SELECT id, s.slot_index, s.x, s.y, s.width, s.height
+FROM layouts
+CROSS JOIN (
+    SELECT 0 AS slot_index, 50 AS x, 50 AS y, 1700 AS width, 650 AS height
+    UNION ALL SELECT 1, 50, 790, 553, 360
+    UNION ALL SELECT 2, 623, 790, 553, 360
+    UNION ALL SELECT 3, 1196, 790, 554, 360
+) AS s
+WHERE layouts.name IN ('Hochzeit Elegant', 'Hochzeit Modern', 'Geburtstag Glamour', 'Business Modern', 'Weihnachten Elegant');
+
+-- Anordnung "strip":
+INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
+SELECT id, s.slot_index, s.x, s.y, s.width, s.height
+FROM layouts
+CROSS JOIN (
+    SELECT 0 AS slot_index, 40 AS x, 170 AS y, 415 AS width, 990 AS height
+    UNION ALL SELECT 1, 475, 170, 415, 990
+    UNION ALL SELECT 2, 910, 170, 415, 990
+    UNION ALL SELECT 3, 1345, 170, 415, 990
+) AS s
+WHERE layouts.name IN ('Geburtstag Bunt', 'Silvester Party', 'Regenbogen', 'Sommerfest');
+
+-- Anordnung "stack":
+INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
+SELECT id, s.slot_index, s.x, s.y, s.width, s.height
+FROM layouts
+CROSS JOIN (
+    SELECT 0 AS slot_index, 50 AS x, 50 AS y, 950 AS width, 1050 AS height
+    UNION ALL SELECT 1, 1030, 50, 720, 337
+    UNION ALL SELECT 2, 1030, 407, 720, 337
+    UNION ALL SELECT 3, 1030, 764, 720, 336
+) AS s
+WHERE layouts.name IN ('Hochzeit Rustikal', 'Geburtstag Kids', 'Gartenparty', 'Babyparty Blau', 'Babyparty Rosa');
 
 -- Zusatzformate mit anderer Fotoanzahl statt der Standard-4er-Collage -
--- jeweils eigene Slot-Geometrie, siehe migrations/0006_format_templates.sql.
+-- jeweils eigene Slot-Geometrie.
 INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents) VALUES
-    ('1 Bild (Vollformat)',    'Format', 1, 1800, 1200, 'preset_format_1bild.png',    0, 300),
-    ('2 Bilder nebeneinander', 'Format', 2, 1800, 1200, 'preset_format_2bilder.png', 0, 300),
-    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder.png', 0, 0);
+    ('1 Bild (Vollformat)', 'Format', 1, 1800, 1200, 'preset_format_1bild_v2.png', 0, 300),
+    ('2 Bilder nebeneinander', 'Format', 2, 1800, 1200, 'preset_format_2bilder_v2.png', 0, 300),
+    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder_v2.png', 0, 0);
 
 INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
-SELECT id, 0, 40, 40, 1720, 1120 FROM layouts WHERE name = '1 Bild (Vollformat)';
+SELECT id, 0, 60, 60, 1680, 940 FROM layouts WHERE name = '1 Bild (Vollformat)';
 
 INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
 SELECT id, s.slot_index, s.x, s.y, s.width, s.height
 FROM layouts
 CROSS JOIN (
-    SELECT 0 AS slot_index, 40 AS x, 40 AS y, 850 AS width, 1120 AS height
-    UNION ALL SELECT 1, 910, 40, 850, 1120
+    SELECT 0 AS slot_index, 50 AS x, 50 AS y, 897 AS width, 1100 AS height
+    UNION ALL SELECT 1, 1017, 50, 733, 1100
 ) AS s
 WHERE layouts.name = '2 Bilder nebeneinander';
 
@@ -316,8 +355,9 @@ INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
 SELECT id, s.slot_index, s.x, s.y, s.width, s.height
 FROM layouts
 CROSS JOIN (
-    SELECT 0 AS slot_index, 40   AS x, 40 AS y, 560 AS width, 1120 AS height
-    UNION ALL SELECT 1, 620, 40, 560, 1120
-    UNION ALL SELECT 2, 1200, 40, 560, 1120
+    SELECT 0 AS slot_index, 50 AS x, 90 AS y, 553 AS width, 1020 AS height
+    UNION ALL SELECT 1, 623, 90, 553, 1020
+    UNION ALL SELECT 2, 1196, 90, 554, 1020
 ) AS s
 WHERE layouts.name = '3 Bilder nebeneinander';
+

@@ -24,6 +24,9 @@ backend/
     mailer.php               Bestaetigungs-/Stornomail verschicken (PHPMailer/SMTP)
   bin/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
+  tools/
+    generate_presets.py      Erzeugt die 22 mitgelieferten Preset-Rahmen per PIL
+                             (kein Laufzeit-Bestandteil, nur bei Design-Ueberarbeitung)
   storage/
     frames/                  Rahmen-PNGs: preset_*.png sind mitgelieferte
                              Design-Vorlagen (im Repo), alles andere sind
@@ -524,6 +527,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0014_remove_reservation_status.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0015_booking_cancellation.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0016_photo_gallery.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0017_preset_redesign.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -604,6 +608,18 @@ Zusaetzlich muss der Ordner `backend/storage/gallery/` existieren und fuer
 den Webserver-Nutzer beschreibbar sein (analog zu `storage/frames/`) -
 optional laesst sich der Pfad ueber `gallery_storage_dir` in
 `includes/config.php` anpassen (siehe `config.php.example`).
+
+Migration 0017 ersetzt die 22 mitgelieferten Preset-Rahmen durch huebschere,
+neu gestaltete Versionen (abgerundete Fotoflaechen mit Passepartout-Rand,
+vier unterschiedliche Foto-Anordnungen statt immer desselben 2x2-Rasters,
+einige Designs mit Text/Icons passend zum Anlass - siehe
+`backend/tools/generate_presets.py`). Aktualisiert dafuer `frame_file` und
+die Slot-Koordinaten aller betroffenen Layouts sowie `config_version` aller
+Boxen, denen eines davon zugeordnet ist. Die neuen Rahmen-Dateien tragen ein
+`_v2`-Suffix statt die alten Namen wiederzuverwenden, damit bereits
+synchronisierte Boxen sie automatisch nachladen (siehe cloudsync.py: eine
+lokal bereits vorhandene Datei desselben Namens gilt sonst faelschlich als
+aktuell).
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

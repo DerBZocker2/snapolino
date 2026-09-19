@@ -30,3 +30,7 @@ backend/storage/invoices/*
 backend/storage/gallery/*
 !backend/storage/gallery/.gitkeep
 !backend/storage/gallery/.htaccess
+
+# Fonts fuer backend/tools/generate_presets.py werden per download_fonts.sh
+# geladen, nicht im Repo (siehe fonts/README.md dort).
+backend/tools/fonts/*.ttf

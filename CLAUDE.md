@@ -225,6 +225,24 @@ allgemeinen Panel bei anderen Kunden auftaucht. Admin legt neue
 Layout-Vorlagen (auch mit anderer Fotoanzahl) im Panel per Drag-Editor an
 (`layout_form.php`) statt Pixel-Koordinaten von Hand einzutippen.
 
+Die 22 mitgelieferten Preset-Rahmen (`storage/frames/preset_*_v2.png`) werden
+per `backend/tools/generate_presets.py` (PIL, kein Laufzeit-Bestandteil)
+erzeugt: vier unterschiedliche Foto-Anordnungen (`grid`/`hero`/`strip`/`stack`
+in `ARRANGEMENTS`, je mit eigenem, ausserhalb aller Fotoflaechen liegendem
+Beschriftungsband) statt eines einzigen geteilten 2x2-Rasters, dazu passend
+zum Anlass Text (verschiedene Google-Fonts, siehe `tools/fonts/`) und
+gezeichnete Icons (Herz, Stern, Schneeflocke, Ringe, Sonne, Blatt, Konfetti)
+bei einem Teil der Designs. Jedes Fotofeld wird als scharfkantiges Rechteck
+an die Slot-Koordinaten gesetzt (`compose_collage()` in main.py, unveraendert)
+und danach von der Rahmen-PNG mit einem abgerundeten, ausgeschnittenen
+Fenster ueberdeckt (`punch_window()`) - die Rundung entsteht also rein durch
+den Rahmen, main.py muss nichts davon wissen. Aendert sich ein Preset-Design,
+bekommt die Datei ein neues Versions-Suffix (aktuell `_v2`) statt den Namen
+wiederzuverwenden - sonst wuerde eine bereits synchronisierte Box die neue
+Grafik nie herunterladen, weil `cloudsync.py` eine lokal bereits vorhandene
+Datei desselben Namens als aktuell ansieht, unabhaengig vom tatsaechlichen
+Inhalt.
+
 Schritt 5 (Zusammenfassung): zweispaltiges Layout, links strukturierte
 Rechnungsadresse (Strasse/PLZ/Ort, optional Firma) - waehrend der Eingabe
 schlaegt eine Autocomplete gegen den oeffentlichen Adresssuchdienst Photon
