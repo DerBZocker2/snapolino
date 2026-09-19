@@ -31,12 +31,18 @@ a { color: var(--accent2-dark); }
 }
 
 .site-header {
-    background: var(--dark);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(36, 27, 58, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: #fff;
-    padding: 16px 24px;
+    padding: 14px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
 }
 
 .site-header .brand {
@@ -44,16 +50,61 @@ a { color: var(--accent2-dark); }
     font-size: 20px;
     text-decoration: none;
     color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s ease;
+}
+.site-header .brand:hover { transform: scale(1.03); }
+
+.brand-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+.site-header .brand:hover .brand-icon { transform: rotate(-12deg) scale(1.15); }
+
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 34px;
+    height: 34px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    cursor: pointer;
+}
+.nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle.open span:nth-child(2) { opacity: 0; }
+.nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.nav-toggle:hover, .nav-toggle:focus { background: transparent; }
+
+.site-header nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .site-header nav a {
     color: #ddd;
     text-decoration: none;
     font-size: 14px;
-    margin-left: 20px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.site-header nav a:hover { color: #fff; }
+.site-header nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
 
 .hero {
     text-align: center;
@@ -176,7 +227,38 @@ a { color: var(--accent2-dark); }
     margin: 0;
 }
 
-.site-header nav a.active { color: #fff; font-weight: 600; }
+.site-header nav a.active:not(.nav-cta) { color: #fff; font-weight: 600; background: rgba(255, 255, 255, 0.14); }
+
+.site-header nav a.nav-cta {
+    margin-left: 8px;
+    color: #fff;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+}
+.site-header nav a.nav-cta:hover { background: linear-gradient(90deg, var(--accent), var(--accent2)); filter: brightness(1.08); }
+
+@media (max-width: 760px) {
+    .nav-toggle { display: flex; }
+
+    .site-header nav {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        background: var(--dark);
+        padding: 8px 16px 16px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.25s ease;
+    }
+    .site-header nav.open { max-height: 320px; }
+    .site-header nav a { padding: 12px 14px; }
+    .site-header nav a.nav-cta { margin-left: 0; margin-top: 6px; text-align: center; }
+}
 
 .site-footer {
     text-align: center;
@@ -626,6 +708,12 @@ button:hover { background: var(--accent-dark); }
     cursor: pointer;
     position: relative;
     background: var(--panel);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.design-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(44, 36, 64, 0.10);
 }
 
 .design-card input { position: absolute; top: 8px; right: 8px; }
@@ -646,7 +734,24 @@ button:hover { background: var(--accent-dark); }
 .design-card:has(input:checked) {
     border-color: var(--accent2);
     background: linear-gradient(135deg, rgba(255, 111, 89, 0.06), rgba(108, 92, 231, 0.06));
+    box-shadow: 0 6px 16px rgba(108, 92, 231, 0.14);
 }
+
+.design-card-badge {
+    display: none;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--accent2);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+    z-index: 1;
+}
+.design-card:has(input:checked) .design-card-badge { display: inline-block; }
 
 .design-card-disabled { opacity: 0.45; cursor: default; }
 .design-card-disabled img { cursor: default; }
@@ -816,14 +921,39 @@ button:hover { background: var(--accent-dark); }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    margin-bottom: 8px;
+    color: var(--text);
+    margin-bottom: 10px;
 }
 
-.summary-card-head a { font-size: 13px; font-weight: 600; }
+.summary-card-head a {
+    font-size: 12px;
+    font-weight: 600;
+    background: #f2edfa;
+    color: var(--accent2-dark);
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-decoration: none;
+}
+.summary-card-head a:hover { background: #e7ddf7; }
+
+.summary-card-thumb {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.summary-card-thumb:last-child { margin-bottom: 0; }
+.summary-card-thumb img {
+    width: 64px;
+    height: 43px;
+    object-fit: contain;
+    background: #f3f0fa;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
 
 .timeline {
     list-style: none;
@@ -959,7 +1089,13 @@ button:hover { background: var(--accent-dark); }
 @media (prefers-reduced-motion: reduce) {
     .confetti-piece { animation: none; display: none; }
     .hero .button { animation: none; }
+    .reveal { transition: none; }
 }
+
+/* Nur per JS gesetzt (progressive enhancement) - ohne JS bleibt alles
+   normal sichtbar, siehe Skript am Ende von index.php. */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
 
 .photo-strip {
     display: flex;

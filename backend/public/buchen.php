@@ -339,13 +339,13 @@ require __DIR__ . '/_site_header.php';
         <h2>Fotobox buchen</h2>
         <div class="panel-box success-box">
             <?php if (isset($_GET['paid'])): ?>
-                <h3>Danke für deine Zahlung!</h3>
+                <h3>🎉 Danke für deine Zahlung!</h3>
                 <p>Deine Fotobox ist fest gebucht. Die Buchungsbestätigung mit Rechnung schicken wir
                     dir gerade per E-Mail zu (bitte auch im Spam-Ordner nachsehen). Alle weiteren
                     Details zu Versand, Aufstellung und Rücksendung bekommst du rechtzeitig vor
                     deinem Event von uns.</p>
             <?php else: ?>
-                <h3>Danke für deine Anfrage!</h3>
+                <h3>🎉 Danke für deine Anfrage!</h3>
                 <p>Wir prüfen die Verfügbarkeit und melden uns zeitnah per E-Mail bei dir – meist
                     innerhalb eines Werktags. Du musst bis dahin nichts weiter tun.</p>
             <?php endif; ?>
@@ -374,9 +374,10 @@ require __DIR__ . '/_site_header.php';
 
         <?php if ($step === 1): ?>
             <div class="panel-box" style="max-width:520px;margin:0 auto;">
-                <h3>1. Termin wählen</h3>
+                <h3>Wähle deinen Wunschtermin</h3>
+                <p class="muted">Bereits vergebene Tage sind ausgegraut - such dir einfach einen freien Tag aus.</p>
                 <div id="calendar"></div>
-                <p id="selected-date-label" class="muted">Bitte einen freien Tag anklicken.</p>
+                <p id="selected-date-label" class="muted">Tippe auf einen freien Tag, um fortzufahren.</p>
             </div>
 
         <?php elseif ($step === 2): ?>
@@ -501,6 +502,7 @@ require __DIR__ . '/_site_header.php';
                             <div class="design-gallery">
                                 <?php foreach ($extraLayouts as $layout): ?>
                                     <label class="design-card" data-cat="<?= htmlspecialchars((string) ($layout['category'] ?? ''), ENT_QUOTES) ?>">
+                                        <span class="design-card-badge">✓ Ausgewählt</span>
                                         <input type="checkbox" name="layout_ids[]" value="<?= (int) $layout['id'] ?>"
                                             <?= in_array((int) $layout['id'], $chosenLayoutIds, true) ? 'checked' : '' ?>>
                                         <img src="layout_preview.php?id=<?= (int) $layout['id'] ?>" alt="<?= htmlspecialchars($layout['name'], ENT_QUOTES) ?>" loading="lazy">
@@ -514,7 +516,7 @@ require __DIR__ . '/_site_header.php';
                             <p class="muted">Aktuell nur das Standarddesign verfügbar.</p>
                         <?php endif; ?>
 
-                        <button type="submit">Weiter</button>
+                        <button type="submit">Weiter zu den Extras</button>
                     </form>
                 </div>
 
@@ -1032,8 +1034,8 @@ require __DIR__ . '/_site_header.php';
             $baseTotal = base_price_cents() + $layoutSurcharge;
             ?>
             <div class="panel-box" style="max-width:600px;margin:0 auto;">
-                <h3>Extras &amp; Upgrades</h3>
-                <p class="muted">Extra hinzufügen oder entfernen - der Preis unten aktualisiert sich direkt.</p>
+                <h3>Möchtest du dein Erlebnis aufwerten?</h3>
+                <p class="muted">Ganz nach Wunsch dazubuchen oder einfach weiter - der Preis unten aktualisiert sich direkt.</p>
                 <form method="post" action="buchen.php?step=4&token=<?= urlencode($token) ?>" id="extras-form">
                     <?= csrf_field() ?>
                     <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
@@ -1071,7 +1073,7 @@ require __DIR__ . '/_site_header.php';
                         <span>Gesamtpreis</span>
                         <strong id="total-price"><?= money_from_cents($baseTotal) ?></strong>
                     </div>
-                    <button type="submit">Weiter</button>
+                    <button type="submit">Weiter zur Zusammenfassung</button>
                 </form>
             </div>
             <script>
@@ -1121,7 +1123,14 @@ require __DIR__ . '/_site_header.php';
 
         <?php elseif ($step === 5): ?>
             <?php
-            $chosenLayoutRows = array_values(array_filter($layouts, static fn (array $l) => in_array((int) $l['id'], $chosenLayoutIds, true)));
+            // Ueber fetch_layout_with_slots() statt $layouts holen, weil
+            // $layouts (fetch_all_layouts()) eigene Designs (is_custom=1)
+            // nicht enthaelt - die sollen in der Uebersicht aber sichtbar
+            // sein, falls per Online-Designer/Upload eines gewaehlt wurde.
+            $chosenLayoutRows = array_values(array_filter(array_map(
+                static fn (int $lid) => fetch_layout_with_slots($lid),
+                $chosenLayoutIds
+            )));
             $layoutSurchargeSum = array_sum(array_map(static fn (array $l) => (int) $l['surcharge_cents'], $chosenLayoutRows));
 
             $chosenExtraRows = [];
@@ -1194,28 +1203,30 @@ require __DIR__ . '/_site_header.php';
 
                 <div class="summary-sidebar">
                     <div class="panel-box">
-                        <h3>Deine Buchung</h3>
+                        <h3>Fast geschafft! Hier deine Übersicht</h3>
                         <p class="muted">📅 <?= htmlspecialchars(german_weekday($event) . ', ' . $event->format('d.m.Y'), ENT_QUOTES) ?></p>
 
                         <div class="summary-card">
                             <div class="summary-card-head">
-                                <span>🎨 DESIGN</span>
+                                <span>🎨 Design</span>
                                 <a href="buchen.php?step=3&token=<?= urlencode($token) ?>">Ändern</a>
                             </div>
-                            <strong><?= htmlspecialchars($defaultLayout['name'] ?? 'Standard', ENT_QUOTES) ?></strong>
                             <?php foreach ($chosenLayoutRows as $l): ?>
-                                <?php if (!$l['is_default']): ?>
+                                <div class="summary-card-thumb">
+                                    <img src="layout_preview.php?id=<?= (int) $l['id'] ?>" alt="<?= htmlspecialchars($l['name'], ENT_QUOTES) ?>" loading="lazy">
                                     <div>
-                                        <?= htmlspecialchars($l['name'], ENT_QUOTES) ?>
-                                        (<?= $l['surcharge_cents'] > 0 ? '+' . money_from_cents((int) $l['surcharge_cents']) : 'kostenlos' ?>)
+                                        <strong><?= htmlspecialchars($l['name'], ENT_QUOTES) ?></strong>
+                                        <?php if (!$l['is_default']): ?>
+                                            <div class="muted-text"><?= $l['surcharge_cents'] > 0 ? '+' . money_from_cents((int) $l['surcharge_cents']) : 'kostenlos' ?></div>
+                                        <?php endif; ?>
                                     </div>
-                                <?php endif; ?>
+                                </div>
                             <?php endforeach; ?>
                         </div>
 
                         <div class="summary-card">
                             <div class="summary-card-head">
-                                <span>✨ EXTRAS</span>
+                                <span>✨ Extras</span>
                                 <a href="buchen.php?step=4&token=<?= urlencode($token) ?>">Ändern</a>
                             </div>
                             <?php if ($chosenExtraRows): ?>
@@ -1231,7 +1242,7 @@ require __DIR__ . '/_site_header.php';
                         </div>
 
                         <div class="summary-card">
-                            <div class="summary-card-head"><span>🚚 VERSAND-ZEITPLAN (voraussichtlich)</span></div>
+                            <div class="summary-card-head"><span>🚚 Versand-Zeitplan (voraussichtlich)</span></div>
                             <ul class="timeline">
                                 <li><strong>Versand an dich</strong> &mdash; ca. <?= htmlspecialchars($shipOut->format('d.m.Y'), ENT_QUOTES) ?></li>
                                 <li><strong>Dein Event</strong> &mdash; <?= htmlspecialchars($event->format('d.m.Y'), ENT_QUOTES) ?></li>
