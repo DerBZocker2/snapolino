@@ -24,3 +24,9 @@ backend/storage/frames/*
 backend/storage/invoices/*
 !backend/storage/invoices/.gitkeep
 !backend/storage/invoices/.htaccess
+
+# Hochgeladene Event-Fotos der Online-Galerie enthalten personenbezogene
+# Daten (Gaeste-Fotos), nicht im Repo.
+backend/storage/gallery/*
+!backend/storage/gallery/.gitkeep
+!backend/storage/gallery/.htaccess

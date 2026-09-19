@@ -21,6 +21,8 @@ Build mit PyInstaller `--onedir --windowed`.
 - `output.py` – OutputWorker: Speichern, USB-Kopie, Drucken in Warteschlange
   (als getrennte Auftraege, damit ein haengender Druck nicht das Speichern
   spaeter eingereihter Fotos blockiert)
+- `gallery.py` – GalleryUploadWorker: laedt Fotos/Collagen automatisch in
+  die Online-Galerie der Cloud hoch (siehe "Online-Galerie" unten)
 - `cloudsync.py` – Konfiguration und Rahmen vom Server holen, Preflight
 - `config.py` – Konstanten, liest `box.ini` (nicht im Repo)
 
@@ -330,6 +332,72 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+## Online-Galerie
+
+Sobald die Fotobox nach dem Event wieder mit dem Internet verbunden ist
+(typischerweise nach der Rueckgabe/dem Rueckversand), laedt sie alle
+Einzelbilder und Collagen der Session automatisch in eine oeffentliche
+Online-Galerie hoch - komplett unabhaengig vom lokalen Speichern/Drucken,
+das immer funktioniert, auch ganz ohne Internet (Offline-First bleibt
+dadurch unangetastet).
+
+- **Box-Seite** (`gallery.py`, `GalleryUploadWorker`): eigener QThread,
+  parallel zu `OutputWorker`. `finish_session()` (main.py) uebergibt ihm
+  eine Kopie (`.copy()`, da parallel zum Speichern in einem zweiten Thread
+  verarbeitet - `PIL.Image.save()` ist fuer gleichzeitige Aufrufe auf
+  demselben Objekt nicht als threadsicher dokumentiert) jedes Einzelbilds
+  und der Collage, zusammen mit der Buchungs-ID aus dem zuletzt
+  synchronisierten Cloud-Stand (`cloudsync.get_booking()["id"]`, siehe
+  api.php unten). Ohne bekannte Buchung oder Cloud-Zugangsdaten passiert
+  nichts. Der Worker schreibt jedes Foto zunaechst atomar in
+  `cache/gallery_queue/<booking_id>__<dateiname>.jpg` und versucht sofort
+  den Upload per `requests.post` an `upload_photo.php` - schlaegt das fehl
+  (kein Internet, Server nicht erreichbar, 5xx), bleibt die Datei liegen
+  und wird periodisch (alle 5 Minuten) sowie bei jedem Programmstart
+  automatisch erneut versucht. Eine dauerhaft abgelehnte Anfrage (4xx, z.B.
+  weil die Box inzwischen einer anderen Buchung neu zugeordnet wurde) wird
+  verworfen statt endlos wiederholt zu werden - das Foto bleibt aber in
+  jedem Fall lokal auf der Box (und ggf. USB-Stick) gespeichert, nur der
+  Galerie-Upload muesste dann von Hand nachgeholt werden.
+- **api.php** liefert dafuer zusaetzlich die numerische `id` der aktuellen
+  Buchung mit (`bookingData.id`), damit die Box Fotos auch nach einer
+  spaeteren Neuzuordnung der Box eindeutig zuordnen kann.
+- **Cloud-Seite**: `upload_photo.php` nimmt ein einzelnes Foto entgegen
+  (Header `X-API-Key`, Felder `box`/`booking_id`, Datei `photo`) - wie
+  frame.php erst nach Pruefung von box_key+api_key, zusaetzlich muss die
+  Buchung *aktuell* dieser Box zugeordnet sein (`bookings.box_id`).
+  Erzeugt beim ersten Foto einer Buchung einmalig einen Galerie-Token
+  (`ensure_gallery_token()`, analog zu `edit_token`) und legt die Datei
+  unter `backend/storage/gallery/<booking_id>/<dateiname>` ab (ausserhalb
+  des Webroots, Ordner per `gallery_storage_dir()`/config.php-Schluessel
+  `gallery_storage_dir`, siehe config.php.example). `gallery_photos`
+  (Migration 0016) haelt Dateiname und Art (`foto`/`collage`) je Buchung
+  fest, `gallery_photo.php` liefert ein einzelnes Foto per Galerie-Token
+  aus (optional `&download=1` fuer "Datei speichern unter").
+- **`galerie.php`** ist die oeffentliche Galerie-Seite unter dem
+  unratbaren Link `?token=<gallery_token>` - bewusst in einem eigenen
+  dunklen Design (anders als die uebrige, helle Webseite), kein
+  Kundenkonto-Login noetig, damit auch Gaeste ohne eigenes Konto die
+  Fotos ansehen/laden koennen. Zeigt alle Fotos als Grid (Collage mit
+  Badge markiert), Klick oeffnet eine Lightbox (reines Vanilla-JS, mit
+  Pfeiltasten-/Klick-Navigation) fuer die Grossansicht, jede Kachel und
+  die Lightbox haben einen eigenen Download-Knopf.
+- **Admin-Panel** (`booking_detail.php`) zeigt bei einer bestaetigten
+  Buchung die Anzahl hochgeladener Fotos, einen Link zur Galerie und einen
+  Knopf "Link per Mail an Kunde senden" (`send_gallery_email()` in
+  mailer.php, reine Textmail wie die anderen `send_*_email()`-Funktionen -
+  scheitert der Versand mangels SMTP-Konfiguration, bleibt das folgenlos,
+  wie bei den anderen Mailversand-Funktionen auch).
+- Die hochgeladenen Fotos enthalten personenbezogene Daten von Event-
+  Gaesten - `backend/storage/gallery/` liegt daher wie `storage/frames`/
+  `storage/invoices` ausserhalb des Webroots, ist per `.htaccess`
+  zusaetzlich gegen Skriptausfuehrung/Directory-Listing abgesichert und
+  nicht im Repo (`.gitignore`). Der Galerie-Link ist unratbar, aber ohne
+  Login oeffentlich abrufbar (bewusst, damit auch Gaeste ohne Kundenkonto
+  zugreifen koennen) - wer den Link kennt (z.B. weitergeleitet von einem
+  Gast), sieht alle Fotos der Veranstaltung. Automatische Loeschung nach
+  einer Frist gibt es noch nicht (siehe Offene Punkte).
+
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
 - Keine Umlaute in Code-Kommentaren (Encoding-Probleme bei PyInstaller)
@@ -343,7 +411,14 @@ u.a. die Windows-Taste per Registry-Scancode-Map deaktivieren (Qt selbst
 kann sie nicht abfangen).
 
 ## Offene Punkte
-- Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
+- Online-Galerie (siehe oben) hat noch keinen QR-Code auf der Box selbst
+  (z.B. auf der COLLAGE-Seite fuers direkte Scannen durch Gaeste vor Ort) -
+  aktuell nur per Mail-Link vom Admin verschickt, sobald die Box wieder
+  synchronisiert hat
+- Galerie-Fotos koennen nur einzeln heruntergeladen werden, kein
+  "Alle als ZIP herunterladen"
+- Keine automatische Loeschung der Galerie-Fotos nach einer Frist (DSGVO,
+  siehe auch naechster Punkt)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education) -
   `set_taskbar_visible()` blendet immerhin die Taskleiste waehrend des

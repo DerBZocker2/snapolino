@@ -8,7 +8,8 @@ return [
     'db_name'     => 'snapolino',
     'db_user'     => 'snapolino',
     'db_pass'     => 'bitte_aendern',
-    'storage_dir' => __DIR__ . '/../storage/frames',
+    'storage_dir'         => __DIR__ . '/../storage/frames',
+    'gallery_storage_dir' => __DIR__ . '/../storage/gallery',
     'base_url'    => 'https://snapolino.de',
 
     // Stripe (https://dashboard.stripe.com/apikeys und .../webhooks).

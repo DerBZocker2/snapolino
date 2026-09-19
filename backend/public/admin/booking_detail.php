@@ -37,6 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'send_gallery_email') {
+        $galleryToken = ensure_gallery_token($bookingId);
+        send_gallery_email($booking, gallery_url($galleryToken));
+        header('Location: booking_detail.php?id=' . $bookingId . '&galerie_mail=1');
+        exit;
+    }
+
     if ($action === 'toggle_unlock') {
         $newValue = (int) $booking['edit_unlocked_by_admin'] === 1 ? 0 : 1;
         db()->prepare('UPDATE bookings SET edit_unlocked_by_admin = ? WHERE id = ?')
@@ -191,6 +198,10 @@ $stmt = db()->prepare('SELECT * FROM booking_addon_charges WHERE booking_id = ? 
 $stmt->execute([$bookingId]);
 $addonCharges = $stmt->fetchAll();
 
+$stmt = db()->prepare('SELECT COUNT(*) FROM gallery_photos WHERE booking_id = ?');
+$stmt->execute([$bookingId]);
+$galleryPhotoCount = (int) $stmt->fetchColumn();
+
 // Fuer die erneute Anzeige des Formulars nach einer abgebrochenen/noch zu
 // bestaetigenden Aenderung die vorgeschlagenen statt der gespeicherten
 // Werte verwenden.
@@ -203,6 +214,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 
 <?php if (isset($_GET['gespeichert'])): ?>
     <p class="badge">Gespeichert</p>
+<?php endif; ?>
+<?php if (isset($_GET['galerie_mail'])): ?>
+    <p class="badge">Galerie-Link per Mail verschickt</p>
 <?php endif; ?>
 
 <section class="panel">
@@ -327,6 +341,27 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
                 </tr>
             <?php endforeach; ?>
         </table>
+    </section>
+<?php endif; ?>
+
+<?php if ($booking['status'] === 'bestaetigt'): ?>
+    <section class="panel">
+        <h2>Online-Galerie</h2>
+        <?php if ($galleryPhotoCount === 0): ?>
+            <p class="muted-text">Noch keine Fotos hochgeladen. Das passiert automatisch, sobald die Fotobox nach
+                der Veranstaltung wieder mit dem Internet verbunden ist.</p>
+        <?php else: ?>
+            <p>
+                <?= $galleryPhotoCount ?> Foto(s) hochgeladen &middot;
+                <a href="<?= htmlspecialchars(gallery_url($booking['gallery_token'] ?: ensure_gallery_token($bookingId)), ENT_QUOTES) ?>" target="_blank" rel="noopener">Galerie ansehen</a>
+            </p>
+            <form method="post" action="booking_detail.php" style="display:inline;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+                <input type="hidden" name="form_action" value="send_gallery_email">
+                <button type="submit" class="button-secondary">Link per Mail an Kunde senden</button>
+            </form>
+        <?php endif; ?>
     </section>
 <?php endif; ?>
 

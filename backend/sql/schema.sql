@@ -84,6 +84,9 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
 CREATE TABLE IF NOT EXISTS bookings (
     id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     edit_token             VARCHAR(64) NULL UNIQUE,
+    -- Erzeugt beim ersten Foto-Upload aus der Cloud-Galerie (Migration 0016,
+    -- siehe gallery_photos unten), nicht schon bei der Buchung selbst.
+    gallery_token          VARCHAR(64) NULL UNIQUE,
     stripe_session_id      VARCHAR(255) NULL UNIQUE,
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
@@ -205,6 +208,18 @@ CREATE TABLE IF NOT EXISTS extras (
     sort_order   INT UNSIGNED NOT NULL DEFAULT 0,
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Automatisch aus der Fotobox hochgeladene Fotos/Collagen dieser Buchung -
+-- Grundlage der oeffentlichen Online-Galerie (galerie.php, Migration 0016).
+CREATE TABLE IF NOT EXISTS gallery_photos (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    booking_id  INT UNSIGNED NOT NULL,
+    filename    VARCHAR(150) NOT NULL,
+    kind        VARCHAR(10) NOT NULL DEFAULT 'foto',
+    uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_booking_filename (booking_id, filename),
+    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS booking_extras (

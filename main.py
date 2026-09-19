@@ -18,6 +18,7 @@ import cloudsync
 import config
 import hardware
 from camera import CameraThread
+from gallery import GalleryUploadWorker
 from output import OutputWorker
 
 ES_CONTINUOUS = 0x80000000
@@ -285,6 +286,7 @@ class Fotobox(QWidget):
         self._start_camera()
         self._start_worker()
         self._start_printer_watcher()
+        self._start_gallery_worker()
 
         QShortcut(QKeySequence("Ctrl+Shift+Q"), self, activated=self.request_exit)
         QShortcut(QKeySequence("Ctrl+Shift+S"), self, activated=self.trigger_resync)
@@ -548,6 +550,10 @@ class Fotobox(QWidget):
         self.printer_watcher = PrinterWatcherThread()
         self.printer_watcher.status_changed.connect(self._on_printer_status)
         self.printer_watcher.start()
+
+    def _start_gallery_worker(self):
+        self.gallery_worker = GalleryUploadWorker()
+        self.gallery_worker.start()
 
     def _on_printer_status(self, ready, name, message):
         self.dot_printer.set_ok(ready, message or name)
@@ -862,12 +868,26 @@ class Fotobox(QWidget):
         # Drucken wie zuvor ein gemeinsamer Auftrag, wuerde ein haengender
         # Druck der Collage das Speichern der danach eingereihten Einzelfotos
         # verzoegern bzw. bis zur Nutzerentscheidung ganz verhindern.
+        # Fuer die automatische Online-Galerie (siehe gallery.py) unabhaengig
+        # vom Speichern/Drucken hochladen - welche Buchung das ist, steht im
+        # zuletzt synchronisierten Cloud-Stand (leer, wenn noch nie erfolgreich
+        # synchronisiert oder aktuell keine Buchung hinterlegt ist).
+        booking = cloudsync.get_booking()
+        gallery_booking_id = booking.get("id") if booking else None
+
         individual_images = []
         for i, frame in enumerate(self.slot_frames):
             single_img = prepare_single_print(frame, config.RATIO)
             individual_images.append(single_img)
-            self.worker.submit(single_img, f"{ts}_foto{i + 1}.jpg", do_print=False)
+            filename = f"{ts}_foto{i + 1}.jpg"
+            self.worker.submit(single_img, filename, do_print=False)
+            # .copy(): das Bild wird gleich in zwei unabhaengigen Worker-
+            # Threads (Speichern hier, Galerie-Upload dort) verarbeitet -
+            # PIL-Image.save() ist fuer parallele Aufrufe auf demselben
+            # Objekt nicht als threadsicher dokumentiert.
+            self.gallery_worker.submit(single_img.copy(), filename, gallery_booking_id)
         self.worker.submit(self.collage_result, ts + ".jpg", do_print=False)
+        self.gallery_worker.submit(self.collage_result.copy(), ts + ".jpg", gallery_booking_id)
 
         if self.selected_print_index is not None and self.selected_print_index < len(individual_images):
             self.worker.submit(
@@ -1006,6 +1026,7 @@ class Fotobox(QWidget):
         self.cam.stop()
         self.worker.stop()
         self.printer_watcher.stop()
+        self.gallery_worker.stop()
         release_awake()
         if config.FULLSCREEN:
             set_taskbar_visible(True)

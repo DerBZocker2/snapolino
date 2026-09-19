@@ -177,6 +177,36 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
     }
 }
 
+// Verschickt den Link zur automatischen Online-Galerie (siehe galerie.php,
+// ensure_gallery_token()) an die Buchende Person - vom Admin per Knopf in
+// booking_detail.php ausgeloest, sobald genug Fotos hochgeladen sind.
+function send_gallery_email(array $booking, string $galleryUrl): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Galerie-Mail Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Eure Fotos sind online – Snapolino';
+        $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "die Fotos von eurer Veranstaltung sind jetzt online. Ihr und eure Gäste könnt sie euch hier "
+            . "ansehen und herunterladen:\n\n" . $galleryUrl . "\n\n"
+            . "Der Link kann gerne an alle Gäste weitergegeben werden.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Galerie-Mail Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die Bestaetigung, sobald eine Zusatzzahlung tatsaechlich
 // eingegangen ist (siehe mark_addon_charge_paid()). Fuer diese kleinen
 // Nachforderungen gibt es keine eigene fortlaufende Rechnungsnummer wie bei

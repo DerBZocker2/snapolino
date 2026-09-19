@@ -30,6 +30,8 @@ backend/
                              echte Uploads/Kundendesigns (nicht im Repo)
     invoices/                Vor Migration 0015 erzeugte eigene Rechnungs-PDFs
                              (historisch, personenbezogen, nicht im Repo)
+    gallery/                 Von der Box automatisch hochgeladene Event-Fotos
+                             (personenbezogen, nicht im Repo, siehe Online-Galerie unten)
   public/                   Docroot fuer den Webserver
     index.php                Oeffentliche Startseite
     buchen.php               Oeffentlicher Buchungsassistent (5 Schritte)
@@ -38,6 +40,9 @@ backend/
     stripe_webhook.php       Nimmt Stripe-Zahlungsbestaetigungen entgegen (signaturgeprueft)
     api.php                  Konfigurations-Endpunkt fuer die Box
     frame.php                Liefert eine Rahmen-PNG aus (API-Key, fuer die Box)
+    upload_photo.php         Nimmt Fotos/Collagen von der Box fuer die Online-Galerie entgegen
+    gallery_photo.php        Liefert ein einzelnes Galerie-Foto aus (Gallery-Token)
+    galerie.php              Oeffentliche Online-Galerie einer Buchung (dunkles Design)
     admin/                   Verwaltungs-Panel (Login-geschuetzt, Sidebar-Layout)
       bookings.php             Buchungsanfragen ablehnen/stornieren/Box zuweisen
       booking_detail.php       Details, Extras, Gesamtpreis + interne Notiz
@@ -435,7 +440,7 @@ Antwort (Auszug):
       ]
     }
   ],
-  "booking": {"customer_name": "Julia Mueller", "event_date": "2026-10-03"},
+  "booking": {"id": 42, "customer_name": "Julia Mueller", "event_date": "2026-10-03"},
   "extras": [
     {"name": "Einzelne Bilder drucken", "quantity": 1}
   ]
@@ -459,6 +464,29 @@ Header: `X-API-Key: <api_key>`
 
 Liefert die Rahmen-PNG aus, aber nur wenn die anfragende Box tatsaechlich
 ein Layout zugeordnet hat, das genau diese Datei referenziert.
+
+### `POST /upload_photo.php` (Online-Galerie)
+
+Header: `X-API-Key: <api_key>`. Formularfelder (`multipart/form-data`):
+`box` (box_key), `booking_id` (aus `booking.id` von `api.php`, siehe oben),
+Datei im Feld `photo`. Der Dateiname muss dem von `main.py::finish_session()`
+erzeugten Format entsprechen (`<Zeitstempel>.jpg` fuer die Collage,
+`<Zeitstempel>_fotoN.jpg` fuer ein Einzelbild) - daraus wird automatisch
+`kind` (`collage`/`foto`) abgeleitet. Die Buchung muss aktuell dieser Box
+zugeordnet sein (`bookings.box_id`), sonst `404`. Erzeugt beim ersten Foto
+einer Buchung automatisch deren `gallery_token`. Wird von `gallery.py` auf
+der Box aufgerufen, sobald sie wieder Internet hat - unabhaengig vom
+lokalen Speichern/Drucken, das immer funktioniert (Offline-First).
+
+### `GET /gallery_photo.php?token=<gallery_token>&file=<name>.jpg`
+
+Kein API-Key noetig (oeffentlich, wie die Galerie-Seite selbst) - der
+Gallery-Token ist der Zugriffsschutz. Optional `&download=1` fuer
+"Datei speichern unter" statt Inline-Anzeige. Genutzt von `galerie.php`,
+der oeffentlichen Galerie-Seite unter `/galerie.php?token=<gallery_token>`
+(Link steht im Admin-Panel bei der jeweiligen Buchung, siehe
+`booking_detail.php`, und kann per Knopf per Mail an den Kunden
+verschickt werden).
 
 ## Jede Aenderung erhoeht `config_version`
 
@@ -495,6 +523,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0013_stripe_invoices.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0014_remove_reservation_status.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0015_booking_cancellation.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0016_photo_gallery.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -567,6 +596,14 @@ Buchung (`cancel_booking()`, siehe "Im Panel unter Buchungen" oben). Das
 eigene Rechnungs-PDF (FPDF, `includes/invoice.php`) entfaellt ab hier
 komplett - `invoice_number` bleibt nur fuer vorher bezahlte Buchungen als
 historischer Wert stehen.
+
+Migration 0016 ergaenzt `bookings` um `gallery_token` und legt die Tabelle
+`gallery_photos` an - Grundlage der automatischen Online-Galerie (siehe
+"Online-Galerie" in CLAUDE.md und "Schnittstelle fuer die Box" oben).
+Zusaetzlich muss der Ordner `backend/storage/gallery/` existieren und fuer
+den Webserver-Nutzer beschreibbar sein (analog zu `storage/frames/`) -
+optional laesst sich der Pfad ueber `gallery_storage_dir` in
+`includes/config.php` anpassen (siehe `config.php.example`).
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

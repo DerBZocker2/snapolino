@@ -1,0 +1,9 @@
+# Hochgeladene Event-Fotos (personenbezogene Daten!) liegen ausserhalb des
+# Webroots (backend/public) - ausgeliefert wird ausschliesslich ueber
+# gallery_photo.php (prueft den Gallery-Token). Diese Datei ist eine
+# zusaetzliche Absicherung falls das Verzeichnis doch einmal direkt
+# erreichbar gemacht wird: keinerlei Skriptausfuehrung, kein
+# Directory-Listing, kein direktes Ausliefern der Bilddateien.
+php_flag engine off
+AddType text/plain .php .php3 .php4 .php5 .phtml .jpg .jpeg
+Options -Indexes -ExecCGI

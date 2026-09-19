@@ -396,6 +396,45 @@ function save_custom_layout_for_booking(int $bookingId, string $sourcePath, arra
     return $layoutId;
 }
 
+// ---------- Online-Galerie ----------
+
+// Ordner fuer hochgeladene Event-Fotos (siehe upload_photo.php/gallery_photo.php).
+// Eigener Konfigurationsschluessel, mit Fallback auf einen Ordner neben
+// storage_dir - so funktioniert es auch, solange config.php auf dem Server
+// noch nicht um gallery_storage_dir ergaenzt wurde.
+function gallery_storage_dir(): string
+{
+    $cfg = backend_config();
+    if (!empty($cfg['gallery_storage_dir'])) {
+        return rtrim($cfg['gallery_storage_dir'], '/');
+    }
+    return rtrim(dirname(rtrim($cfg['storage_dir'], '/')), '/') . '/gallery';
+}
+
+// Erzeugt beim ersten Foto-Upload einer Buchung einmalig einen unratbaren
+// Token fuer die oeffentliche Galerie-URL (siehe galerie.php) - analog zu
+// edit_token bei buchen.php. Bereits vorhandener Token bleibt unveraendert,
+// damit ein einmal verschickter Link (Mail an den Kunden) weiter gilt.
+function ensure_gallery_token(int $bookingId): string
+{
+    $stmt = db()->prepare('SELECT gallery_token FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $token = (string) $stmt->fetchColumn();
+    if ($token !== '') {
+        return $token;
+    }
+
+    $token = random_key(24);
+    db()->prepare('UPDATE bookings SET gallery_token = ? WHERE id = ?')->execute([$token, $bookingId]);
+    return $token;
+}
+
+function gallery_url(string $galleryToken): string
+{
+    $cfg = backend_config();
+    return rtrim($cfg['base_url'], '/') . '/galerie.php?token=' . rawurlencode($galleryToken);
+}
+
 // ---------- Buchungen ----------
 
 // Eine Box ist ab Versand bis Rueckversand blockiert, nicht nur am

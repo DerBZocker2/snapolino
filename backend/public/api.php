@@ -78,6 +78,11 @@ $bookingData = null;
 $extrasData = [];
 if ($currentBooking) {
     $bookingData = [
+        // 'id' wird von der Box beim automatischen Foto-Upload in die
+        // Online-Galerie mitgeschickt (siehe upload_photo.php/gallery.py),
+        // damit die Fotos auch nach einer spaeteren Box-Neuzuordnung
+        // eindeutig dieser Buchung zugeordnet werden koennen.
+        'id' => (int) $currentBooking['id'],
         'customer_name' => $currentBooking['customer_name'],
         'event_date' => $currentBooking['event_date'],
     ];
