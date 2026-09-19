@@ -102,6 +102,14 @@ naechsten Kunden vorzubereiten).
 - **Drucken im Worker-Thread**, damit die Box während der 41 s weiterläuft.
 - **Konfigurationswechsel nur zwischen Sessions**, nie mitten im Ablauf
   (`pending_cfg`).
+- **Fenster erst per `show()` anzeigen, dann erst `showFullScreen()`**
+  (im `if __name__ == "__main__":`-Block), nie direkt vollbildig ohne
+  vorheriges `show()`. Sonst kann die erste Layout-Berechnung (je nach
+  Windows-/Grafiktreiber-Kombination) auf einer kleineren Groesse als der
+  tatsaechlichen Bildschirmgroesse basieren - das fuehrte konkret dazu,
+  dass der "Weiter"-Knopf auf der WILLKOMMEN-Seite im echten Vollbild
+  unterhalb des sichtbaren Bereichs blieb, obwohl im normalen Fenstermodus
+  (Testen mit `fullscreen = false` in `box.ini`) alles korrekt aussah.
 - Dateien atomar schreiben (`os.replace`), kein halber Zustand nach Stromausfall.
 
 ## Cloud-Backend

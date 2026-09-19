@@ -928,6 +928,14 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = Fotobox()
     if config.FULLSCREEN:
+        # Erst normal zeigen, dann erst auf Vollbild wechseln - direktes
+        # showFullScreen() auf einem noch nie gezeigten Fenster liefert bei
+        # manchen Windows-/Grafiktreiber-Kombinationen eine erste Layout-
+        # Berechnung, die nicht zur tatsaechlichen (viel groesseren)
+        # Bildschirmgroesse passt. Dadurch blieb z.B. der "Weiter"-Knopf auf
+        # der WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs haengen,
+        # obwohl im normalen Fenstermodus alles korrekt aussah.
+        win.show()
         win.showFullScreen()
     else:
         win.resize(1000, 700)
