@@ -158,7 +158,11 @@ schlaegt eine Autocomplete gegen den oeffentlichen Adresssuchdienst Photon
 (komoot, OpenStreetMap-Daten, siehe `datenschutz.php`) passende Adressen
 vor und fuellt PLZ/Ort automatisch korrekt aus; rein optional, ohne
 Vorschlagsauswahl bleiben die drei Felder normal von Hand ausfuellbar,
-rechts eine sticky Buchungsuebersicht mit Gutscheincode-Einloesung. Gutscheine (Prozent oder
+rechts eine sticky Buchungsuebersicht mit Vorschaubild je gewaehltem
+Layout (holt die Zeilen bewusst per `fetch_layout_with_slots()` statt aus
+der schon geladenen Layout-Liste, da diese eigene Designs ausschliesst -
+sonst waere ein per Online-Designer/Upload erstelltes Design in der
+Uebersicht unsichtbar gewesen) und Gutscheincode-Einloesung. Gutscheine (Prozent oder
 Festbetrag, optional Ablaufdatum/Kontingent) werden im Panel unter
 **Gutscheine** angelegt; `redemption_count` zaehlt erst hoch, wenn die
 Buchung wirklich bestaetigt wird (bezahlt oder Admin bestaetigt eine

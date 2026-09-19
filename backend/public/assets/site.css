@@ -626,6 +626,12 @@ button:hover { background: var(--accent-dark); }
     cursor: pointer;
     position: relative;
     background: var(--panel);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.design-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(44, 36, 64, 0.10);
 }
 
 .design-card input { position: absolute; top: 8px; right: 8px; }
@@ -646,7 +652,24 @@ button:hover { background: var(--accent-dark); }
 .design-card:has(input:checked) {
     border-color: var(--accent2);
     background: linear-gradient(135deg, rgba(255, 111, 89, 0.06), rgba(108, 92, 231, 0.06));
+    box-shadow: 0 6px 16px rgba(108, 92, 231, 0.14);
 }
+
+.design-card-badge {
+    display: none;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--accent2);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+    z-index: 1;
+}
+.design-card:has(input:checked) .design-card-badge { display: inline-block; }
 
 .design-card-disabled { opacity: 0.45; cursor: default; }
 .design-card-disabled img { cursor: default; }
@@ -816,14 +839,39 @@ button:hover { background: var(--accent-dark); }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    margin-bottom: 8px;
+    color: var(--text);
+    margin-bottom: 10px;
 }
 
-.summary-card-head a { font-size: 13px; font-weight: 600; }
+.summary-card-head a {
+    font-size: 12px;
+    font-weight: 600;
+    background: #f2edfa;
+    color: var(--accent2-dark);
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-decoration: none;
+}
+.summary-card-head a:hover { background: #e7ddf7; }
+
+.summary-card-thumb {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.summary-card-thumb:last-child { margin-bottom: 0; }
+.summary-card-thumb img {
+    width: 64px;
+    height: 43px;
+    object-fit: contain;
+    background: #f3f0fa;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
 
 .timeline {
     list-style: none;
