@@ -104,15 +104,18 @@ naechsten Kunden vorzubereiten).
   (`pending_cfg`).
 - **Kein echtes `showFullScreen()` verwenden** (im
   `if __name__ == "__main__":`-Block), sondern das Fenster randlos
-  (`Qt.FramelessWindowHint`) manuell per `setGeometry()` auf die volle
-  Bildschirmgeometrie setzen. Qts eigener Vollbild-Fenstermodus hat sich
-  auf manchen Windows-/Grafiktreiber-Kombinationen als unzuverlaessig
-  erwiesen (auch mit vorherigem `show()` vor `showFullScreen()` half es
-  nicht) - die erste Layout-Berechnung passte dann nicht zur tatsaechlichen
-  Bildschirmgroesse, wodurch z.B. der "Weiter"-Knopf auf der
-  WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs haengen blieb, obwohl
-  im normalen Fenstermodus (Testen mit `fullscreen = false` in `box.ini`)
-  alles korrekt aussah.
+  (`Qt.FramelessWindowHint`) manuell per `setGeometry()` auf
+  `app.primaryScreen().availableGeometry()` setzen (nicht `geometry()` -
+  das schliesst eine noch sichtbare Windows-Taskleiste sonst nicht aus und
+  schneidet dadurch den unteren Rand der Seite ab, solange der
+  vollstaendige Kiosk-Modus noch nicht eingerichtet ist). Qts eigener
+  Vollbild-Fenstermodus hat sich auf manchen Windows-/Grafiktreiber-
+  Kombinationen als unzuverlaessig erwiesen (auch mit vorherigem `show()`
+  vor `showFullScreen()` half es nicht) - die erste Layout-Berechnung
+  passte dann nicht zur tatsaechlichen Bildschirmgroesse, wodurch z.B. der
+  "Weiter"-Knopf auf der WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs
+  haengen blieb, obwohl im normalen Fenstermodus (Testen mit
+  `fullscreen = false` in `box.ini`) alles korrekt aussah.
 - Dateien atomar schreiben (`os.replace`), kein halber Zustand nach Stromausfall.
 
 ## Cloud-Backend

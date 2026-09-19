@@ -935,11 +935,14 @@ if __name__ == "__main__":
         # der "Weiter"-Knopf auf der WILLKOMMEN-Seite unterhalb des
         # sichtbaren Bereichs haengen blieb, obwohl im normalen Fenstermodus
         # alles korrekt aussah. Stattdessen das Fenster ohne Rahmen manuell
-        # auf die volle Bildschirmgeometrie setzen - das erzwingt eine ganz
-        # normale Layout-Berechnung fuer eine explizit bekannte Groesse,
-        # statt sich auf Qts/Windows' internen Vollbild-Zustandswechsel zu
-        # verlassen.
-        screen_geo = app.primaryScreen().geometry()
+        # auf die tatsaechlich nutzbare Bildschirmflaeche setzen - das
+        # erzwingt eine ganz normale Layout-Berechnung fuer eine explizit
+        # bekannte Groesse, statt sich auf Qts/Windows' internen
+        # Vollbild-Zustandswechsel zu verlassen. availableGeometry() statt
+        # geometry(), damit die Windows-Taskleiste (falls sichtbar, z.B.
+        # solange der vollstaendige Kiosk-Modus noch nicht eingerichtet ist)
+        # nicht den unteren Rand der Seite verdeckt.
+        screen_geo = app.primaryScreen().availableGeometry()
         win.setWindowFlags(win.windowFlags() | Qt.FramelessWindowHint)
         win.setGeometry(screen_geo)
         win.show()
