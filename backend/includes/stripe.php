@@ -6,6 +6,22 @@ declare(strict_types=1);
 // Checkout-Sessions-Endpunkt gebraucht (Kunde zahlt auf einer von Stripe
 // gehosteten Seite, keine Kartendaten beruehren unseren Server).
 
+// http_build_query() macht aus PHP-Bool true/false die Strings "1"/"" -
+// Stripes formularkodierte API erwartet aber woertlich "true"/"false" und
+// lehnt sonst mit "Invalid boolean: 1" ab (siehe invoice_creation[enabled]
+// weiter unten). Deshalb rekursiv vor dem Encoding umwandeln.
+function stripe_encode_booleans(array $params): array
+{
+    foreach ($params as $key => $value) {
+        if (is_bool($value)) {
+            $params[$key] = $value ? 'true' : 'false';
+        } elseif (is_array($value)) {
+            $params[$key] = stripe_encode_booleans($value);
+        }
+    }
+    return $params;
+}
+
 function stripe_request(string $method, string $endpoint, array $params = []): ?array
 {
     $cfg = backend_config();
@@ -24,7 +40,7 @@ function stripe_request(string $method, string $endpoint, array $params = []): ?
 
     if ($method === 'POST') {
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(stripe_encode_booleans($params)));
     }
 
     $response = curl_exec($ch);
