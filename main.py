@@ -488,11 +488,21 @@ class Fotobox(QWidget):
             self._last_printer_popup_message = None
             return
 
-        # Nur im Leerlauf automatisch stoeren, nie mitten in einer
-        # laufenden Aufnahmesession (gleiches Prinzip wie bei der
+        # Nur im eigentlichen Leerlauf (BEREIT) automatisch stoeren, nicht
+        # auf der WILLKOMMEN-Seite - sonst kann das Popup direkt beim Start
+        # (Drucker evtl. noch nicht hochgefahren/verbunden) den frisch
+        # begruessten Kunden vor dem "Weiter"-Knopf blockieren, bevor er
+        # ueberhaupt starten konnte. Der Farbpunkt "Drucker" oben in der
+        # Leiste zeigt das Problem trotzdem durchgehend an. Nie mitten in
+        # einer laufenden Aufnahmesession (gleiches Prinzip wie bei der
         # Rueckgabe-Sperre) - und pro neuem Problem nur einmal, nicht bei
         # jeder Pruefung erneut, solange es unveraendert fortbesteht.
-        if message and not self.busy and message != self._last_printer_popup_message:
+        if (
+            message
+            and not self.busy
+            and self.pages.currentIndex() == PAGE_READY
+            and message != self._last_printer_popup_message
+        ):
             self._last_printer_popup_message = message
             self._show_printer_problem(name, message)
 
@@ -500,6 +510,10 @@ class Fotobox(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("Druckerproblem")
         dialog.setStyleSheet("background: #222; color: #eee;")
+        # Fenster-Flag + raise()/activateWindow() vor exec(), damit der
+        # Dialog auf dem Vollbild-Kiosk-Fenster sicher sichtbar obenauf
+        # erscheint statt sich moeglicherweise dahinter zu verstecken.
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout(dialog)
 
         info = QLabel(f"Drucker '{name}':\n{message}")
@@ -512,6 +526,8 @@ class Fotobox(QWidget):
         btn_ok.clicked.connect(dialog.accept)
         layout.addWidget(btn_ok)
 
+        dialog.raise_()
+        dialog.activateWindow()
         dialog.exec()
 
     def _on_print_trouble(self, message):
@@ -522,6 +538,11 @@ class Fotobox(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("Druckerproblem")
         dialog.setStyleSheet("background: #222; color: #eee;")
+        # Siehe _show_printer_problem() - dasselbe Absicherung gegen ein im
+        # Vollbild-Kiosk-Fenster versteckt bleibendes Popup, hier sogar
+        # wichtiger, weil sonst der Worker-Thread unsichtbar auf eine
+        # Nutzerentscheidung wartet und die Box wie eingefroren wirkt.
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout(dialog)
 
         label = QLabel(message + "\n\nProblem beheben (z.B. Papier/Farbband nachlegen) und dann erneut versuchen.")
@@ -539,6 +560,8 @@ class Fotobox(QWidget):
         btn_skip.clicked.connect(dialog.reject)
         layout.addWidget(btn_skip)
 
+        dialog.raise_()
+        dialog.activateWindow()
         retry = dialog.exec() == QDialog.Accepted
         self.worker.respond_print_trouble(retry)
 

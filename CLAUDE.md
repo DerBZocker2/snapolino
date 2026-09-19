@@ -71,10 +71,17 @@ Unabhaengig davon prueft `PrinterWatcherThread` (main.py) den Druckerstatus
 im Hintergrund fast sekuendlich (`PRINTER_POLL_INTERVAL_MS`, `hardware.printer_check()`)
 und aktualisiert damit sofort den Punkt "Drucker" oben in der Leiste
 (Farbe + Klartext als Detailtext). Erkennt es dabei ein Problem, poppt
-zusaetzlich ein Hinweisfenster auf - aber nur im Leerlauf (WILLKOMMEN/BEREIT,
-nie mitten in einer laufenden Aufnahmesession) und nur einmal pro neuem
-Problem, nicht bei jeder Pruefung erneut, solange es unveraendert
-fortbesteht.
+zusaetzlich ein Hinweisfenster auf - aber nur in BEREIT (nicht auf
+WILLKOMMEN, damit ein Druckerproblem direkt beim Start - Drucker evtl. noch
+nicht hochgefahren/verbunden - nicht den frisch begruessten Kunden vor dem
+"Weiter"-Knopf blockiert, bevor er ueberhaupt starten konnte; der Punkt
+"Drucker" oben zeigt das Problem trotzdem durchgehend an) und nie mitten in
+einer laufenden Aufnahmesession, sowie nur einmal pro neuem Problem, nicht
+bei jeder Pruefung erneut, solange es unveraendert fortbesteht. Sowohl
+dieses als auch das Druckfehler-Popup (`_on_print_trouble()`) setzen
+`Qt.WindowStaysOnTopHint` und rufen vor `exec()` `raise_()`/`activateWindow()`
+auf, damit sie im Vollbild-Kiosk-Fenster sicher sichtbar erscheinen statt
+sich moeglicherweise unsichtbar dahinter zu verstecken.
 
 Liegt das Eventdatum der aktuell hinterlegten Buchung mehr als
 `return_buffer_days` Tage zurueck (box.ini, Standard 2 - Event 20.9 also
