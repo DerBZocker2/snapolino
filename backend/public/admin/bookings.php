@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../../includes/payments.php';
+
 $pageTitle = 'Buchungen';
 require __DIR__ . '/_header.php';
 
@@ -28,8 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = db()->prepare("UPDATE bookings SET status = 'abgelehnt' WHERE id = ?");
             $stmt->execute([$bookingId]);
         } elseif ($action === 'cancel') {
-            $stmt = db()->prepare("UPDATE bookings SET status = 'storniert' WHERE id = ?");
-            $stmt->execute([$bookingId]);
+            cancel_booking($bookingId);
         }
     }
 

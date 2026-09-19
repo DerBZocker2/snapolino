@@ -396,28 +396,6 @@ function save_custom_layout_for_booking(int $bookingId, string $sourcePath, arra
     return $layoutId;
 }
 
-// Fortlaufende Rechnungsnummer im Format "2026-0001", ein Zaehler pro Jahr.
-// Zeilenlock (SELECT ... FOR UPDATE) statt PDO::lastInsertId(), weil
-// invoice_counters keine AUTO_INCREMENT-Spalte hat - lastInsertId() koennte
-// sonst einen veralteten Wert von einer ganz anderen, frueher im selben
-// Request gelaufenen Query liefern. Darf nicht innerhalb einer bereits
-// offenen Transaktion aufgerufen werden.
-function next_invoice_number(): string
-{
-    $year = (int) date('Y');
-    $pdo = db();
-
-    $pdo->beginTransaction();
-    $pdo->prepare('INSERT IGNORE INTO invoice_counters (year, next_number) VALUES (?, 1)')->execute([$year]);
-    $stmt = $pdo->prepare('SELECT next_number FROM invoice_counters WHERE year = ? FOR UPDATE');
-    $stmt->execute([$year]);
-    $number = (int) $stmt->fetchColumn();
-    $pdo->prepare('UPDATE invoice_counters SET next_number = next_number + 1 WHERE year = ?')->execute([$year]);
-    $pdo->commit();
-
-    return $year . '-' . str_pad((string) $number, 4, '0', STR_PAD_LEFT);
-}
-
 // ---------- Buchungen ----------
 
 // Eine Box ist ab Versand bis Rueckversand blockiert, nicht nur am

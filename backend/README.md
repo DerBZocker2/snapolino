@@ -14,19 +14,22 @@ backend/
   includes/                PHP-Code, der NICHT direkt aus dem Web erreichbar sein darf
     config.php.example      Vorlage fuer die Zugangsdaten
     config.php               (nicht im Repo, siehe Einrichtung unten)
+    lib/PHPMailer/           PHPMailer (SMTP-Mailversand), manuell eingebunden
+    stripe.php               Rohe Stripe-API-Anbindung per cURL (kein SDK) -
+                             Checkout, Rechnung, Rueckerstattung, Stornorechnung
+    payments.php             mark_booking_paid()/cancel_booking(): Buchung
+                             bestaetigen/stornieren, Mail ausloesen. Es gibt
+                             keine eigene Rechnungs-PDF mehr - ausschliesslich
+                             die bei Stripe gehostete Rechnung ist massgeblich.
+    mailer.php               Bestaetigungs-/Stornomail verschicken (PHPMailer/SMTP)
   bin/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
-    lib/fpdf/                FPDF (Rechnungs-PDF), manuell eingebunden
-    lib/PHPMailer/           PHPMailer (SMTP-Mailversand), manuell eingebunden
-    stripe.php               Rohe Stripe-API-Anbindung per cURL (kein SDK)
-    payments.php             mark_booking_paid(): Buchung bestaetigen, Rechnung + Mail ausloesen
-    invoice.php              Rechnungs-PDF erzeugen (FPDF)
-    mailer.php               Bestaetigungsmail mit Rechnung verschicken (PHPMailer/SMTP)
   storage/
     frames/                  Rahmen-PNGs: preset_*.png sind mitgelieferte
                              Design-Vorlagen (im Repo), alles andere sind
                              echte Uploads/Kundendesigns (nicht im Repo)
-    invoices/                Erzeugte Rechnungs-PDFs (personenbezogen, nicht im Repo)
+    invoices/                Vor Migration 0015 erzeugte eigene Rechnungs-PDFs
+                             (historisch, personenbezogen, nicht im Repo)
   public/                   Docroot fuer den Webserver
     index.php                Oeffentliche Startseite
     buchen.php               Oeffentlicher Buchungsassistent (5 Schritte)
@@ -169,17 +172,14 @@ Kunden buchen oeffentlich unter `/buchen.php`, ein 5-Schritte-Assistent:
      `stripe_webhook.php` (Event `checkout.session.completed`, Signatur per
      `verify_stripe_webhook()` geprueft) bestaetigt die Buchung endgueltig
      (`payments.php::mark_booking_paid()`): Status `bestaetigt`, Box
-     automatisch zugewiesen (wenn eindeutig moeglich), eigene fortlaufende
-     Rechnungsnummer vergeben, eigenes Rechnungs-PDF erzeugt und per Mail
-     verschickt. Zusaetzlich holt `store_stripe_invoice()` die von Stripe
-     bei der Checkout-Session automatisch erstellte Rechnung ab
-     (PDF-Link/Ansichtslink, `bookings.stripe_invoice_*`) und laesst Stripe
-     sie selbst per Mail verschicken (`send_stripe_invoice()`) - die
-     eigene Rechnungsnummer bleibt die massgebliche fuer die Buchhaltung,
-     die Stripe-Rechnung ist eine zusaetzliche, bei Stripe dauerhaft
-     gespeicherte Kopie (Link auch in der eigenen Bestaetigungsmail und im
-     Panel bei den Buchungsdetails). Der Redirect des Browsers zurueck auf
-     die Erfolgsseite ist nur fuers UI gedacht und bestaetigt selbst nichts.
+     automatisch zugewiesen (wenn eindeutig moeglich), Bestaetigungsmail
+     verschickt. Es gibt seit Migration 0015 **keine eigene Rechnungs-PDF
+     mehr** - `store_stripe_invoice()` holt lediglich die von Stripe bei der
+     Checkout-Session automatisch erstellte Rechnung ab (PDF-/Ansichtslink,
+     `bookings.stripe_invoice_*`) und laesst Stripe sie selbst per Mail
+     verschicken (`send_stripe_invoice()`); die eigene Bestaetigungsmail
+     verlinkt sie zusaetzlich. Der Redirect des Browsers zurueck auf die
+     Erfolgsseite ist nur fuers UI gedacht und bestaetigt selbst nichts.
    - **"Ich möchte vorab nur ein schriftliches Angebot"** (Checkbox): keine
      Zahlung, Status wird wie bisher `angefragt`, Admin bearbeitet die
      Anfrage im Panel von Hand.
@@ -201,8 +201,22 @@ abgebrochene Anfrage muss also im Panel unter **Buchungen** aktiv
 abgelehnt/storniert werden, um den Termin wieder freizugeben.
 
 Im Panel unter **Buchungen**:
-- **Ablehnen**/**Stornieren** setzen den Status, eine stornierte oder
-  abgelehnte Buchung blockiert den Kalender nicht mehr.
+- **Ablehnen** setzt nur den Status (fuer eine noch unbezahlte `angefragt`-
+  Buchung), **Stornieren** (`cancel_booking()`) macht bei einer bereits
+  bezahlten Buchung zusaetzlich drei Dinge: die Zahlung wird ueber Stripe
+  vollstaendig zurueckerstattet (`stripe_refund_payment()`, aufs
+  urspruengliche Zahlungsmittel), zur bestehenden Stripe-Rechnung wird eine
+  Stornorechnung erstellt (`stripe_create_credit_note()`, ein Stripe Credit
+  Note, kreditiert alle Rechnungspositionen) und der Kunde bekommt eine
+  Stornobestaetigung mit Link zur Stornorechnung per Mail. Eine ohne Zahlung
+  bestaetigte Angebots-Buchung bekommt beim Stornieren nur die Mail, da es
+  nichts zurueckzubuchen gibt. Beides (Ablehnen wie Stornieren) setzt den
+  Status, eine stornierte oder abgelehnte Buchung blockiert den Kalender
+  nicht mehr. Schlaegt Rueckerstattung oder Stornorechnung bei Stripe fehl,
+  wird das geloggt und in `booking_detail.php` als Warnung angezeigt -
+  storniert wird die Buchung trotzdem, damit sie den Kalender nicht laenger
+  blockiert; der Admin muss die Rueckerstattung dann von Hand im
+  Stripe-Dashboard nachholen.
 - Die Liste zeigt den Gesamtpreis (leer, solange die Buchung Schritt 5 noch
   nicht erreicht hat), das Detail zusaetzlich die gewaehlten Extras und ob
   ein schriftliches Angebot gewuenscht wurde.
@@ -269,14 +283,28 @@ anfragen.
    `smtp_user`, `smtp_pass`, `smtp_from_email`.
 5. **Rechnungsdaten** im Panel unter **Einstellungen** ausfuellen (Name/
    Firma, Anschrift, Kontakt-E-Mail/Telefon, steuerlicher Hinweis) -
-   erscheinen auf jeder erzeugten Rechnungs-PDF sowie im Impressum und in
-   der Datenschutzerklaerung auf der Buchungsseite. Voreingestellt ist der
-   Kleinunternehmer-Hinweis nach § 19 UStG; bei Regelbesteuerung hier den
-   Text anpassen und ggf. Umsatzsteuer-ID ergaenzen.
+   erscheinen im Impressum und in der Datenschutzerklaerung auf der
+   Buchungsseite (fuer die eigentliche Rechnung siehe Schritt 6, seit
+   Migration 0015 stellt ausschliesslich Stripe sie aus). Voreingestellt
+   ist der Kleinunternehmer-Hinweis nach § 19 UStG; bei Regelbesteuerung
+   hier den Text anpassen und ggf. Umsatzsteuer-ID ergaenzen.
 6. **Geschaeftsprofil bei Stripe** unter **Dashboard -> Einstellungen ->
-   Unternehmen** ausfuellen (Name, Anschrift) - diese Angaben erscheinen
-   auf der zusaetzlichen, von Stripe automatisch erstellten Rechnung
-   (siehe oben), unabhaengig von den Rechnungsdaten im eigenen Panel.
+   Unternehmen** ausfuellen (Name, Anschrift, Steuer-ID) - diese Angaben
+   erscheinen auf der von Stripe automatisch erstellten Rechnung und
+   Stornorechnung (siehe oben), die seit Migration 0015 die einzige
+   Rechnung ist, die ein Kunde bekommt.
+
+**Kostet die Stripe-Rechnung extra?** Eine per `invoice_creation` an eine
+Checkout Session gehaengte Rechnung ist Teil von Stripe Checkout und kostet
+zusaetzlich zur ohnehin anfallenden Zahlungsgebuehr (Standard EU-Karte:
+i.d.R. 1,5 % + 0,25 € pro Zahlung, siehe Dashboard) nichts extra - anders
+als Stripes eigenstaendiges "Invoicing"-Produkt (Rechnungen von Hand
+erstellen/versenden, eigene Gebuehr pro bezahlter Rechnung), das hier gar
+nicht genutzt wird. Rueckerstattungen (`stripe_refund_payment()`) und
+Credit Notes sind ebenfalls kostenlos, erstatten aber nur den Betrag - die
+urspruengliche Zahlungsgebuehr bekommt man bei einer Stornierung nicht
+zurueck. Diese Angaben koennen sich aendern; verbindlich ist immer die
+aktuelle Preisseite/das eigene Dashboard bei Stripe.
 
 Zum Testen: Stripe im Test-Modus lassen (Kreditkartennummer
 `4242 4242 4242 4242`, beliebiges zukuenftiges Datum/CVC) und mit der
@@ -466,6 +494,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0012_addon_charge_pending_changes.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0013_stripe_invoices.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0014_remove_reservation_status.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0015_booking_cancellation.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -531,6 +560,14 @@ und setzt den Standardwert der Spalte `status` entsprechend um - es gibt
 ab jetzt keine unverbindliche Reservierung mehr, jede Terminwahl ist sofort
 eine echte, den Kalender blockierende Anfrage (siehe "Ablauf" oben).
 
+Migration 0015 ergaenzt `bookings` um `cancelled_at`, `stripe_refund_id`,
+`stripe_credit_note_id` und `stripe_credit_note_pdf_url` fuer die
+automatische Rueckerstattung/Stornorechnung beim Stornieren einer bezahlten
+Buchung (`cancel_booking()`, siehe "Im Panel unter Buchungen" oben). Das
+eigene Rechnungs-PDF (FPDF, `includes/invoice.php`) entfaellt ab hier
+komplett - `invoice_number` bleibt nur fuer vorher bezahlte Buchungen als
+historischer Wert stehen.
+
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
 
@@ -541,8 +578,17 @@ meldung statt abzustuerzen.
 - Online-Designer bietet Farbe/Muster, verschiebbare Fotoflaechen sowie
   beliebig viele frei platzierbare Text-/Sticker-Elemente, aber keinen
   Logo-/Bild-Upload als Element und keine Rotation der Elemente.
-- Stripe-Webhook verschickt Rechnung/Mail synchron in der Webhook-Antwort;
-  bei SMTP-Ausfaellen dauert die Antwort laenger (Bestaetigung selbst ist
-  davon unabhaengig, nur die Mail muesste dann manuell nachverschickt
-  werden - `storage/invoices/<Rechnungsnummer>.pdf` liegt in jedem Fall
-  bereits vor).
+- Stripe-Webhook verschickt Bestaetigungsmail synchron in der
+  Webhook-Antwort; bei SMTP-Ausfaellen dauert die Antwort laenger
+  (Bestaetigung selbst ist davon unabhaengig, nur die Mail muesste dann
+  manuell nachverschickt werden - die Stripe-Rechnung bleibt in jedem Fall
+  im Stripe-Dashboard abrufbar).
+- Storniert der Admin eine bereits bezahlte Buchung und die Rueckerstattung
+  oder Stornorechnung schlaegt bei Stripe fehl (z.B. Netzwerkproblem), wird
+  das nur geloggt/in `booking_detail.php` als Warnung angezeigt - es gibt
+  noch keinen automatischen Retry, der Admin muss es von Hand im
+  Stripe-Dashboard nachholen.
+- Storniert eine bereits bezahlte Buchung mit noch offenen (nicht bezahlten)
+  Zusatzzahlungen (`booking_addon_charges`) hebt diese nicht automatisch
+  auf - die veraltete Zahlungslink-Mail bliebe gueltig, muesste der Admin
+  von Hand im Stripe-Dashboard deaktivieren.

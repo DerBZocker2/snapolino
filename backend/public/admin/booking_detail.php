@@ -253,14 +253,30 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         <tr><th>Gesamtpreis</th><td>
             <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>
         </td></tr>
-        <?php if ($booking['invoice_number']): ?>
+        <?php if ($booking['invoice_number'] || $booking['stripe_invoice_hosted_url']): ?>
             <tr><th>Rechnung</th><td>
-                <?= htmlspecialchars($booking['invoice_number'], ENT_QUOTES) ?>
+                <?php if ($booking['invoice_number']): ?>
+                    <?= htmlspecialchars($booking['invoice_number'], ENT_QUOTES) ?>
+                    <span class="muted-text">(eigene Rechnungsnummer, historisch - seit Migration 0015 stellt nur noch Stripe die Rechnung aus)</span>
+                <?php endif; ?>
                 <?php if ($booking['stripe_invoice_hosted_url']): ?>
                     · <a href="<?= htmlspecialchars($booking['stripe_invoice_hosted_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener">bei Stripe ansehen</a>
                 <?php endif; ?>
                 <?php if ($booking['stripe_invoice_pdf_url']): ?>
                     · <a href="<?= htmlspecialchars($booking['stripe_invoice_pdf_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener">PDF</a>
+                <?php endif; ?>
+            </td></tr>
+        <?php endif; ?>
+        <?php if ($booking['cancelled_at']): ?>
+            <tr><th>Storniert am</th><td>
+                <?= htmlspecialchars($booking['cancelled_at'], ENT_QUOTES) ?>
+                <?php if ($booking['stripe_refund_id']): ?>
+                    · <span class="badge">Zahlung über Stripe zurückerstattet</span>
+                <?php elseif ($booking['paid_at']): ?>
+                    · <span class="badge badge-warning">Rückerstattung fehlgeschlagen - bitte im Stripe-Dashboard prüfen</span>
+                <?php endif; ?>
+                <?php if ($booking['stripe_credit_note_pdf_url']): ?>
+                    · <a href="<?= htmlspecialchars($booking['stripe_credit_note_pdf_url'], ENT_QUOTES) ?>" target="_blank" rel="noopener">Stornorechnung (PDF)</a>
                 <?php endif; ?>
             </td></tr>
         <?php endif; ?>

@@ -338,6 +338,11 @@ td.actions button, td.actions .button, td.actions .button-secondary {
     margin-left: 6px;
 }
 
+.badge-warning {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
 .error {
     background: var(--danger-bg);
     color: var(--danger);

@@ -163,6 +163,44 @@ function send_stripe_invoice(string $invoiceId): void
     }
 }
 
+// Erstattet eine Zahlung vollstaendig ueber Stripe zurueck (Rueckbuchung
+// aufs urspruengliche Zahlungsmittel). $paymentIntentId kommt aus
+// bookings.stripe_payment_intent. Liefert das Refund-Objekt (u.a. 'id')
+// oder null bei einem Fehler - siehe cancel_booking() in payments.php.
+function stripe_refund_payment(string $paymentIntentId): ?array
+{
+    return stripe_request('POST', 'refunds', ['payment_intent' => $paymentIntentId]);
+}
+
+// Erstellt eine Stornorechnung (Stripe Credit Note) zur bereits bei Stripe
+// bestehenden Rechnung ($invoiceId, siehe invoice_creation weiter oben) -
+// kreditiert dabei jede Rechnungsposition vollstaendig. Rein die
+// Buchhaltungsunterlage; die eigentliche Rueckbuchung passiert separat
+// ueber stripe_refund_payment(). Liefert das Credit-Note-Objekt (u.a. 'id',
+// 'pdf') oder null bei einem Fehler.
+function stripe_create_credit_note(string $invoiceId): ?array
+{
+    $invoice = fetch_stripe_invoice($invoiceId);
+    $lineItems = $invoice['lines']['data'] ?? [];
+    if (!$invoice || !$lineItems) {
+        error_log('Stripe: Stornorechnung fuer Rechnung ' . $invoiceId . ' nicht moeglich - Rechnung/Positionen nicht gefunden.');
+        return null;
+    }
+
+    $params = [
+        'invoice' => $invoiceId,
+        'reason' => 'order_change',
+        'memo' => 'Stornierung der Buchung',
+    ];
+    foreach (array_values($lineItems) as $i => $line) {
+        $params['lines'][$i]['type'] = 'invoice_line_item';
+        $params['lines'][$i]['invoice_line_item'] = $line['id'];
+        $params['lines'][$i]['quantity'] = $line['quantity'] ?? 1;
+    }
+
+    return stripe_request('POST', 'credit_notes', $params);
+}
+
 // Prueft die Signatur eines eingehenden Stripe-Webhooks. $payload ist der
 // rohe Request-Body, $sigHeader der Inhalt des Headers "Stripe-Signature".
 // Liefert das dekodierte Event-Array oder null, wenn die Signatur nicht

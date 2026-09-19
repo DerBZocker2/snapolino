@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/functions.php';
-require_once __DIR__ . '/invoice.php';
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/stripe.php';
 
@@ -35,12 +34,13 @@ function store_stripe_invoice(string $table, int $id, ?string $stripeInvoiceId):
     send_stripe_invoice($stripeInvoiceId);
 }
 
-// Verarbeitet eine erfolgreiche Zahlung: bestaetigt die Buchung, vergibt
-// eine Rechnungsnummer, weist automatisch eine Box zu (wenn eindeutig
-// moeglich) und verschickt Bestaetigung + Rechnung per Mail. Idempotent -
-// Stripe kann denselben Webhook-Event mehrfach zustellen, ein bereits
-// bezahlter Booking-Datensatz (paid_at gesetzt) wird nicht doppelt
-// verarbeitet.
+// Verarbeitet eine erfolgreiche Zahlung: bestaetigt die Buchung, weist
+// automatisch eine Box zu (wenn eindeutig moeglich) und verschickt die
+// Bestaetigung per Mail - die Rechnung dazu stellt ausschliesslich Stripe
+// aus (invoice_creation, siehe stripe.php), es gibt keine eigene PDF/
+// Rechnungsnummer mehr. Idempotent - Stripe kann denselben Webhook-Event
+// mehrfach zustellen, ein bereits bezahlter Booking-Datensatz (paid_at
+// gesetzt) wird nicht doppelt verarbeitet.
 function mark_booking_paid(int $bookingId, string $paymentIntentId, ?string $stripeInvoiceId = null): void
 {
     $stmt = db()->prepare('SELECT * FROM bookings WHERE id = ?');
@@ -51,10 +51,9 @@ function mark_booking_paid(int $bookingId, string $paymentIntentId, ?string $str
         return;
     }
 
-    $invoiceNumber = next_invoice_number();
     db()->prepare(
-        "UPDATE bookings SET status = 'bestaetigt', paid_at = NOW(), stripe_payment_intent = ?, invoice_number = ? WHERE id = ?"
-    )->execute([$paymentIntentId, $invoiceNumber, $bookingId]);
+        "UPDATE bookings SET status = 'bestaetigt', paid_at = NOW(), stripe_payment_intent = ? WHERE id = ?"
+    )->execute([$paymentIntentId, $bookingId]);
 
     // Best-effort: nur automatisch zuweisen, wenn es genau eine Box gibt.
     // Bei 0 oder mehreren Boxen bleibt box_id leer, Admin weist im Panel zu
@@ -67,10 +66,61 @@ function mark_booking_paid(int $bookingId, string $paymentIntentId, ?string $str
     $booking = $stmt->fetch();
 
     try {
-        $pdfPath = generate_invoice_pdf($booking);
-        send_booking_confirmation_email($booking, $pdfPath);
+        send_booking_confirmation_email($booking);
     } catch (Throwable $e) {
-        error_log('Rechnung/Mail fehlgeschlagen fuer Buchung #' . $bookingId . ': ' . $e->getMessage());
+        error_log('Bestaetigungsmail fehlgeschlagen fuer Buchung #' . $bookingId . ': ' . $e->getMessage());
+    }
+}
+
+// Storniert eine Buchung: setzt den Status, und wenn sie bereits bezahlt war
+// (paid_at gesetzt) erstattet Stripe die Zahlung vollstaendig zurueck und
+// erhaelt eine Stornorechnung (Credit Note) zur bestehenden Stripe-Rechnung -
+// beides best-effort, ein Fehlschlag dabei darf die Stornierung selbst nicht
+// verhindern (wird aber geloggt, damit von Hand nachgeholt werden kann).
+// Verschickt anschliessend in jedem Fall eine Stornobestaetigung per Mail.
+// Idempotent - eine bereits stornierte Buchung (cancelled_at gesetzt) wird
+// nicht doppelt zurueckerstattet.
+function cancel_booking(int $bookingId): void
+{
+    $stmt = db()->prepare('SELECT * FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $booking = $stmt->fetch();
+
+    if (!$booking || $booking['cancelled_at'] !== null) {
+        return;
+    }
+
+    $wasRefunded = false;
+    $creditNotePdfUrl = null;
+
+    if ($booking['paid_at'] !== null && !empty($booking['stripe_payment_intent'])) {
+        $refund = stripe_refund_payment((string) $booking['stripe_payment_intent']);
+        if ($refund) {
+            $wasRefunded = true;
+            db()->prepare('UPDATE bookings SET stripe_refund_id = ? WHERE id = ?')
+                ->execute([$refund['id'], $bookingId]);
+        } else {
+            error_log('Stornierung Buchung #' . $bookingId . ': Rueckerstattung fehlgeschlagen, bitte manuell im Stripe-Dashboard pruefen/ausloesen.');
+        }
+
+        if (!empty($booking['stripe_invoice_id'])) {
+            $creditNote = stripe_create_credit_note((string) $booking['stripe_invoice_id']);
+            if ($creditNote) {
+                $creditNotePdfUrl = $creditNote['pdf'] ?? null;
+                db()->prepare('UPDATE bookings SET stripe_credit_note_id = ?, stripe_credit_note_pdf_url = ? WHERE id = ?')
+                    ->execute([$creditNote['id'], $creditNotePdfUrl, $bookingId]);
+            } else {
+                error_log('Stornierung Buchung #' . $bookingId . ': Stornorechnung (Credit Note) fehlgeschlagen, bitte manuell im Stripe-Dashboard erstellen.');
+            }
+        }
+    }
+
+    db()->prepare("UPDATE bookings SET status = 'storniert', cancelled_at = NOW() WHERE id = ?")->execute([$bookingId]);
+
+    try {
+        send_booking_cancelled_email($booking, $wasRefunded, $creditNotePdfUrl);
+    } catch (Throwable $e) {
+        error_log('Stornobestaetigung fehlgeschlagen fuer Buchung #' . $bookingId . ': ' . $e->getMessage());
     }
 }
 

@@ -30,11 +30,13 @@ function create_smtp_mailer(): ?PHPMailer
     return $mail;
 }
 
-// Verschickt die Buchungsbestaetigung mit der Rechnung als Anhang per SMTP.
-// Gibt false zurueck (statt zu werfen), wenn SMTP nicht konfiguriert ist
-// oder der Versand fehlschlaegt - die Buchung bleibt in jedem Fall bestaetigt,
-// ein fehlgeschlagener Mailversand darf das nicht rueckgaengig machen.
-function send_booking_confirmation_email(array $booking, string $invoicePdfPath): bool
+// Verschickt die Buchungsbestaetigung per SMTP, die Rechnung selbst kommt
+// nur noch von Stripe (kein eigenes PDF mehr, siehe mark_booking_paid()) -
+// die Mail verlinkt sie stattdessen. Gibt false zurueck (statt zu werfen),
+// wenn SMTP nicht konfiguriert ist oder der Versand fehlschlaegt - die
+// Buchung bleibt in jedem Fall bestaetigt, ein fehlgeschlagener Mailversand
+// darf das nicht rueckgaengig machen.
+function send_booking_confirmation_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
@@ -44,21 +46,20 @@ function send_booking_confirmation_email(array $booking, string $invoicePdfPath)
 
     try {
         $mail->addAddress($booking['customer_email'], $booking['customer_name']);
-        $mail->addAttachment($invoicePdfPath, 'Rechnung-' . $booking['invoice_number'] . '.pdf');
 
         $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
         $total = money_from_cents((int) $booking['total_price_cents']);
         $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
 
-        $stripeInvoiceNote = !empty($booking['stripe_invoice_hosted_url'])
-            ? "\nZusaetzlich findest du sie dauerhaft bei unserem Zahlungsdienstleister Stripe:\n" . $booking['stripe_invoice_hosted_url'] . "\n"
+        $invoiceNote = !empty($booking['stripe_invoice_hosted_url'])
+            ? "Die Rechnung dazu findest du hier:\n" . $booking['stripe_invoice_hosted_url'] . "\n\n"
             : '';
 
-        $mail->Subject = 'Buchungsbestätigung & Rechnung – Snapolino (' . $eventDate . ')';
+        $mail->Subject = 'Buchungsbestätigung – Snapolino (' . $eventDate . ')';
         $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n"
             . "vielen Dank für deine Buchung! Deine Zahlung über " . $total . " ist eingegangen, "
             . "die Fotobox ist für den " . $eventDate . " fest für dich reserviert.\n\n"
-            . "Die Rechnung findest du im Anhang dieser E-Mail.\n" . $stripeInvoiceNote . "\n"
+            . $invoiceNote
             . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
             . "Viele Grüße\n" . $fromName;
 
@@ -66,6 +67,51 @@ function send_booking_confirmation_email(array $booking, string $invoicePdfPath)
         return true;
     } catch (PHPMailerException $e) {
         error_log('Mailversand fehlgeschlagen (Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt die Stornobestaetigung, wenn ein Admin eine Buchung storniert
+// (siehe cancel_booking() in payments.php). War die Buchung bereits bezahlt,
+// wurde die Zahlung ueber Stripe zurueckerstattet und $creditNotePdfUrl
+// verlinkt die dazu erstellte Stornorechnung (Stripe Credit Note) - sonst
+// (z.B. eine ohne Zahlung bestaetigte Angebots-Buchung) ist $wasRefunded
+// false und es gibt nichts zurueckzubuchen.
+function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string $creditNotePdfUrl): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Stornierung Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        if ($wasRefunded) {
+            $total = money_from_cents((int) $booking['total_price_cents']);
+            $creditNoteNote = $creditNotePdfUrl
+                ? "Die Stornorechnung dazu findest du hier:\n" . $creditNotePdfUrl . "\n\n"
+                : '';
+            $body = "vielen Dank für deine Nachricht - deine Buchung für den " . $eventDate . " wurde storniert.\n\n"
+                . "Deine Zahlung über " . $total . " wird dir über Stripe auf dein urspruengliches "
+                . "Zahlungsmittel zurueckerstattet (je nach Zahlungsmittel kann das ein paar Tage dauern).\n\n"
+                . $creditNoteNote;
+        } else {
+            $body = "deine Buchung für den " . $eventDate . " wurde storniert.\n\n";
+        }
+
+        $mail->Subject = 'Deine Buchung wurde storniert – Snapolino';
+        $mail->Body = "Hallo " . $booking['customer_name'] . ",\n\n" . $body
+            . "Bei Fragen melde dich gerne bei uns.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Stornierung Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
         return false;
     }
 }

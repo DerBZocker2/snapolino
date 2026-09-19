@@ -107,12 +107,22 @@ CREATE TABLE IF NOT EXISTS bookings (
     agb_accepted_at        DATETIME NULL,
     edit_unlocked_by_admin TINYINT(1) NOT NULL DEFAULT 0,
     paid_at                DATETIME NULL,
+    cancelled_at           DATETIME NULL,
+    -- invoice_number ist nur noch fuer vor Migration 0015 bezahlte
+    -- Buchungen gesetzt (historische eigene Rechnungsnummer/PDF) - seitdem
+    -- ist ausschliesslich die bei Stripe gehostete Rechnung massgeblich
+    -- (siehe mark_booking_paid() in includes/payments.php).
     invoice_number         VARCHAR(30) NULL UNIQUE,
-    -- Stripe erstellt zusaetzlich zur eigenen Rechnung (invoice_number) eine
-    -- eigene, bei Stripe gehostete Rechnung (siehe Migration 0013).
+    -- Stripe erstellt automatisch eine eigene, bei Stripe gehostete
+    -- Rechnung (siehe Migration 0013). Bei einer Stornierung durch den
+    -- Admin (cancel_booking()) kommen Rueckerstattung und Stornorechnung
+    -- (Stripe Credit Note) dazu.
     stripe_invoice_id         VARCHAR(255) NULL,
     stripe_invoice_pdf_url    VARCHAR(500) NULL,
     stripe_invoice_hosted_url VARCHAR(500) NULL,
+    stripe_refund_id          VARCHAR(255) NULL,
+    stripe_credit_note_id     VARCHAR(255) NULL,
+    stripe_credit_note_pdf_url VARCHAR(500) NULL,
     created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (box_id) REFERENCES boxes(id) ON DELETE SET NULL,

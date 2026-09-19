@@ -175,19 +175,30 @@ und loest Rechnung + Bestaetigungsmail aus - der Redirect zurueck zur Seite
 ist nur fuers UI, niemals die Quelle der Wahrheit fuer "bezahlt". Wer noch
 unsicher ist, kann stattdessen die Checkbox "nur ein schriftliches
 Angebot" waehlen (dann wie bisher `status = angefragt`, keine Zahlung).
-Rechnungen: fortlaufende Nummer (`invoice_counters`, ein Zaehler pro Jahr),
-PDF per FPDF, Versand per SMTP (PHPMailer) - beide Bibliotheken ohne
-Composer eingebunden (`backend/includes/lib/`), Rechnungsdaten
+Rechnungen: ausschliesslich ueber Stripe, kein eigenes PDF mehr (bis
+Migration 0015 gab es zusaetzlich eine eigene fortlaufende Nummer + FPDF-
+PDF, das entfaellt fuer neue Buchungen komplett). `invoice_creation` bei
+der Stripe-Checkout-Session laesst automatisch eine bei Stripe gehostete
+Rechnung entstehen (`payments.php::store_stripe_invoice()` holt PDF-/
+Ansichtslink ab und loest den Mailversand direkt durch Stripe aus,
+`send_stripe_invoice()`) - die eigene Bestaetigungsmail (PHPMailer/SMTP,
+Versand per `includes/mailer.php`) verlinkt sie zusaetzlich. Rechnungsdaten
 (Name/Adresse/§19-Hinweis, zusaetzlich Kontakt-E-Mail/Telefon) im Panel
-unter **Einstellungen** pflegbar - dieselben Angaben speisen auch
-Impressum und Datenschutzerklaerung (siehe unten). Zusaetzlich laesst
-`invoice_creation` bei der Stripe-Checkout-Session automatisch eine
-eigene, bei Stripe gehostete Rechnung entstehen (`payments.php::
-store_stripe_invoice()` holt PDF-/Ansichtslink ab und loest den Mailversand
-direkt durch Stripe aus, `send_stripe_invoice()`) - die eigene fortlaufende
-Nummer bleibt massgeblich fuer die Buchhaltung, die Stripe-Rechnung ist
-eine zusaetzliche, dauerhaft bei Stripe gespeicherte Kopie (Links dazu in
-der eigenen Bestaetigungsmail und im Panel bei den Buchungsdetails).
+unter **Einstellungen** pflegbar - diese speisen nur noch Impressum und
+Datenschutzerklaerung (siehe unten), fuer die Rechnung selbst zaehlt das
+Geschaeftsprofil im Stripe-Dashboard. Storniert ein Admin im Panel unter
+**Buchungen** eine bereits bezahlte Buchung, erstattet `cancel_booking()`
+die Zahlung automatisch vollstaendig ueber Stripe zurueck
+(`stripe_refund_payment()`) und erstellt zur bestehenden Stripe-Rechnung
+eine Stornorechnung (`stripe_create_credit_note()`, ein Stripe Credit
+Note, kreditiert alle Positionen) - der Kunde bekommt dazu eine
+Stornobestaetigung mit Link zur Stornorechnung per Mail
+(`send_booking_cancelled_email()`). Eine ohne Zahlung bestaetigte
+Angebots-Buchung bekommt beim Stornieren nur die Mail. Schlaegt
+Rueckerstattung/Stornorechnung bei Stripe fehl, wird trotzdem storniert
+(sonst wuerde die Buchung den Kalender weiter blockieren) und die Warnung
+landet im Log sowie als Hinweis in `booking_detail.php` - der Admin muss
+es dann von Hand im Stripe-Dashboard nachholen.
 
 **Rechtliche Pflichtseiten** (`impressum.php`, `datenschutz.php`,
 `agb.php`, verlinkt im Footer jeder oeffentlichen Seite ueber
@@ -280,10 +291,16 @@ kann sie nicht abfangen).
   Text- und Sticker/Emoji-Elemente (Position per Maus, Größe je Element
   per Schieberegler, bei Text zusätzlich Farbe) - kein Logo-/Bild-Upload
   als Element, keine Rotation der Elemente
-- Stripe-Webhook-Verarbeitung ist synchron (PDF-Erzeugung + Mailversand
-  laufen direkt in der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das
-  die Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern
+- Stripe-Webhook-Verarbeitung ist synchron (Mailversand laeuft direkt in
+  der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das die
+  Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern
   (die Buchung ist trotzdem bestaetigt, nur die Mail fehlt und muesste
   manuell nachverschickt werden)
-- Keine Rechnungskorrektur/Stornorechnung bei nachtraeglicher Stornierung
-  einer bereits bezahlten Buchung
+- Schlaegt die automatische Rueckerstattung/Stornorechnung beim Stornieren
+  einer bezahlten Buchung bei Stripe fehl, gibt es noch keinen
+  automatischen Retry - nur eine Warnung im Log/in `booking_detail.php`,
+  der Admin muss es von Hand im Stripe-Dashboard nachholen
+- Storniert eine bereits bezahlte Buchung mit noch offenen (nicht
+  bezahlten) Zusatzzahlungen (`booking_addon_charges`) hebt diese nicht
+  automatisch auf - die veraltete Zahlungslink-Mail bliebe gueltig,
+  muesste der Admin von Hand im Stripe-Dashboard deaktivieren
