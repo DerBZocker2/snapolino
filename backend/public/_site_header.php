@@ -35,11 +35,16 @@ function legal_value(string $value, string $placeholder): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?> &ndash; Snapolino</title>
+    <link rel="icon" type="image/x-icon" href="<?= asset_url('assets/favicon.ico', __DIR__ . '/assets/favicon.ico') ?>">
+    <link rel="apple-touch-icon" href="<?= asset_url('assets/apple-touch-icon.png', __DIR__ . '/assets/apple-touch-icon.png') ?>">
     <link rel="stylesheet" href="<?= asset_url('assets/site.css', __DIR__ . '/assets/site.css') ?>">
 </head>
 <body>
 <header class="site-header">
-    <a class="brand" href="/"><span class="brand-icon">📸</span> Snapolino</a>
+    <a class="brand" href="/">
+        <img class="brand-icon" src="<?= asset_url('assets/logo-icon.png', __DIR__ . '/assets/logo-icon.png') ?>" alt="Snapolino Logo" width="28" height="28">
+        Snapolino
+    </a>
     <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Menü öffnen" aria-expanded="false" aria-controls="site-nav">
         <span></span><span></span><span></span>
     </button>

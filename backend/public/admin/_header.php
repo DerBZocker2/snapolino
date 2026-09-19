@@ -35,12 +35,16 @@ function nav_class(array $pages, string $current): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?> &ndash; Snapolino Panel</title>
+    <link rel="icon" type="image/x-icon" href="<?= asset_url('../assets/favicon.ico', __DIR__ . '/../assets/favicon.ico') ?>">
     <link rel="stylesheet" href="<?= asset_url('assets/style.css', __DIR__ . '/assets/style.css') ?>">
 </head>
 <body>
 <div class="app">
     <aside class="sidebar">
-        <div class="sidebar-brand">Snapolino</div>
+        <div class="sidebar-brand">
+            <img src="<?= asset_url('../assets/logo-icon.png', __DIR__ . '/../assets/logo-icon.png') ?>" alt="" width="26" height="26">
+            Snapolino
+        </div>
         <nav class="sidebar-nav">
             <a class="<?= nav_class(['dashboard.php'], $currentPage) ?>" href="dashboard.php">
                 <span class="nav-icon">📊</span> Übersicht

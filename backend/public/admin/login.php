@@ -38,10 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Snapolino Panel &ndash; Anmeldung</title>
+    <link rel="icon" type="image/x-icon" href="<?= asset_url('../assets/favicon.ico', __DIR__ . '/../assets/favicon.ico') ?>">
     <link rel="stylesheet" href="<?= asset_url('assets/style.css', __DIR__ . '/assets/style.css') ?>">
 </head>
 <body class="login-page">
     <form class="login-box" method="post" action="login.php">
+        <img class="login-logo" src="<?= asset_url('../assets/logo-icon.png', __DIR__ . '/../assets/logo-icon.png') ?>" alt="" width="56" height="56">
         <h1>Snapolino Panel</h1>
         <?php if ($error !== ''): ?>
             <p class="error"><?= htmlspecialchars($error, ENT_QUOTES) ?></p>

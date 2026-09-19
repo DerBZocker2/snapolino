@@ -126,6 +126,12 @@ im Panel angezeigt).
 - DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
   `config.php.example`), analog zu `box.ini` auf der Box.
 - Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts).
+- Logo: `backend/public/assets/logo-icon.png` (Kamera-Icon, aus dem
+  offiziellen Snapolino-Logo freigestellt, transparenter Hintergrund),
+  dazu `favicon.ico`/`apple-touch-icon.png` im selben Ordner - eingebunden
+  in `_site_header.php` (oeffentliche Seiten), `admin/_header.php`
+  (Sidebar) und `admin/login.php`, jeweils per `asset_url()` mit
+  Cache-Busting.
 
 ## Buchungssystem
 Kunden buchen öffentlich unter `/buchen.php`, ein 5-Schritte-Assistent
