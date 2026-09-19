@@ -31,12 +31,18 @@ a { color: var(--accent2-dark); }
 }
 
 .site-header {
-    background: var(--dark);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(36, 27, 58, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: #fff;
-    padding: 16px 24px;
+    padding: 14px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
 }
 
 .site-header .brand {
@@ -44,16 +50,61 @@ a { color: var(--accent2-dark); }
     font-size: 20px;
     text-decoration: none;
     color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s ease;
+}
+.site-header .brand:hover { transform: scale(1.03); }
+
+.brand-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+.site-header .brand:hover .brand-icon { transform: rotate(-12deg) scale(1.15); }
+
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 34px;
+    height: 34px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    cursor: pointer;
+}
+.nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle.open span:nth-child(2) { opacity: 0; }
+.nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.nav-toggle:hover, .nav-toggle:focus { background: transparent; }
+
+.site-header nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .site-header nav a {
     color: #ddd;
     text-decoration: none;
     font-size: 14px;
-    margin-left: 20px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.site-header nav a:hover { color: #fff; }
+.site-header nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
 
 .hero {
     text-align: center;
@@ -176,7 +227,38 @@ a { color: var(--accent2-dark); }
     margin: 0;
 }
 
-.site-header nav a.active { color: #fff; font-weight: 600; }
+.site-header nav a.active:not(.nav-cta) { color: #fff; font-weight: 600; background: rgba(255, 255, 255, 0.14); }
+
+.site-header nav a.nav-cta {
+    margin-left: 8px;
+    color: #fff;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+}
+.site-header nav a.nav-cta:hover { background: linear-gradient(90deg, var(--accent), var(--accent2)); filter: brightness(1.08); }
+
+@media (max-width: 760px) {
+    .nav-toggle { display: flex; }
+
+    .site-header nav {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        background: var(--dark);
+        padding: 8px 16px 16px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.25s ease;
+    }
+    .site-header nav.open { max-height: 320px; }
+    .site-header nav a { padding: 12px 14px; }
+    .site-header nav a.nav-cta { margin-left: 0; margin-top: 6px; text-align: center; }
+}
 
 .site-footer {
     text-align: center;
@@ -1007,7 +1089,13 @@ button:hover { background: var(--accent-dark); }
 @media (prefers-reduced-motion: reduce) {
     .confetti-piece { animation: none; display: none; }
     .hero .button { animation: none; }
+    .reveal { transition: none; }
 }
+
+/* Nur per JS gesetzt (progressive enhancement) - ohne JS bleibt alles
+   normal sichtbar, siehe Skript am Ende von index.php. */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
 
 .photo-strip {
     display: flex;

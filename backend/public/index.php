@@ -165,7 +165,7 @@ require __DIR__ . '/_site_header.php';
     </details>
     <details class="panel-box">
         <summary>Kann ich meine Buchung nachträglich ändern?</summary>
-        <div class="faq-answer"><p>Ja. Sobald du deine E-Mail-Adresse zum Reservieren angegeben hast,
+        <div class="faq-answer"><p>Ja. Sobald du deine E-Mail-Adresse zur Buchung angegeben hast,
             kannst du dich unter <a href="konto.php">Mein Konto</a> per E-Mail-Code einloggen
             und dort Datum, Design und Extras anpassen, solange noch nicht bezahlt wurde.
             Danach ist die Buchung nur noch einsehbar.</p></div>
@@ -189,4 +189,22 @@ require __DIR__ . '/_site_header.php';
     </details>
 </section>
 
+<script>
+(function () {
+    if (!('IntersectionObserver' in window)) { return; }
+    var targets = document.querySelectorAll('.feature-card, #faq .panel-box');
+    targets.forEach(function (el) { el.classList.add('reveal'); });
+
+    var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15 });
+
+    targets.forEach(function (el) { observer.observe(el); });
+})();
+</script>
 <?php require __DIR__ . '/_site_footer.php'; ?>

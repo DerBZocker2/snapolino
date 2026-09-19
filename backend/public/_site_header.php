@@ -13,9 +13,10 @@ $pageTitle = $pageTitle ?? 'Snapolino';
 $activeNav = $activeNav ?? '';
 $contactEmail = (string) get_setting('business_email', 'info@snapolino.de') ?: 'info@snapolino.de';
 
-function nav_link_class(string $target, string $active): string
+function nav_link_class(string $target, string $active, string $extra = ''): string
 {
-    return $target === $active ? ' class="active"' : '';
+    $classes = trim($extra . ($target === $active ? ' active' : ''));
+    return $classes !== '' ? ' class="' . htmlspecialchars($classes, ENT_QUOTES) . '"' : '';
 }
 
 // Fuer Impressum/Datenschutz/AGB: macht fehlende Pflichtangaben (Panel unter
@@ -38,11 +39,25 @@ function legal_value(string $value, string $placeholder): string
 </head>
 <body>
 <header class="site-header">
-    <a class="brand" href="/">Snapolino</a>
-    <nav>
+    <a class="brand" href="/"><span class="brand-icon">📸</span> Snapolino</a>
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Menü öffnen" aria-expanded="false" aria-controls="site-nav">
+        <span></span><span></span><span></span>
+    </button>
+    <nav id="site-nav">
         <a href="/"<?= nav_link_class('home', $activeNav) ?>>Start</a>
-        <a href="/buchen.php"<?= nav_link_class('buchen', $activeNav) ?>>Jetzt buchen</a>
         <a href="/konto.php"<?= nav_link_class('konto', $activeNav) ?>>Mein Konto</a>
         <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES) ?>">Kontakt</a>
+        <a href="/buchen.php"<?= nav_link_class('buchen', $activeNav, 'nav-cta') ?>>Jetzt buchen</a>
     </nav>
 </header>
+<script>
+(function () {
+    var toggle = document.getElementById('nav-toggle');
+    var nav = document.getElementById('site-nav');
+    toggle.addEventListener('click', function () {
+        var open = nav.classList.toggle('open');
+        toggle.classList.toggle('open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+})();
+</script>
