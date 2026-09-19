@@ -117,8 +117,16 @@ class OutputWorker(QThread):
         self._retry_decision = queue.Queue()
         self._running = True
 
-    def submit(self, pil_image, filename, do_print, copies=1):
-        self.jobs.put((pil_image, filename, do_print, copies))
+    def submit(self, pil_image, filename, do_print, copies=1, save=True):
+        """Reiht einen Auftrag ein. save=False ueberspringt das Speichern
+        (fuer einen reinen Nachdruck eines bereits gespeicherten Bildes) -
+        siehe finish_session() in main.py: dort werden erst alle Fotos einer
+        Session gespeichert (save=True, do_print=False) und danach getrennt
+        die noetigen Druckauftraege (save=False, do_print=True) eingereiht,
+        damit ein haengender Druckauftrag (Drucker aus, Papier/Farbband leer)
+        das Speichern der uebrigen Fotos nicht blockiert - die liegen dann
+        naemlich schon vorher in der Warteschlange."""
+        self.jobs.put((pil_image, filename, do_print, copies, save))
 
     def respond_print_trouble(self, retry):
         """Vom GUI-Thread aufgerufen, nachdem print_trouble beantwortet
@@ -144,33 +152,34 @@ class OutputWorker(QThread):
     def run(self):
         while self._running:
             try:
-                image, filename, do_print, copies = self.jobs.get(timeout=0.5)
+                image, filename, do_print, copies, save = self.jobs.get(timeout=0.5)
             except queue.Empty:
                 continue
 
             try:
-                os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-                path = os.path.join(config.OUTPUT_DIR, filename)
-                # Erst auf Temp-Datei im selben Ordner schreiben, dann atomar
-                # umbenennen - sonst bleibt bei Stromausfall waehrend des
-                # Schreibens ein halbes JPEG liegen.
-                tmp_path = path + ".tmp"
-                # format explizit angeben: PIL erkennt das Format sonst an
-                # der Dateiendung, ".tmp" waere ihm unbekannt.
-                image.save(tmp_path, format="JPEG", quality=95)
-                os.replace(tmp_path, path)
-                log.info("Gespeichert: %s", path)
+                if save:
+                    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+                    path = os.path.join(config.OUTPUT_DIR, filename)
+                    # Erst auf Temp-Datei im selben Ordner schreiben, dann atomar
+                    # umbenennen - sonst bleibt bei Stromausfall waehrend des
+                    # Schreibens ein halbes JPEG liegen.
+                    tmp_path = path + ".tmp"
+                    # format explizit angeben: PIL erkennt das Format sonst an
+                    # der Dateiendung, ".tmp" waere ihm unbekannt.
+                    image.save(tmp_path, format="JPEG", quality=95)
+                    os.replace(tmp_path, path)
+                    log.info("Gespeichert: %s", path)
 
-                if config.COPY_TO_USB:
-                    target = hardware.usb_target_dir()
-                    if target:
-                        usb_path = os.path.join(target, filename)
-                        usb_tmp_path = usb_path + ".tmp"
-                        shutil.copy2(path, usb_tmp_path)
-                        os.replace(usb_tmp_path, usb_path)
-                        log.info("Auf USB kopiert: %s", target)
-                    else:
-                        log.warning("Kein USB-Stick gefunden")
+                    if config.COPY_TO_USB:
+                        target = hardware.usb_target_dir()
+                        if target:
+                            usb_path = os.path.join(target, filename)
+                            usb_tmp_path = usb_path + ".tmp"
+                            shutil.copy2(path, usb_tmp_path)
+                            os.replace(usb_tmp_path, usb_path)
+                            log.info("Auf USB kopiert: %s", target)
+                        else:
+                            log.warning("Kein USB-Stick gefunden")
 
                 if do_print and config.PRINT_ENABLED:
                     self._print_with_retry(image, copies)

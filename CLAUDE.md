@@ -19,6 +19,8 @@ Build mit PyInstaller `--onedir --windowed`.
 - `camera.py` – CameraThread, hält die Kamera dauerhaft offen
 - `hardware.py` – USB-, Drucker- und Kameraerkennung über Windows-APIs
 - `output.py` – OutputWorker: Speichern, USB-Kopie, Drucken in Warteschlange
+  (als getrennte Auftraege, damit ein haengender Druck nicht das Speichern
+  spaeter eingereihter Fotos blockiert)
 - `cloudsync.py` – Konfiguration und Rahmen vom Server holen, Preflight
 - `config.py` – Konstanten, liest `box.ini` (nicht im Repo)
 
@@ -33,7 +35,17 @@ falls Extra "Einzelne Bilder drucken" gebucht ist, zusaetzlich ein Bild
 fuer Extra-Druck auswaehlbar samt Anzahl der Abzuege (1 bis
 `MAX_INDIVIDUAL_PRINT_COPIES`, aktuell 3, fest in main.py - keine zweite
 Extra-Buchung fuer die Menge noetig)) → COLLAGE → Druckfrage mit gruenem
-Knopf → speichern/drucken (Collage + ggf. Einzelbild-Extra-Druck) → BEREIT.
+Knopf → speichern/drucken → BEREIT. Gespeichert werden dabei immer **alle**
+Einzelbilder der Session (`<Zeitstempel>_foto1.jpg` usw.) und die Collage
+(`<Zeitstempel>.jpg`) - unabhaengig davon, ob/wie gut der Drucker gerade
+erkannt wird. Gedruckt wird weiterhin nur die Collage sowie, falls das
+Extra "Einzelne Bilder drucken" gebucht und ein Bild dafuer ausgewaehlt
+wurde, zusaetzlich dieses eine Einzelbild. `finish_session()` reiht dafuer
+bewusst zuerst alle Speichervorgaenge in die `OutputWorker`-Warteschlange
+ein und erst danach die eigentlichen Druckauftraege (`OutputWorker.submit(...,
+save=False)`) - sonst wuerde ein an einem Druckerproblem haengender
+Collage-Druck (siehe naechster Absatz) das Speichern der danach
+eingereihten Einzelbilder verzoegern bzw. verhindern.
 
 Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
 (Ziffernblock statt Tastatur, PIN kommt per Cloud-Sync von der jeweiligen
@@ -283,7 +295,11 @@ kann sie nicht abfangen).
   erst dort und nicht im globalen Druckerstatus zeigen. Trotzdem nicht bei
   jedem Treiber zuverlässig/vollstaendig - `python hardware.py [Druckername]`
   auf dem Geraet mit dem Drucker gibt alle Rohwerte aller drei Quellen aus,
-  falls ein Fehlerzustand weiterhin nicht erkannt wird
+  falls ein Fehlerzustand weiterhin nicht erkannt wird. Das Speichern aller
+  Fotos ist davon aber bewusst unabhaengig (siehe "Ablauf" oben) - selbst
+  wenn der Drucker gar nicht oder falsch erkannt wird, landen alle
+  Einzelbilder und die Collage trotzdem auf der Platte, nur der Ausdruck
+  haengt dann am Popup fest.
 - Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
 - Online-Designer bietet Farbe/Muster, verschieb- und

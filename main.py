@@ -744,11 +744,30 @@ class Fotobox(QWidget):
             self._reset()
             return
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.worker.submit(self.collage_result, ts + ".jpg", do_print=True)
 
-        if self.selected_print_index is not None and self.selected_print_index < len(self.slot_frames):
-            single_img = prepare_single_print(self.slot_frames[self.selected_print_index], config.RATIO)
-            self.worker.submit(single_img, ts + "_einzel.jpg", do_print=True, copies=self.print_copies)
+        # Jedes einzelne aufgenommene Foto UND die Collage sollen immer
+        # gespeichert werden, unabhaengig davon, ob/wie gut der Drucker
+        # gerade erkannt wird (siehe CLAUDE.md "Offene Punkte") - deshalb
+        # zuerst alle Speichervorgaenge einreihen (do_print=False, schnell,
+        # blockiert nie), danach getrennt die eigentlichen Druckauftraege
+        # (save=False, koennen bei Druckerproblemen an respond_print_trouble()
+        # haengen bleiben, siehe OutputWorker.submit()). Waeren Speichern und
+        # Drucken wie zuvor ein gemeinsamer Auftrag, wuerde ein haengender
+        # Druck der Collage das Speichern der danach eingereihten Einzelfotos
+        # verzoegern bzw. bis zur Nutzerentscheidung ganz verhindern.
+        individual_images = []
+        for i, frame in enumerate(self.slot_frames):
+            single_img = prepare_single_print(frame, config.RATIO)
+            individual_images.append(single_img)
+            self.worker.submit(single_img, f"{ts}_foto{i + 1}.jpg", do_print=False)
+        self.worker.submit(self.collage_result, ts + ".jpg", do_print=False)
+
+        if self.selected_print_index is not None and self.selected_print_index < len(individual_images):
+            self.worker.submit(
+                individual_images[self.selected_print_index], f"{ts}_foto{self.selected_print_index + 1}.jpg",
+                do_print=True, copies=self.print_copies, save=False,
+            )
+        self.worker.submit(self.collage_result, ts + ".jpg", do_print=True, save=False)
 
         self.hint.setText("Wird gespeichert und gedruckt …")
         self.collage_result = None
