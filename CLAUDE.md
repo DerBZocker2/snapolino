@@ -105,24 +105,33 @@ naechsten Kunden vorzubereiten).
 - **Kein echtes `showFullScreen()` verwenden** (im
   `if __name__ == "__main__":`-Block), sondern das Fenster randlos
   (`Qt.FramelessWindowHint`) manuell per `setGeometry()` auf
-  `app.primaryScreen().availableGeometry()` setzen (nicht `geometry()` -
-  das schliesst eine noch sichtbare Windows-Taskleiste sonst nicht aus und
-  schneidet dadurch den unteren Rand der Seite ab, solange der
-  vollstaendige Kiosk-Modus noch nicht eingerichtet ist). Qts eigener
-  Vollbild-Fenstermodus hat sich auf manchen Windows-/Grafiktreiber-
-  Kombinationen als unzuverlaessig erwiesen (auch mit vorherigem `show()`
-  vor `showFullScreen()` half es nicht) - die erste Layout-Berechnung
-  passte dann nicht zur tatsaechlichen Bildschirmgroesse, wodurch z.B. der
+  `app.primaryScreen().geometry()` setzen. Qts eigener Vollbild-
+  Fenstermodus hat sich auf manchen Windows-/Grafiktreiber-Kombinationen
+  als unzuverlaessig erwiesen (auch mit vorherigem `show()` vor
+  `showFullScreen()` half es nicht) - die erste Layout-Berechnung passte
+  dann nicht zur tatsaechlichen Bildschirmgroesse, wodurch z.B. der
   "Weiter"-Knopf auf der WILLKOMMEN-Seite unterhalb des sichtbaren Bereichs
   haengen blieb, obwohl im normalen Fenstermodus (Testen mit
   `fullscreen = false` in `box.ini`) alles korrekt aussah.
+  `geometry()` statt `availableGeometry()`, weil die Windows-Taskleiste
+  dafuer bewusst per `set_taskbar_visible(False)` ausgeblendet wird (siehe
+  unten) - mit `availableGeometry()` (Bildschirm ohne Taskleiste) waere die
+  Taskleiste stattdessen weiterhin sichtbar am unteren Rand geblieben.
 - **`set_dpi_aware()`** (main.py, `SetProcessDpiAwareness`/`SetProcessDPIAware`
   per ctypes) **vor der ersten QApplication-Instanz aufrufen.** Ohne explizite
   DPI-Awareness meldet Windows je nach Version/Kompatibilitaetseinstellung
   eine virtualisierte (skalierte) statt der tatsaechlichen Bildschirm-
   aufloesung - das war die eigentliche Ursache dafuer, dass
-  `availableGeometry()` je nach Rechner/Skalierung einen anderen Wert
-  lieferte und das Vollbild-Fenster falsch berechnet wurde.
+  `availableGeometry()`/`geometry()` je nach Rechner/Skalierung einen
+  anderen Wert lieferte und das Vollbild-Fenster falsch berechnet wurde.
+- **`set_taskbar_visible()`** blendet die Windows-Taskleiste beim Start
+  aus (`FindWindowW("Shell_TrayWnd")` + `ShowWindow` per ctypes) und in
+  `closeEvent()` beim sauberen Beenden wieder ein. Kein vollstaendiger
+  Kiosk-Modus (dafuer braeuchte es Shell Launcher/Windows 11 Enterprise,
+  siehe Offene Punkte), aber verhindert, dass die Taskleiste waehrend des
+  Betriebs sichtbar/bedienbar ist. Stuerzt das Programm ab, ohne dass
+  `closeEvent()` laeuft, bleibt die Taskleiste bis zum naechsten Explorer-/
+  Windows-Neustart versteckt (akzeptiertes Restrisiko, siehe Offene Punkte).
 - **Aktionsbuttons per `setMinimumHeight()` statt `setFixedHeight()`**
   (WILLKOMMEN-Weiter, Wiederholen/Weiter, Neu starten/Drucken,
   Rahmenauswahl, Uebersicht-Weiter). Ein fixiertes Widget kann Qt nie
@@ -336,7 +345,10 @@ kann sie nicht abfangen).
 ## Offene Punkte
 - Galerie mit QR-Code pro Bild und pro Event (offline-first, verzögerter Upload)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
-  (bräuchte Shell Launcher, also Windows 11 Enterprise/Education)
+  (bräuchte Shell Launcher, also Windows 11 Enterprise/Education) -
+  `set_taskbar_visible()` blendet immerhin die Taskleiste waehrend des
+  Betriebs aus, bleibt aber bei einem Absturz ohne sauberes `closeEvent()`
+  bis zum naechsten Explorer-/Windows-Neustart versteckt
 - `printer_status_message()`/`printer_ready()` fragen inzwischen sowohl die
   klassischen Windows-Statusflags als auch WMI (`Win32_Printer.DetectedErrorState`)
   ab, und `output.py` wartet nach jedem Druckauftrag zusaetzlich auf dessen

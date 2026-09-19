@@ -24,6 +24,9 @@ ES_CONTINUOUS = 0x80000000
 ES_SYSTEM_REQUIRED = 0x00000001
 ES_DISPLAY_REQUIRED = 0x00000002
 
+SW_HIDE = 0
+SW_SHOW = 5
+
 PAGE_WELCOME = 0
 PAGE_READY = 1
 PAGE_LIVE = 2
@@ -79,6 +82,23 @@ def set_dpi_aware():
             ctypes.windll.user32.SetProcessDPIAware()
         except (AttributeError, OSError):
             pass
+
+
+def set_taskbar_visible(visible):
+    """Blendet die Windows-Taskleiste aus/wieder ein. Kein vollstaendiger
+    Kiosk-Modus (siehe CLAUDE.md "Offene Punkte" - dafuer braeuchte es Shell
+    Launcher/Windows 11 Enterprise), aber verhindert, dass die Taskleiste
+    waehrend des Betriebs am unteren Bildschirmrand sichtbar/bedienbar ist.
+    Muss beim Beenden unbedingt wieder eingeblendet werden (siehe
+    closeEvent()) - stuerzt das Programm ab, ohne dass closeEvent() laeuft,
+    bleibt die Taskleiste bis zum naechsten Explorer-/Windows-Neustart
+    versteckt."""
+    try:
+        hwnd = ctypes.windll.user32.FindWindowW("Shell_TrayWnd", None)
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, SW_SHOW if visible else SW_HIDE)
+    except (AttributeError, OSError):
+        pass
 
 
 def crop_to_ratio(frame, ratio):
@@ -987,6 +1007,8 @@ class Fotobox(QWidget):
         self.worker.stop()
         self.printer_watcher.stop()
         release_awake()
+        if config.FULLSCREEN:
+            set_taskbar_visible(True)
         log.info("Fotobox beendet")
         super().closeEvent(event)
 
@@ -1006,14 +1028,16 @@ if __name__ == "__main__":
         # der "Weiter"-Knopf auf der WILLKOMMEN-Seite unterhalb des
         # sichtbaren Bereichs haengen blieb, obwohl im normalen Fenstermodus
         # alles korrekt aussah. Stattdessen das Fenster ohne Rahmen manuell
-        # auf die tatsaechlich nutzbare Bildschirmflaeche setzen - das
-        # erzwingt eine ganz normale Layout-Berechnung fuer eine explizit
-        # bekannte Groesse, statt sich auf Qts/Windows' internen
-        # Vollbild-Zustandswechsel zu verlassen. availableGeometry() statt
-        # geometry(), damit die Windows-Taskleiste (falls sichtbar, z.B.
-        # solange der vollstaendige Kiosk-Modus noch nicht eingerichtet ist)
-        # nicht den unteren Rand der Seite verdeckt.
-        screen_geo = app.primaryScreen().availableGeometry()
+        # auf die volle Bildschirmgeometrie setzen - das erzwingt eine ganz
+        # normale Layout-Berechnung fuer eine explizit bekannte Groesse,
+        # statt sich auf Qts/Windows' internen Vollbild-Zustandswechsel zu
+        # verlassen. Dank set_dpi_aware() liefert geometry() jetzt zuverlaessig
+        # die echte Bildschirmgroesse. Die Windows-Taskleiste wird dafuer
+        # ausgeblendet (set_taskbar_visible(), wieder eingeblendet in
+        # closeEvent()) - sonst wuerde sie ueber dem unteren Rand der Seite
+        # liegen, da sie eigentlich immer im Vordergrund bleibt.
+        set_taskbar_visible(False)
+        screen_geo = app.primaryScreen().geometry()
         win.setWindowFlags(win.windowFlags() | Qt.FramelessWindowHint)
         win.setGeometry(screen_geo)
         win.show()
