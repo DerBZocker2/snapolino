@@ -570,6 +570,31 @@ dadurch unangetastet).
   kennt (nur die Buchende Person, per Mail verschickt), zusaetzlich alle
   ausgeblendeten und kann die Sichtbarkeit aendern.
 
+## Startseite: Kundenbewertungen und Illustrationen
+Im Panel unter **Bewertungen** (`testimonials.php`/`testimonial_form.php`)
+pflegt der Admin echte Kundenstimmen (Name, optional Anlass, 1-5 Sterne,
+Zitat) - bewusst ohne Seed-Daten, da erfundene Bewertungen irrefuehrend
+waeren. `index.php` zeigt den Abschnitt "Das sagen unsere Kunden" nur, wenn
+mindestens eine aktive Bewertung existiert (`fetch_active_testimonials()`),
+sonst bleibt er komplett weg statt eine leere Sektion zu zeigen. Eine gute
+Quelle fuer echte Zitate: Antworten auf die automatische Bewertungsanfrage
+(siehe "Automatische E-Mails" oben).
+
+Die Startseite zeigt ausserdem zwei per PIL gezeichnete Illustrationen
+(`public/assets/hero-illustration.png` - Fotobox-Geraet mit Kamera-Icon,
+Konfetti und herausragendem Fotostreifen; `photo-strip-illustration.png` -
+ein Fotostreifen-Mockup mit vier bunten Motiven) statt echter Kundenfotos,
+solange noch keine ausreichende Auswahl an echten, freigegebenen
+Event-Fotos vorliegt (siehe "Offene Punkte" unten) - bewusst abstrakt
+gezeichnet statt KI-generierter "Fake-Kundenfotos", die faelschlich echte
+Personen/Events suggerieren wuerden. Erzeugt von
+`backend/tools/generate_homepage_art.py` (kein Laufzeit-Bestandteil,
+einmalig auszufuehren, analog zu `generate_presets.py`), nutzt dieselbe
+Markenpalette (`#ff6f59`/`#6c5ce7`/`#fffaf5`) und Formsprache (Herz, Stern,
+Konfetti) wie die Preset-Rahmen. Sobald echte Event-Fotos mit
+Einwilligung der Gaeste vorliegen, sollten diese die Illustrationen
+ersetzen.
+
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
 - Keine Umlaute in Code-Kommentaren (Encoding-Probleme bei PyInstaller)
@@ -597,6 +622,10 @@ kann sie nicht abfangen).
   synchronisiert hat
 - Galerie-Fotos koennen nur einzeln heruntergeladen werden, kein
   "Alle als ZIP herunterladen"
+- Startseite zeigt aktuell gezeichnete Illustrationen statt echter
+  Kundenfotos (siehe "Startseite: Kundenbewertungen und Illustrationen"
+  oben) - sollte durch echte, mit Einwilligung freigegebene Event-Fotos
+  ersetzt werden, sobald genug davon vorliegen (z.B. aus der Online-Galerie)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education) -
   `set_taskbar_visible()` blendet immerhin die Taskleiste waehrend des

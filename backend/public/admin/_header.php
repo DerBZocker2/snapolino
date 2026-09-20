@@ -84,6 +84,9 @@ function nav_class(array $pages, string $current): string
             <a class="<?= nav_class(['coupons.php', 'coupon_form.php'], $currentPage) ?>" href="coupons.php">
                 <span class="nav-icon">🎟️</span> Gutscheine
             </a>
+            <a class="<?= nav_class(['testimonials.php', 'testimonial_form.php'], $currentPage) ?>" href="testimonials.php">
+                <span class="nav-icon">⭐</span> Bewertungen
+            </a>
             <a class="<?= nav_class(['settings.php'], $currentPage) ?>" href="settings.php">
                 <span class="nav-icon">⚙️</span> Einstellungen
             </a>

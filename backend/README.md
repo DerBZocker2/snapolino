@@ -30,6 +30,8 @@ backend/
   tools/
     generate_presets.py      Erzeugt die 22 mitgelieferten Preset-Rahmen per PIL
                              (kein Laufzeit-Bestandteil, nur bei Design-Ueberarbeitung)
+    generate_homepage_art.py Erzeugt die Illustrationen der Startseite per PIL
+                             (kein Laufzeit-Bestandteil, siehe CLAUDE.md)
   storage/
     frames/                  Rahmen-PNGs: preset_*.png sind mitgelieferte
                              Design-Vorlagen (im Repo), alles andere sind
@@ -570,6 +572,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0022_review_requests.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0023_returning_customer_discount.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0024_maintenance_checklist.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0025_testimonials.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -701,6 +704,10 @@ noetig, laeuft direkt bei jeder Preisberechnung.
 Migration 0024 legt `maintenance_checklist_items` und
 `box_maintenance_checks` fuer die Wartungs-Checkliste im Panel unter Boxen
 an - siehe "Wartungs-Checkliste" in CLAUDE.md. Kein Cronjob noetig.
+
+Migration 0025 legt `testimonials` fuer die Kundenbewertungen auf der
+Startseite an - siehe "Startseite: Kundenbewertungen und Illustrationen" in
+CLAUDE.md. Kein Cronjob noetig, bewusst ohne Seed-Daten.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

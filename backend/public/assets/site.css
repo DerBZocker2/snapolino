@@ -212,6 +212,43 @@ a { color: var(--accent2-dark); }
     background: linear-gradient(135deg, rgba(255, 111, 89, 0.15), rgba(108, 92, 231, 0.15));
 }
 
+.testimonial-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+@media (max-width: 800px) {
+    .testimonial-grid { grid-template-columns: 1fr; }
+}
+
+.testimonial-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.testimonial-card .stars {
+    color: var(--accent);
+    font-size: 16px;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.testimonial-card .quote {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    margin: 0 0 14px;
+}
+
+.testimonial-card .author {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.testimonial-card .author .muted { font-weight: 400; }
+
 .feature-card:nth-child(2) .icon { background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(23, 195, 178, 0.15)); }
 .feature-card:nth-child(3) .icon { background: linear-gradient(135deg, rgba(23, 195, 178, 0.15), rgba(255, 111, 89, 0.15)); }
 
@@ -1106,38 +1143,29 @@ button:hover { background: var(--accent-dark); }
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease; }
 .reveal.is-visible { opacity: 1; transform: translateY(0); }
 
-.photo-strip {
+.hero-visuals {
     display: flex;
     justify-content: center;
-    gap: 18px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
     margin: 0 auto 8px;
-    max-width: 760px;
+    max-width: 900px;
     padding: 0 20px;
 }
 
-.photo-strip .polaroid {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px 8px 18px;
-    box-shadow: 0 10px 22px rgba(44, 36, 64, 0.10);
-    transition: transform 0.2s ease;
-}
-.photo-strip .polaroid:nth-child(1) { transform: rotate(-4deg); }
-.photo-strip .polaroid:nth-child(2) { transform: rotate(3deg); }
-.photo-strip .polaroid:nth-child(3) { transform: rotate(-2deg); }
-.photo-strip .polaroid:hover { transform: scale(1.06) rotate(0deg); }
-
-.photo-strip .polaroid svg {
+.hero-visuals img {
     display: block;
-    width: 96px;
-    height: 72px;
-    border-radius: 3px;
+    max-width: 100%;
+    height: auto;
 }
 
-@media (max-width: 600px) {
-    .photo-strip .polaroid svg { width: 72px; height: 54px; }
+.hero-visuals .hero-illustration { width: 380px; }
+.hero-visuals .hero-photo-strip { width: 150px; }
+
+@media (max-width: 700px) {
+    .hero-visuals { flex-direction: column; gap: 0; }
+    .hero-visuals .hero-illustration { width: 260px; }
+    .hero-visuals .hero-photo-strip { display: none; }
 }
 
 .feature-card .icon { transition: transform 0.2s ease; }

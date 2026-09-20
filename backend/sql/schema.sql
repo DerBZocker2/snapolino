@@ -279,6 +279,20 @@ CREATE TABLE IF NOT EXISTS extras (
     updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Kundenbewertungen fuer die Startseite (Migration 0025), im Panel unter
+-- Bewertungen verwaltbar - bewusst ohne Seed-Daten, index.php zeigt den
+-- Abschnitt nur bei mindestens einer aktiven Bewertung.
+CREATE TABLE IF NOT EXISTS testimonials (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    customer_name  VARCHAR(100) NOT NULL,
+    event_type     VARCHAR(100) NULL,
+    rating         TINYINT UNSIGNED NOT NULL DEFAULT 5,
+    quote          TEXT NOT NULL,
+    is_active      TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order     INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Automatisch aus der Fotobox hochgeladene Fotos/Collagen dieser Buchung -
 -- Grundlage der oeffentlichen Online-Galerie (galerie.php, Migration 0016).
 CREATE TABLE IF NOT EXISTS gallery_photos (

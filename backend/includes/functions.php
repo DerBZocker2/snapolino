@@ -683,6 +683,19 @@ function fetch_all_extras(): array
     return db()->query('SELECT * FROM extras ORDER BY sort_order, name')->fetchAll();
 }
 
+// ---------- Kundenbewertungen ----------
+
+// Fuer die Startseite - nur echte, vom Admin freigeschaltete Bewertungen.
+function fetch_active_testimonials(): array
+{
+    return db()->query('SELECT * FROM testimonials WHERE is_active = 1 ORDER BY sort_order, id')->fetchAll();
+}
+
+function fetch_all_testimonials(): array
+{
+    return db()->query('SELECT * FROM testimonials ORDER BY sort_order, id')->fetchAll();
+}
+
 function booking_layout_ids(int $bookingId): array
 {
     $stmt = db()->prepare('SELECT layout_id FROM booking_layouts WHERE booking_id = ?');

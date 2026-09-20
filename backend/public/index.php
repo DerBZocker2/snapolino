@@ -14,10 +14,12 @@ try {
     $priceCents = base_price_cents();
     $priceLabel = base_price_label();
     $presetCount = count(fetch_all_layouts());
+    $testimonials = fetch_active_testimonials();
 } catch (PDOException $e) {
     $priceCents = 0;
     $priceLabel = '';
     $presetCount = 0;
+    $testimonials = [];
 }
 
 require __DIR__ . '/_site_header.php';
@@ -51,30 +53,9 @@ require __DIR__ . '/_site_header.php';
     </p>
 </section>
 
-<div class="photo-strip" aria-hidden="true">
-    <div class="polaroid">
-        <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg">
-            <rect width="96" height="72" fill="#2c2440"/>
-            <circle cx="48" cy="38" r="16" fill="#ff6f59"/>
-            <circle cx="48" cy="38" r="9" fill="#fffaf5"/>
-            <path d="M30 20h10l4-6h8l4 6h10v6H30z" fill="#6c5ce7"/>
-        </svg>
-    </div>
-    <div class="polaroid">
-        <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg">
-            <rect width="96" height="72" fill="#6c5ce7"/>
-            <circle cx="34" cy="46" r="14" fill="#fffaf5"/>
-            <circle cx="64" cy="40" r="18" fill="#17c3b2"/>
-            <circle cx="60" cy="34" r="4" fill="#fffaf5"/>
-        </svg>
-    </div>
-    <div class="polaroid">
-        <svg viewBox="0 0 96 72" xmlns="http://www.w3.org/2000/svg">
-            <rect width="96" height="72" fill="#ff6f59"/>
-            <path d="M12 60L36 24l16 20 10-12 22 28z" fill="#fffaf5"/>
-            <circle cx="72" cy="20" r="7" fill="#fffaf5"/>
-        </svg>
-    </div>
+<div class="hero-visuals">
+    <img class="hero-illustration" src="<?= asset_url('assets/hero-illustration.png', __DIR__ . '/assets/hero-illustration.png') ?>" alt="Illustration einer Fotobox mit Kamera-Symbol auf dem Bildschirm und einem gedruckten Fotostreifen" loading="lazy">
+    <img class="hero-photo-strip" src="<?= asset_url('assets/photo-strip-illustration.png', __DIR__ . '/assets/photo-strip-illustration.png') ?>" alt="Illustrierter Fotostreifen mit vier bunten Motiven" loading="lazy">
 </div>
 
 <section class="section" id="ablauf">
@@ -128,6 +109,29 @@ require __DIR__ . '/_site_header.php';
         </div>
     </div>
 </section>
+
+<?php if ($testimonials): ?>
+<section class="section" id="bewertungen">
+    <h2>Das sagen unsere <span class="accent-text">Kunden</span></h2>
+    <p class="lead">Echte Rückmeldungen von echten Veranstaltungen.</p>
+    <div class="testimonial-grid">
+        <?php foreach ($testimonials as $t): ?>
+            <div class="testimonial-card">
+                <div class="stars" aria-label="<?= (int) $t['rating'] ?> von 5 Sternen">
+                    <?= str_repeat('★', (int) $t['rating']) . str_repeat('☆', 5 - (int) $t['rating']) ?>
+                </div>
+                <p class="quote">„<?= nl2br(htmlspecialchars($t['quote'], ENT_QUOTES)) ?>“</p>
+                <div class="author">
+                    <?= htmlspecialchars($t['customer_name'], ENT_QUOTES) ?>
+                    <?php if ($t['event_type']): ?>
+                        <span class="muted"> · <?= htmlspecialchars($t['event_type'], ENT_QUOTES) ?></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</section>
+<?php endif; ?>
 
 <section class="section" id="faq">
     <h2>Häufige Fragen</h2>
