@@ -2,12 +2,15 @@
 declare(strict_types=1);
 
 // Liefert ein einzelnes Foto/Collage der Online-Galerie aus. Aufruf:
-// GET /gallery_photo.php?token=<gallery_token>&file=<name>.jpg
+// GET /gallery_photo.php?token=<gallery_token oder gallery_guest_token>&file=<name>.jpg
 // Optional &download=1 fuer "Datei speichern unter" statt Inline-Anzeige.
 // Die Datei liegt ausserhalb des Webroots (backend/storage/gallery/), der
-// Gallery-Token ist der einzige Zugriffsschutz - wie edit_token bei
-// buchen.php: unratbar (24 Zufallsbytes), aber kein Passwort/Login noetig,
-// damit auch Gaeste ohne eigenes Konto Fotos ansehen/laden koennen.
+// Token ist der einzige Zugriffsschutz - wie edit_token bei buchen.php:
+// unratbar (24 Zufallsbytes), aber kein Passwort/Login noetig, damit auch
+// Gaeste ohne eigenes Konto Fotos ansehen/laden koennen. Der Gaeste-Token
+// darf ausgeblendete Fotos nicht ausliefern, selbst wenn der Dateiname
+// erraten wuerde (Verteidigung in der Tiefe - normalerweise taucht der
+// Dateiname fuer Gaeste ohnehin nirgends auf, siehe galerie.php).
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -27,17 +30,27 @@ if ($token === '' || $file === '' || !preg_match('/^[A-Za-z0-9_\-]+\.jpg$/', $fi
     gallery_photo_error(400, 'token und file sind erforderlich');
 }
 
-$stmt = db()->prepare('SELECT id, gallery_token FROM bookings WHERE gallery_token = ?');
-$stmt->execute([$token]);
+$stmt = db()->prepare('SELECT id, gallery_token, gallery_guest_token FROM bookings WHERE gallery_token = ? OR gallery_guest_token = ?');
+$stmt->execute([$token, $token]);
 $booking = $stmt->fetch();
 
-if (!$booking || !hash_equals($booking['gallery_token'], $token)) {
+$isGuest = false;
+if ($booking && hash_equals((string) $booking['gallery_token'], $token)) {
+    $isGuest = false;
+} elseif ($booking && hash_equals((string) $booking['gallery_guest_token'], $token)) {
+    $isGuest = true;
+} else {
+    $booking = null;
+}
+
+if (!$booking) {
     gallery_photo_error(404, 'Galerie nicht gefunden');
 }
 
-$stmt = db()->prepare('SELECT 1 FROM gallery_photos WHERE booking_id = ? AND filename = ?');
+$stmt = db()->prepare('SELECT hidden FROM gallery_photos WHERE booking_id = ? AND filename = ?');
 $stmt->execute([$booking['id'], $file]);
-if (!$stmt->fetch()) {
+$photo = $stmt->fetch();
+if (!$photo || ($isGuest && (int) $photo['hidden'] === 1)) {
     gallery_photo_error(404, 'Foto nicht gefunden');
 }
 

@@ -397,37 +397,64 @@ dadurch unangetastet).
   (Header `X-API-Key`, Felder `box`/`booking_id`, Datei `photo`) - wie
   frame.php erst nach Pruefung von box_key+api_key, zusaetzlich muss die
   Buchung *aktuell* dieser Box zugeordnet sein (`bookings.box_id`).
-  Erzeugt beim ersten Foto einer Buchung einmalig einen Galerie-Token
+  Erzeugt beim ersten Foto einer Buchung einmalig zwei Tokens
   (`ensure_gallery_token()`, analog zu `edit_token`) und legt die Datei
   unter `backend/storage/gallery/<booking_id>/<dateiname>` ab (ausserhalb
   des Webroots, Ordner per `gallery_storage_dir()`/config.php-Schluessel
   `gallery_storage_dir`, siehe config.php.example). `gallery_photos`
-  (Migration 0016) haelt Dateiname und Art (`foto`/`collage`) je Buchung
-  fest, `gallery_photo.php` liefert ein einzelnes Foto per Galerie-Token
-  aus (optional `&download=1` fuer "Datei speichern unter").
-- **`galerie.php`** ist die oeffentliche Galerie-Seite unter dem
-  unratbaren Link `?token=<gallery_token>` - bewusst in einem eigenen
-  dunklen Design (anders als die uebrige, helle Webseite), kein
-  Kundenkonto-Login noetig, damit auch Gaeste ohne eigenes Konto die
-  Fotos ansehen/laden koennen. Zeigt alle Fotos als Grid (Collage mit
-  Badge markiert), Klick oeffnet eine Lightbox (reines Vanilla-JS, mit
-  Pfeiltasten-/Klick-Navigation) fuer die Grossansicht, jede Kachel und
-  die Lightbox haben einen eigenen Download-Knopf.
+  (Migration 0016, `hidden`-Spalte seit Migration 0018) haelt Dateiname
+  und Art (`foto`/`collage`) je Buchung fest, `gallery_photo.php` liefert
+  ein einzelnes Foto per Token aus (optional `&download=1` fuer "Datei
+  speichern unter") - mit dem Gaeste-Token (siehe unten) nie ein
+  ausgeblendetes Foto, selbst bei erratenem Dateinamen.
+- **Zwei getrennte Links** (Migration 0018, `bookings.gallery_token`/
+  `gallery_guest_token`): `gallery_token` ist der **Verwalter-Link** fuer
+  die Buchende Person - sieht alle Fotos inkl. ausgeblendeter, kann Fotos
+  aus-/einblenden (`gallery_photos.hidden`) und findet auf der Seite selbst
+  den Gaeste-Link zum Kopieren/Weitergeben. `gallery_guest_token` ist der
+  separate **Gaeste-Link** - rein lesend, zeigt nur nicht ausgeblendete
+  Fotos, kein Hinweis auf den Verwalter-Link. Beide fuehren auf dieselbe
+  `galerie.php?token=...`, die Rolle ergibt sich rein daraus, gegen welche
+  der beiden Spalten der Token passt (`gallery_find_booking()`). Aus-/
+  Einblenden ist ein simples POST auf `galerie.php` selbst (PRG-Redirect,
+  keine CSRF-Absicherung noetig - der Token selbst ist die Berechtigung,
+  wer ihn kennt braucht kein CSRF).
+- **`galerie.php`** ist die oeffentliche Galerie-Seite - bewusst in einem
+  eigenen dunklen Design (anders als die uebrige, helle Webseite), kein
+  Kundenkonto-Login noetig. Zeigt alle (fuer die jeweilige Rolle sichtbaren)
+  Fotos als grosses Grid (Collage mit Badge markiert, ausgeblendete Fotos
+  fuer den Verwalter abgedunkelt mit eigenem Badge), Klick oeffnet eine
+  Lightbox (reines Vanilla-JS, Pfeiltasten-/Klick-Navigation) fuer die
+  Grossansicht, jede Kachel und die Lightbox haben einen eigenen Download-
+  Knopf. Ein Banner zeigt das automatische Loeschdatum (siehe unten) an -
+  fuer beide Rollen, aus Transparenzgruenden. Wurden die Fotos einer
+  Buchung bereits geloescht (`bookings.gallery_deleted_at` gesetzt), zeigt
+  die Seite statt des leeren Grids einen entsprechenden Hinweis - der Link
+  bleibt also verstaendlich statt einfach "nicht gefunden" zu melden.
 - **Admin-Panel** (`booking_detail.php`) zeigt bei einer bestaetigten
-  Buchung die Anzahl hochgeladener Fotos, einen Link zur Galerie und einen
-  Knopf "Link per Mail an Kunde senden" (`send_gallery_email()` in
-  mailer.php, reine Textmail wie die anderen `send_*_email()`-Funktionen -
-  scheitert der Versand mangels SMTP-Konfiguration, bleibt das folgenlos,
-  wie bei den anderen Mailversand-Funktionen auch).
+  Buchung die Anzahl hochgeladener (und ausgeblendeter) Fotos, das
+  automatische Loeschdatum, beide Links getrennt (Verwalter-Link mit
+  Erklaerung, Gaeste-Link zum manuellen Weitergeben) und einen Knopf
+  "Verwalter-Link per Mail an Kunde senden" (`send_gallery_email()` in
+  mailer.php - scheitert der Versand mangels SMTP-Konfiguration, bleibt
+  das folgenlos, wie bei den anderen Mailversand-Funktionen auch).
+- **Automatische Loeschung (DSGVO)**: Einstellung `gallery_retention_days`
+  (Panel unter Einstellungen, Standard 30) legt fest, wie viele Tage NACH
+  DEM EVENTDATUM die Fotos einer Buchung aufbewahrt werden.
+  `bin/purge_expired_galleries.php` (fuer einen taeglichen Cronjob gedacht,
+  siehe backend/README.md) loescht dann die Bilddateien, den Bildordner und
+  die `gallery_photos`-Zeilen der betroffenen Buchungen und setzt
+  `gallery_deleted_at`. Die Tokens selbst bleiben bestehen (siehe oben).
 - Die hochgeladenen Fotos enthalten personenbezogene Daten von Event-
   Gaesten - `backend/storage/gallery/` liegt daher wie `storage/frames`/
   `storage/invoices` ausserhalb des Webroots, ist per `.htaccess`
   zusaetzlich gegen Skriptausfuehrung/Directory-Listing abgesichert und
-  nicht im Repo (`.gitignore`). Der Galerie-Link ist unratbar, aber ohne
-  Login oeffentlich abrufbar (bewusst, damit auch Gaeste ohne Kundenkonto
-  zugreifen koennen) - wer den Link kennt (z.B. weitergeleitet von einem
-  Gast), sieht alle Fotos der Veranstaltung. Automatische Loeschung nach
-  einer Frist gibt es noch nicht (siehe Offene Punkte).
+  nicht im Repo (`.gitignore`). Beide Galerie-Links sind unratbar, aber
+  ohne Login oeffentlich abrufbar (bewusst, damit auch Gaeste ohne
+  Kundenkonto zugreifen koennen) - wer den Gaeste-Link kennt, sieht alle
+  nicht ausgeblendeten Fotos der Veranstaltung, wer den Verwalter-Link
+  kennt (nur die Buchende Person, per Mail verschickt), zusaetzlich alle
+  ausgeblendeten und kann die Sichtbarkeit aendern.
 
 ## Konventionen
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
@@ -456,8 +483,6 @@ kann sie nicht abfangen).
   synchronisiert hat
 - Galerie-Fotos koennen nur einzeln heruntergeladen werden, kein
   "Alle als ZIP herunterladen"
-- Keine automatische Loeschung der Galerie-Fotos nach einer Frist (DSGVO,
-  siehe auch naechster Punkt)
 - Vollständiger Windows-Kiosk-Modus ohne sichtbaren Desktop/Explorer
   (bräuchte Shell Launcher, also Windows 11 Enterprise/Education) -
   `set_taskbar_visible()` blendet immerhin die Taskleiste waehrend des
@@ -476,7 +501,10 @@ kann sie nicht abfangen).
   wenn der Drucker gar nicht oder falsch erkannt wird, landen alle
   Einzelbilder und die Collage trotzdem auf der Platte, nur der Ausdruck
   haengt dann am Popup fest.
-- Automatische Löschung nach 30 Tagen, AVV, DSGVO-Konzept
+- Automatische Löschung nach einer Frist gibt es bisher nur für die
+  Online-Galerie-Fotos (siehe oben, `gallery_retention_days`) - lokale
+  Fotos auf der Box selbst (`ausgabe/`-Ordner, USB-Kopien) sowie ein
+  umfassendes AVV/DSGVO-Konzept fürs Gesamtsystem fehlen noch
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
 - Online-Designer bietet Farbe/Muster, verschieb- und
   größenveränderbare Fotoflächen sowie beliebig viele frei platzierbare

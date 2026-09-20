@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'send_gallery_email') {
         $galleryToken = ensure_gallery_token($bookingId);
-        send_gallery_email($booking, gallery_url($galleryToken));
+        $deletionDate = gallery_deletion_date($booking['event_date']);
+        send_gallery_email($booking, gallery_url($galleryToken), $deletionDate->format('d.m.Y'));
         header('Location: booking_detail.php?id=' . $bookingId . '&galerie_mail=1');
         exit;
     }
@@ -198,9 +199,11 @@ $stmt = db()->prepare('SELECT * FROM booking_addon_charges WHERE booking_id = ? 
 $stmt->execute([$bookingId]);
 $addonCharges = $stmt->fetchAll();
 
-$stmt = db()->prepare('SELECT COUNT(*) FROM gallery_photos WHERE booking_id = ?');
+$stmt = db()->prepare('SELECT COUNT(*) AS total, SUM(hidden) AS hidden_count FROM gallery_photos WHERE booking_id = ?');
 $stmt->execute([$bookingId]);
-$galleryPhotoCount = (int) $stmt->fetchColumn();
+$galleryCounts = $stmt->fetch();
+$galleryPhotoCount = (int) ($galleryCounts['total'] ?? 0);
+$galleryHiddenCount = (int) ($galleryCounts['hidden_count'] ?? 0);
 
 // Fuer die erneute Anzeige des Formulars nach einer abgebrochenen/noch zu
 // bestaetigenden Aenderung die vorgeschlagenen statt der gespeicherten
@@ -347,19 +350,39 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 <?php if ($booking['status'] === 'bestaetigt'): ?>
     <section class="panel">
         <h2>Online-Galerie</h2>
-        <?php if ($galleryPhotoCount === 0): ?>
+        <?php if ($booking['gallery_deleted_at']): ?>
+            <p class="muted-text">Fotos wurden am
+                <?= htmlspecialchars((new DateTimeImmutable($booking['gallery_deleted_at']))->format('d.m.Y'), ENT_QUOTES) ?>
+                gemäß der Aufbewahrungsfrist automatisch gelöscht (DSGVO).</p>
+        <?php elseif ($galleryPhotoCount === 0): ?>
             <p class="muted-text">Noch keine Fotos hochgeladen. Das passiert automatisch, sobald die Fotobox nach
                 der Veranstaltung wieder mit dem Internet verbunden ist.</p>
         <?php else: ?>
+            <?php
+            $organizerToken = $booking['gallery_token'] ?: ensure_gallery_token($bookingId);
+            $guestToken = $booking['gallery_guest_token'] ?: ensure_gallery_guest_token($bookingId);
+            $deletionDate = gallery_deletion_date($booking['event_date']);
+            ?>
             <p>
-                <?= $galleryPhotoCount ?> Foto(s) hochgeladen &middot;
-                <a href="<?= htmlspecialchars(gallery_url($booking['gallery_token'] ?: ensure_gallery_token($bookingId)), ENT_QUOTES) ?>" target="_blank" rel="noopener">Galerie ansehen</a>
+                <?= $galleryPhotoCount ?> Foto(s) hochgeladen
+                <?php if ($galleryHiddenCount > 0): ?>(<?= $galleryHiddenCount ?> davon vom Kunden ausgeblendet)<?php endif; ?>
+                &middot; automatische Löschung am <?= htmlspecialchars($deletionDate->format('d.m.Y'), ENT_QUOTES) ?>
             </p>
+            <table class="key-table">
+                <tr><th>Verwalter-Link</th><td>
+                    <a href="<?= htmlspecialchars(gallery_url($organizerToken), ENT_QUOTES) ?>" target="_blank" rel="noopener"><?= htmlspecialchars(gallery_url($organizerToken), ENT_QUOTES) ?></a>
+                    <br><span class="muted-text">Für die Buchende Person - kann dort Fotos aus-/einblenden und findet den Gäste-Link.</span>
+                </td></tr>
+                <tr><th>Gäste-Link</th><td>
+                    <a href="<?= htmlspecialchars(gallery_guest_url($guestToken), ENT_QUOTES) ?>" target="_blank" rel="noopener"><?= htmlspecialchars(gallery_guest_url($guestToken), ENT_QUOTES) ?></a>
+                    <br><span class="muted-text">Nur Ansicht/Download, keine ausgeblendeten Fotos - zum Weitergeben an Gäste.</span>
+                </td></tr>
+            </table>
             <form method="post" action="booking_detail.php" style="display:inline;">
                 <?= csrf_field() ?>
                 <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
                 <input type="hidden" name="form_action" value="send_gallery_email">
-                <button type="submit" class="button-secondary">Link per Mail an Kunde senden</button>
+                <button type="submit" class="button-secondary">Verwalter-Link per Mail an Kunde senden</button>
             </form>
         <?php endif; ?>
     </section>

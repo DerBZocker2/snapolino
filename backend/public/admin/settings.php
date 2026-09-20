@@ -12,6 +12,7 @@ $businessAddress = (string) get_setting('business_address', '');
 $businessTaxNote = (string) get_setting('business_tax_note', '');
 $businessEmail = (string) get_setting('business_email', '');
 $businessPhone = (string) get_setting('business_phone', '');
+$galleryRetentionDays = (string) gallery_retention_days();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -23,12 +24,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $businessTaxNote = trim((string) ($_POST['business_tax_note'] ?? ''));
     $businessEmail = trim((string) ($_POST['business_email'] ?? ''));
     $businessPhone = trim((string) ($_POST['business_phone'] ?? ''));
+    $galleryRetentionDays = trim((string) ($_POST['gallery_retention_days'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
     }
     if ($businessEmail !== '' && !filter_var($businessEmail, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Bitte eine gültige Kontakt-E-Mail-Adresse angeben.';
+    }
+    if (!ctype_digit($galleryRetentionDays) || (int) $galleryRetentionDays < 1) {
+        $errors[] = 'Aufbewahrungsfrist der Galerie-Fotos muss eine ganze Zahl >= 1 sein.';
     }
 
     if (!$errors) {
@@ -39,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('business_tax_note', $businessTaxNote);
         set_setting('business_email', $businessEmail);
         set_setting('business_phone', $businessPhone);
+        set_setting('gallery_retention_days', (string) (int) $galleryRetentionDays);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -87,6 +93,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <label>Steuerlicher Hinweis (Rechnung &amp; Impressum, z.B. §19 UStG-Hinweis oder USt-IdNr.)
             <input type="text" name="business_tax_note" value="<?= htmlspecialchars($businessTaxNote, ENT_QUOTES) ?>">
+        </label>
+
+        <h2>Online-Galerie</h2>
+        <p class="muted-text">Nach wie vielen Tagen <strong>nach dem Eventdatum</strong> die automatisch
+            hochgeladenen Galerie-Fotos endgültig gelöscht werden (DSGVO) - erfordert einen täglichen Cronjob
+            für <code>bin/purge_expired_galleries.php</code>, siehe <code>backend/README.md</code>.</p>
+        <label>Aufbewahrungsfrist in Tagen
+            <input type="number" min="1" name="gallery_retention_days" value="<?= htmlspecialchars($galleryRetentionDays, ENT_QUOTES) ?>" style="max-width:120px;">
         </label>
 
         <button type="submit">Speichern</button>

@@ -86,7 +86,15 @@ CREATE TABLE IF NOT EXISTS bookings (
     edit_token             VARCHAR(64) NULL UNIQUE,
     -- Erzeugt beim ersten Foto-Upload aus der Cloud-Galerie (Migration 0016,
     -- siehe gallery_photos unten), nicht schon bei der Buchung selbst.
+    -- gallery_token ist der Verwalter-Link (Fotos ausblenden, Gaeste-Link
+    -- einsehen), gallery_guest_token der separate, read-only Link zum
+    -- Weitergeben an Gaeste (Migration 0018). gallery_deleted_at wird
+    -- gesetzt, sobald bin/purge_expired_galleries.php die Fotos dieser
+    -- Buchung geloescht hat (DSGVO-Aufbewahrungsfrist, siehe Einstellung
+    -- gallery_retention_days).
     gallery_token          VARCHAR(64) NULL UNIQUE,
+    gallery_guest_token    VARCHAR(64) NULL UNIQUE,
+    gallery_deleted_at     DATETIME NULL,
     stripe_session_id      VARCHAR(255) NULL UNIQUE,
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
@@ -217,6 +225,9 @@ CREATE TABLE IF NOT EXISTS gallery_photos (
     booking_id  INT UNSIGNED NOT NULL,
     filename    VARCHAR(150) NOT NULL,
     kind        VARCHAR(10) NOT NULL DEFAULT 'foto',
+    -- Vom Organisator (Verwalter-Link) ausgeblendet - nur die Gaeste-Ansicht
+    -- blendet es aus, der Organisator sieht es weiterhin (zum Wieder-Einblenden).
+    hidden      TINYINT(1) NOT NULL DEFAULT 0,
     uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uniq_booking_filename (booking_id, filename),
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
@@ -244,7 +255,10 @@ INSERT IGNORE INTO settings (name, value) VALUES
     ('business_address', 'Straße Hausnummer\nPLZ Ort'),
     ('business_tax_note', 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.'),
     ('business_email', 'info@snapolino.de'),
-    ('business_phone', '');
+    ('business_phone', ''),
+    -- Tage NACH DEM EVENTDATUM, nach denen bin/purge_expired_galleries.php
+    -- die Galerie-Fotos einer Buchung endgueltig loescht (DSGVO).
+    ('gallery_retention_days', '30');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES

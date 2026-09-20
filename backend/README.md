@@ -24,6 +24,7 @@ backend/
     mailer.php               Bestaetigungs-/Stornomail verschicken (PHPMailer/SMTP)
   bin/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
+    purge_expired_galleries.php  Loescht abgelaufene Galerie-Fotos (DSGVO), fuer taeglichen Cronjob
   tools/
     generate_presets.py      Erzeugt die 22 mitgelieferten Preset-Rahmen per PIL
                              (kein Laufzeit-Bestandteil, nur bei Design-Ueberarbeitung)
@@ -87,6 +88,17 @@ sudo apt install php-gd php-curl php-mbstring && sudo systemctl reload apache2
 4. Docroot des Webservers auf `backend/public` zeigen lassen, HTTPS
    erzwingen (die API gibt echte Zugangsdaten als Header/Query zurueck).
 5. Panel unter `https://snapolino.de/admin/` aufrufen und einloggen.
+6. Fuer die automatische Loeschung der Online-Galerie-Fotos nach Ablauf der
+   Aufbewahrungsfrist (DSGVO, Panel unter **Einstellungen** editierbar,
+   Standard 30 Tage nach dem Eventdatum) einen taeglichen Cronjob einrichten:
+   ```
+   crontab -e
+   # taeglich um 4 Uhr nachts:
+   0 4 * * * php /var/www/snapolino.de/backend/bin/purge_expired_galleries.php >> /var/log/snapolino-gallery-purge.log 2>&1
+   ```
+   Ohne diesen Cronjob werden die Fotos weiterhin unbegrenzt gespeichert -
+   die Anzeige der Aufbewahrungsfrist im Panel/auf der Galerie-Seite selbst
+   loescht nichts, sie ist nur die Ankuendigung dafuer.
 
 ## Ablauf beim Anlegen einer Box
 
@@ -528,6 +540,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0015_booking_cancellation.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0016_photo_gallery.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0017_preset_redesign.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0018_gallery_management.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -620,6 +633,15 @@ Boxen, denen eines davon zugeordnet ist. Die neuen Rahmen-Dateien tragen ein
 synchronisierte Boxen sie automatisch nachladen (siehe cloudsync.py: eine
 lokal bereits vorhandene Datei desselben Namens gilt sonst faelschlich als
 aktuell).
+
+Migration 0018 trennt die Online-Galerie in einen Verwalter-Link
+(`gallery_token` - Fotos aus-/einblenden, sieht den Gaeste-Link) und einen
+neuen, separaten `gallery_guest_token` (read-only, keine ausgeblendeten
+Fotos) - siehe "Online-Galerie" in CLAUDE.md. Ergaenzt ausserdem
+`gallery_photos.hidden` und `bookings.gallery_deleted_at` sowie die neue
+Einstellung `gallery_retention_days` (Standard 30 Tage nach Eventdatum) fuer
+die automatische Loeschung per `bin/purge_expired_galleries.php` (siehe
+Cronjob-Hinweis oben unter "Ablauf beim Anlegen einer Box").
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

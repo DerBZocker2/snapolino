@@ -411,28 +411,73 @@ function gallery_storage_dir(): string
     return rtrim(dirname(rtrim($cfg['storage_dir'], '/')), '/') . '/gallery';
 }
 
-// Erzeugt beim ersten Foto-Upload einer Buchung einmalig einen unratbaren
-// Token fuer die oeffentliche Galerie-URL (siehe galerie.php) - analog zu
-// edit_token bei buchen.php. Bereits vorhandener Token bleibt unveraendert,
-// damit ein einmal verschickter Link (Mail an den Kunden) weiter gilt.
+// Erzeugt beim ersten Foto-Upload einer Buchung einmalig zwei unratbare
+// Tokens fuer die oeffentliche Galerie (siehe galerie.php) - analog zu
+// edit_token bei buchen.php. gallery_token ist der Verwalter-Link (Fotos
+// ausblenden, sieht auch ausgeblendete Fotos und den Gaeste-Link),
+// gallery_guest_token der separate, read-only Link zum Weitergeben an
+// Gaeste. Bereits vorhandene Tokens bleiben unveraendert, damit einmal
+// verschickte Links (Mail an den Kunden, ggf. von ihm weitergeleitet)
+// weiter gelten. Gibt den Verwalter-Token zurueck.
 function ensure_gallery_token(int $bookingId): string
 {
-    $stmt = db()->prepare('SELECT gallery_token FROM bookings WHERE id = ?');
+    $stmt = db()->prepare('SELECT gallery_token, gallery_guest_token FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $row = $stmt->fetch();
+    $token = (string) ($row['gallery_token'] ?? '');
+    $guestToken = (string) ($row['gallery_guest_token'] ?? '');
+    if ($token !== '' && $guestToken !== '') {
+        return $token;
+    }
+
+    $token = $token !== '' ? $token : random_key(24);
+    $guestToken = $guestToken !== '' ? $guestToken : random_key(24);
+    db()->prepare('UPDATE bookings SET gallery_token = ?, gallery_guest_token = ? WHERE id = ?')
+        ->execute([$token, $guestToken, $bookingId]);
+    return $token;
+}
+
+// Absicherung fuer den (in der Praxis seltenen) Fall, dass eine Buchung
+// noch einen Verwalter- aber keinen Gaeste-Token hat (z.B. vor Migration
+// 0018 bereits erste Fotos hochgeladen). Ruft dafuer ensure_gallery_token()
+// auf, statt die Erzeugungslogik zu duplizieren.
+function ensure_gallery_guest_token(int $bookingId): string
+{
+    $stmt = db()->prepare('SELECT gallery_guest_token FROM bookings WHERE id = ?');
     $stmt->execute([$bookingId]);
     $token = (string) $stmt->fetchColumn();
     if ($token !== '') {
         return $token;
     }
 
-    $token = random_key(24);
-    db()->prepare('UPDATE bookings SET gallery_token = ? WHERE id = ?')->execute([$token, $bookingId]);
-    return $token;
+    ensure_gallery_token($bookingId);
+    $stmt->execute([$bookingId]);
+    return (string) $stmt->fetchColumn();
 }
 
 function gallery_url(string $galleryToken): string
 {
     $cfg = backend_config();
     return rtrim($cfg['base_url'], '/') . '/galerie.php?token=' . rawurlencode($galleryToken);
+}
+
+function gallery_guest_url(string $guestToken): string
+{
+    $cfg = backend_config();
+    return rtrim($cfg['base_url'], '/') . '/galerie.php?token=' . rawurlencode($guestToken);
+}
+
+// Tage NACH DEM EVENTDATUM, nach denen bin/purge_expired_galleries.php die
+// Galerie-Fotos einer Buchung endgueltig loescht (DSGVO), im Panel unter
+// Einstellungen editierbar.
+function gallery_retention_days(): int
+{
+    return max(1, (int) get_setting('gallery_retention_days', '30'));
+}
+
+function gallery_deletion_date(string $eventDate): DateTimeImmutable
+{
+    return (new DateTimeImmutable($eventDate))->modify('+' . gallery_retention_days() . ' days');
 }
 
 // ---------- Buchungen ----------

@@ -338,7 +338,12 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
 // Verschickt den Link zur automatischen Online-Galerie (siehe galerie.php,
 // ensure_gallery_token()) an die Buchende Person - vom Admin per Knopf in
 // booking_detail.php ausgeloest, sobald genug Fotos hochgeladen sind.
-function send_gallery_email(array $booking, string $galleryUrl): bool
+// $galleryUrl ist der Verwalter-Link (siehe ensure_gallery_token()) - die
+// Buchende Person kann darauf Fotos aus-/einblenden und findet dort selbst
+// den separaten, read-only Gaeste-Link zum Weitergeben (siehe galerie.php).
+// $deletionDateFormatted (d.m.Y) macht die DSGVO-Aufbewahrungsfrist bereits
+// in der Mail transparent, nicht erst beim Aufruf der Galerie.
+function send_gallery_email(array $booking, string $galleryUrl, string $deletionDateFormatted): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
@@ -354,17 +359,23 @@ function send_gallery_email(array $booking, string $galleryUrl): bool
         $mail->isHTML(true);
 
         $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
-            . email_p('die Fotos von eurer Veranstaltung sind jetzt online. Ihr und eure Gäste könnt sie euch '
-                . 'ansehen und herunterladen:')
-            . email_button($galleryUrl, 'Galerie ansehen')
-            . email_muted('Der Link kann gerne an alle Gäste weitergegeben werden.')
+            . email_p('die Fotos von eurer Veranstaltung sind jetzt online. Über den Link unten könnt ihr sie '
+                . 'euch ansehen, herunterladen und bei Bedarf einzelne Fotos ausblenden.')
+            . email_button($galleryUrl, 'Galerie öffnen')
+            . email_p('Auf der Seite findet ihr außerdem einen separaten Link zum Weitergeben an eure Gäste - '
+                . 'der zeigt nur die Fotos, die ihr nicht ausgeblendet habt.')
+            . email_muted('Aus Datenschutzgründen werden die Fotos automatisch am <strong>' . email_e($deletionDateFormatted)
+                . '</strong> gelöscht - lädt euch gewünschte Fotos vorher herunter.')
             . email_signoff($fromName);
         $mail->Body = render_email_html($mail, 'Eure Fotos sind online 📸', $html, 'Eure Fotos von der Veranstaltung sind jetzt online.');
 
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
-            . "die Fotos von eurer Veranstaltung sind jetzt online. Ihr und eure Gäste könnt sie euch hier "
-            . "ansehen und herunterladen:\n\n" . $galleryUrl . "\n\n"
-            . "Der Link kann gerne an alle Gäste weitergegeben werden.\n\n"
+            . "die Fotos von eurer Veranstaltung sind jetzt online. Über den Link unten könnt ihr sie euch ansehen, "
+            . "herunterladen und bei Bedarf einzelne Fotos ausblenden:\n\n" . $galleryUrl . "\n\n"
+            . "Auf der Seite findet ihr ausserdem einen separaten Link zum Weitergeben an eure Gaeste - der zeigt "
+            . "nur die Fotos, die ihr nicht ausgeblendet habt.\n\n"
+            . "Aus Datenschutzgruenden werden die Fotos automatisch am " . $deletionDateFormatted . " geloescht - "
+            . "ladet euch gewuenschte Fotos vorher herunter.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
