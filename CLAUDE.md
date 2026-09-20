@@ -174,6 +174,16 @@ im Panel angezeigt).
 - DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
   `config.php.example`), analog zu `box.ini` auf der Box.
 - Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts).
+- Aktions-Buttons einer Tabellenzeile (`bookings.php`, `coupons.php`,
+  `extras.php`, `layouts.php`) stehen in einem `<div class="actions-row">`
+  *innerhalb* der `<td class="actions">`, nicht direkt als `display: flex`
+  auf der `<td>` selbst - `display: flex` auf einem Tabellenzellenelement
+  bricht dessen Teilnahme am Tabellenlayout, wodurch der Inhalt sichtbar in
+  die naechste Spalte ueberlappt (fiel v.a. bei `bookings.php` auf, wo eine
+  Zeile bis zu drei Aktionen hat). Tabellen mit potenziell breitem Inhalt
+  (`bookings.php`) stehen zusaetzlich in einem `<div class="table-responsive">`
+  (`overflow-x: auto`), damit sie auf schmalen Bildschirmen horizontal
+  scrollen statt das Seitenlayout zu sprengen.
 - Logo: `backend/public/assets/logo-icon.png` (Kamera-Icon, aus dem
   offiziellen Snapolino-Logo freigestellt, transparenter Hintergrund),
   dazu `favicon.ico`/`apple-touch-icon.png` im selben Ordner - eingebunden

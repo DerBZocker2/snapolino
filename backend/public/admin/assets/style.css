@@ -221,6 +221,16 @@ th { color: var(--muted); font-weight: 600; }
 
 tbody tr:hover { background: #fbf5ff; }
 
+/* Erlaubt horizontales Scrollen der Tabelle selbst, statt dass sie auf
+   schmalen Bildschirmen (Tablet/Handy) den gesamten Seiteninhalt aufbricht. */
+.table-responsive {
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+.table-responsive table { margin-bottom: 0; }
+
+td.nowrap { white-space: nowrap; }
+
 code {
     background: #f2edfa;
     color: var(--accent2-dark);
@@ -307,19 +317,24 @@ button.danger {
 
 button.danger:hover { background: var(--danger-bg); box-shadow: none; opacity: 1; }
 
-td.actions {
+/* Aktions-Buttons einer Tabellenzeile: eigenes Flex-Element INNERHALB der
+   <td>, nicht die <td> selbst - display:flex direkt auf einem
+   Tabellen-Zellenelement bricht dessen Teilnahme am Tabellenlayout, wodurch
+   der Inhalt sichtbar in die naechste Spalte ueberlappt (v.a. sichtbar bei
+   bookings.php mit bis zu drei Aktionen pro Zeile). */
+.actions-row {
     display: flex;
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
 }
 
-td.actions form { display: inline-flex; }
+.actions-row form { display: inline-flex; }
 
 /* Reine Text-Links in Aktions-Zellen (Details, Bearbeiten, ...) wie
    kleine Sekundaer-Buttons aussehen lassen statt als nackter Link -
    einheitlicher mit den echten Buttons daneben. */
-td.actions > a {
+.actions-row > a {
     background: #f2edfa;
     color: var(--accent2-dark);
     text-decoration: none;
@@ -328,12 +343,14 @@ td.actions > a {
     padding: 8px 14px;
     border-radius: 8px;
     transition: background 0.15s ease;
+    white-space: nowrap;
 }
-td.actions > a:hover { background: #e7ddf7; }
+.actions-row > a:hover { background: #e7ddf7; }
 
-td.actions button, td.actions .button, td.actions .button-secondary {
+.actions-row button, .actions-row .button, .actions-row .button-secondary {
     padding: 8px 14px;
     font-size: 13px;
+    white-space: nowrap;
 }
 
 .badge {

@@ -64,12 +64,14 @@ $layoutStmt = db()->prepare(
     <div class="inline-form" style="margin-bottom:16px;">
         <a href="bookings.php" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">Alle</a>
         <?php foreach (BOOKING_STATUSES as $status): ?>
-            <a href="bookings.php?status=<?= urlencode($status) ?>" class="button-secondary">
+            <a href="bookings.php?status=<?= urlencode($status) ?>"
+               class="button-secondary <?= $statusFilter === $status ? 'active' : '' ?>">
                 <?= htmlspecialchars(booking_status_label($status), ENT_QUOTES) ?>
             </a>
         <?php endforeach; ?>
     </div>
 
+    <div class="table-responsive">
     <table>
         <thead>
         <tr>
@@ -97,7 +99,7 @@ $layoutStmt = db()->prepare(
             }
             ?>
             <tr>
-                <td><?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?></td>
+                <td class="nowrap"><?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?></td>
                 <td>
                     <?= htmlspecialchars($booking['customer_name'], ENT_QUOTES) ?><br>
                     <span class="muted-text"><?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?></span>
@@ -106,32 +108,34 @@ $layoutStmt = db()->prepare(
                     <?php endif; ?>
                 </td>
                 <td><?= htmlspecialchars(implode(', ', $layoutNames), ENT_QUOTES) ?></td>
-                <td><?= $booking['total_price_cents'] !== null ? money_from_cents((int) $booking['total_price_cents']) : '—' ?></td>
-                <td><span class="status-pill status-<?= htmlspecialchars($booking['status'], ENT_QUOTES) ?>">
+                <td class="nowrap"><?= $booking['total_price_cents'] !== null ? money_from_cents((int) $booking['total_price_cents']) : '—' ?></td>
+                <td class="nowrap"><span class="status-pill status-<?= htmlspecialchars($booking['status'], ENT_QUOTES) ?>">
                     <?= htmlspecialchars(booking_status_label($booking['status']), ENT_QUOTES) ?>
                 </span></td>
                 <td><?= htmlspecialchars($boxName ?: '—', ENT_QUOTES) ?></td>
                 <td class="actions">
-                    <a href="booking_detail.php?id=<?= (int) $booking['id'] ?>">Details</a>
-                    <?php if ($booking['status'] === 'angefragt'): ?>
-                        <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop einer Box zuordnen, um zu bestätigen">→ Box zuordnen</a>
-                        <form method="post" action="bookings.php">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
-                            <input type="hidden" name="action" value="reject">
-                            <button type="submit" class="danger">Ablehnen</button>
-                        </form>
-                    <?php elseif ($booking['status'] === 'bestaetigt'): ?>
-                        <?php if (!$booking['box_id']): ?>
-                            <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop zuordnen">→ Box zuordnen</a>
+                    <div class="actions-row">
+                        <a href="booking_detail.php?id=<?= (int) $booking['id'] ?>">Details</a>
+                        <?php if ($booking['status'] === 'angefragt'): ?>
+                            <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop einer Box zuordnen, um zu bestätigen">→ Box zuordnen</a>
+                            <form method="post" action="bookings.php">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+                                <input type="hidden" name="action" value="reject">
+                                <button type="submit" class="danger">Ablehnen</button>
+                            </form>
+                        <?php elseif ($booking['status'] === 'bestaetigt'): ?>
+                            <?php if (!$booking['box_id']): ?>
+                                <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop zuordnen">→ Box zuordnen</a>
+                            <?php endif; ?>
+                            <form method="post" action="bookings.php" onsubmit="return confirm('Buchung wirklich stornieren?');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+                                <input type="hidden" name="action" value="cancel">
+                                <button type="submit" class="danger">Stornieren</button>
+                            </form>
                         <?php endif; ?>
-                        <form method="post" action="bookings.php" onsubmit="return confirm('Buchung wirklich stornieren?');">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
-                            <input type="hidden" name="action" value="cancel">
-                            <button type="submit" class="danger">Stornieren</button>
-                        </form>
-                    <?php endif; ?>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>
@@ -140,6 +144,7 @@ $layoutStmt = db()->prepare(
         <?php endif; ?>
         </tbody>
     </table>
+    </div>
 </section>
 
 <?php require __DIR__ . '/_footer.php'; ?>

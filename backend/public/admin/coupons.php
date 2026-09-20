@@ -52,13 +52,15 @@ $coupons = db()->query('SELECT * FROM coupons ORDER BY created_at DESC')->fetchA
                     <?php endif; ?>
                 </td>
                 <td class="actions">
-                    <a href="coupon_form.php?id=<?= (int) $coupon['id'] ?>">Bearbeiten</a>
-                    <form method="post" action="coupons.php">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="toggle_active">
-                        <input type="hidden" name="id" value="<?= (int) $coupon['id'] ?>">
-                        <button type="submit"><?= $coupon['is_active'] ? 'Deaktivieren' : 'Aktivieren' ?></button>
-                    </form>
+                    <div class="actions-row">
+                        <a href="coupon_form.php?id=<?= (int) $coupon['id'] ?>">Bearbeiten</a>
+                        <form method="post" action="coupons.php">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="toggle_active">
+                            <input type="hidden" name="id" value="<?= (int) $coupon['id'] ?>">
+                            <button type="submit"><?= $coupon['is_active'] ? 'Deaktivieren' : 'Aktivieren' ?></button>
+                        </form>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>

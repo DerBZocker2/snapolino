@@ -35,12 +35,14 @@ $extras = fetch_all_extras();
                 <td><?= ($extra['price_cents'] >= 0 ? '+' : '') . money_from_cents((int) $extra['price_cents']) ?></td>
                 <td><?= $extra['is_active'] ? '<span class="badge">aktiv</span>' : '<span class="muted-text">inaktiv</span>' ?></td>
                 <td class="actions">
-                    <a href="extra_form.php?id=<?= (int) $extra['id'] ?>">Bearbeiten</a>
-                    <form method="post" action="extra_delete.php" onsubmit="return confirm('Extra wirklich löschen?');">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="id" value="<?= (int) $extra['id'] ?>">
-                        <button type="submit" class="danger">Löschen</button>
-                    </form>
+                    <div class="actions-row">
+                        <a href="extra_form.php?id=<?= (int) $extra['id'] ?>">Bearbeiten</a>
+                        <form method="post" action="extra_delete.php" onsubmit="return confirm('Extra wirklich löschen?');">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="id" value="<?= (int) $extra['id'] ?>">
+                            <button type="submit" class="danger">Löschen</button>
+                        </form>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>
