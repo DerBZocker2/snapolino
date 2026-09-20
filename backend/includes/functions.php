@@ -545,6 +545,40 @@ function is_date_blocked(string $eventDate): bool
     return in_array($eventDate, fetch_blocked_dates(), true);
 }
 
+// ---------- Warteliste ----------
+
+// Wird aufgerufen, nachdem eine Buchung eine bestimmte Belegung nicht mehr
+// blockiert (Admin lehnt eine Anfrage ab oder storniert, siehe
+// admin/bookings.php und payments.php::cancel_booking()). Prueft jeden Tag
+// im zuvor durch diese Buchung blockierten Zeitraum (inkl. Versand-Puffer,
+// siehe booking_block_range()) und benachrichtigt die Warteliste fuer jeden
+// Tag, der nach der Freigabe tatsaechlich wieder frei ist (eine andere,
+// weiterhin aktive Buchung koennte denselben Tag ueberlappend blockieren).
+function notify_waitlist_for_freed_range(string $eventDate): void
+{
+    [$start, $end] = booking_block_range($eventDate);
+    $cursor = new DateTimeImmutable($start);
+    $endDate = new DateTimeImmutable($end);
+    while ($cursor <= $endDate) {
+        $day = $cursor->format('Y-m-d');
+        if (!is_date_blocked($day)) {
+            notify_waitlist_for_date($day);
+        }
+        $cursor = $cursor->modify('+1 day');
+    }
+}
+
+function notify_waitlist_for_date(string $day): void
+{
+    $stmt = db()->prepare('SELECT * FROM waitlist_entries WHERE event_date = ? AND notified_at IS NULL');
+    $stmt->execute([$day]);
+    foreach ($stmt->fetchAll() as $entry) {
+        if (send_waitlist_slot_free_email($entry)) {
+            db()->prepare('UPDATE waitlist_entries SET notified_at = NOW() WHERE id = ?')->execute([$entry['id']]);
+        }
+    }
+}
+
 // ---------- Einstellungen ----------
 
 function get_setting(string $name, ?string $default = null): ?string

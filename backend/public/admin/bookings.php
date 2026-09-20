@@ -29,8 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'reject') {
             $stmt = db()->prepare("UPDATE bookings SET status = 'abgelehnt' WHERE id = ?");
             $stmt->execute([$bookingId]);
+            notify_waitlist_for_freed_range($booking['event_date']);
         } elseif ($action === 'cancel') {
             cancel_booking($bookingId);
+            notify_waitlist_for_freed_range($booking['event_date']);
         }
     }
 

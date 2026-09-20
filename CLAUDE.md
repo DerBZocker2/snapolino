@@ -373,6 +373,26 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+## Warteliste
+Fuer bereits ausgebuchte Termine gibt es unter `/warteliste.php` eine
+oeffentliche Warteliste: Interessenten tragen Wunschtermin, Name, E-Mail
+(optional Telefon/Nachricht) ein (`waitlist_entries`, Migration 0020) - das
+ist noch keine Buchung. Erreichbar ueber einen Hinweis in `buchen.php`
+Schritt 1 sowie per Klick auf einen ausgegrauten, aber noch nicht
+vergangenen Tag im Buchungskalender dort (`cal-blocked`-Klasse in der
+Kalender-JS, statt den Tag komplett inert zu lassen). Lehnt ein Admin eine
+Anfrage ab oder storniert eine Buchung (`admin/bookings.php`,
+`payments.php::cancel_booking()`), prueft `notify_waitlist_for_freed_range()`
+(`includes/functions.php`) jeden Tag im dadurch vormals blockierten
+Zeitraum (inkl. Versand-Puffer) erneut gegen `fetch_blocked_dates()` - ist
+ein Tag jetzt wirklich frei (keine andere, weiterhin aktive Buchung
+ueberlappt ihn), bekommen alle noch nicht benachrichtigten Wartelisten-
+Eintraege dieses Tages automatisch eine Mail mit Buchungslink
+(`send_waitlist_slot_free_email()`), `notified_at` verhindert eine doppelte
+Benachrichtigung. Panel unter **Warteliste** (Sidebar-Badge fuer noch
+wartende Eintraege) zeigt alle Eintraege mit Status und erlaubt manuelles
+Loeschen (z.B. nachdem sich jemand telefonisch gemeldet hat).
+
 ## Automatische E-Mails
 `bin/send_event_reminders.php` (fuer einen taeglichen Cronjob gedacht, siehe
 `backend/README.md`) verschickt an alle bestaetigten Buchungen, deren

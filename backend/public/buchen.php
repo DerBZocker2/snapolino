@@ -378,6 +378,9 @@ require __DIR__ . '/_site_header.php';
                 <p class="muted">Bereits vergebene Tage sind ausgegraut - such dir einfach einen freien Tag aus.</p>
                 <div id="calendar"></div>
                 <p id="selected-date-label" class="muted">Tippe auf einen freien Tag, um fortzufahren.</p>
+                <p class="muted">Dein Wunschtermin ist schon vergeben? Tippe ihn trotzdem an oder
+                    <a href="warteliste.php">trag dich auf die Warteliste ein</a> - wir melden uns automatisch,
+                    sobald der Tag wieder frei wird.</p>
             </div>
 
         <?php elseif ($step === 2): ?>
@@ -1417,7 +1420,9 @@ require __DIR__ . '/_site_header.php';
             var isBlocked = !!blockedDates[iso];
             var classes = ['cal-day'];
             if (isPast || isBlocked) classes.push('cal-disabled');
-            html += '<div class="' + classes.join(' ') + '" data-date="' + iso + '">' + day + '</div>';
+            if (isBlocked && !isPast) classes.push('cal-blocked');
+            html += '<div class="' + classes.join(' ') + '" data-date="' + iso + '" title="'
+                + (isBlocked && !isPast ? 'Bereits vergeben - auf Warteliste eintragen' : '') + '">' + day + '</div>';
         }
 
         calendarEl.innerHTML = html;
@@ -1430,6 +1435,11 @@ require __DIR__ . '/_site_header.php';
         calendarEl.querySelectorAll('.cal-day:not(.cal-disabled):not(.cal-empty)').forEach(function (el) {
             el.addEventListener('click', function () {
                 window.location.href = 'buchen.php?step=2&date=' + el.getAttribute('data-date');
+            });
+        });
+        calendarEl.querySelectorAll('.cal-day.cal-blocked').forEach(function (el) {
+            el.addEventListener('click', function () {
+                window.location.href = 'warteliste.php?date=' + el.getAttribute('data-date');
             });
         });
     }

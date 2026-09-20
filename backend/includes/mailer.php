@@ -386,6 +386,91 @@ function send_gallery_email(array $booking, string $galleryUrl, string $deletion
     }
 }
 
+// Verschickt die Bestaetigung der Warteliste-Eintragung (warteliste.php).
+function send_waitlist_signup_email(array $entry): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Warteliste-Eintragung #' . $entry['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($entry['customer_email'], $entry['customer_name']);
+        $eventDate = (new DateTimeImmutable($entry['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Du bist auf der Warteliste – Snapolino';
+        $mail->isHTML(true);
+
+        $html = email_p('Hallo ' . email_e($entry['customer_name']) . ',')
+            . email_p('du stehst jetzt auf der Warteliste für den <strong>' . email_e($eventDate) . '</strong>. '
+                . 'Sobald dieser Termin wieder frei wird, melden wir uns automatisch bei dir per E-Mail.')
+            . email_muted('Das ist noch keine Buchung - erst wenn wir uns melden und du den Termin dann wirklich buchst, '
+                . 'ist die Fotobox für dich reserviert.')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Du bist auf der Warteliste', $html, 'Wir melden uns, sobald der Termin frei wird.');
+
+        $mail->AltBody = "Hallo " . $entry['customer_name'] . ",\n\n"
+            . "du stehst jetzt auf der Warteliste fuer den " . $eventDate . ". Sobald dieser Termin wieder frei wird, "
+            . "melden wir uns automatisch bei dir per E-Mail.\n\n"
+            . "Das ist noch keine Buchung - erst wenn wir uns melden und du den Termin dann wirklich buchst, ist die "
+            . "Fotobox fuer dich reserviert.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Warteliste-Eintragung #' . $entry['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt die Benachrichtigung, sobald ein Wartelisten-Termin durch eine
+// Ablehnung/Stornierung wieder frei geworden ist (siehe
+// notify_waitlist_for_freed_range() in functions.php).
+function send_waitlist_slot_free_email(array $entry): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Warteliste frei #' . $entry['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($entry['customer_email'], $entry['customer_name']);
+        $eventDate = (new DateTimeImmutable($entry['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+        $cfg = backend_config();
+        $bookingUrl = rtrim($cfg['base_url'], '/') . '/buchen.php?step=2&date=' . rawurlencode($entry['event_date']);
+
+        $mail->Subject = 'Dein Wunschtermin ist wieder frei – Snapolino';
+        $mail->isHTML(true);
+
+        $html = email_p('Hallo ' . email_e($entry['customer_name']) . ',')
+            . email_p('gute Nachrichten: der <strong>' . email_e($eventDate) . '</strong>, für den du dich auf unsere '
+                . 'Warteliste eingetragen hattest, ist wieder frei.')
+            . email_button($bookingUrl, 'Jetzt buchen')
+            . email_muted('Der Termin ist nicht reserviert, solange du ihn nicht wirklich buchst - bei mehreren '
+                . 'Interessenten zählt, wer zuerst bucht.')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Dein Termin ist wieder frei! 🎉', $html, 'Der ' . $eventDate . ' ist wieder frei.');
+
+        $mail->AltBody = "Hallo " . $entry['customer_name'] . ",\n\n"
+            . "gute Nachrichten: der " . $eventDate . ", fuer den du dich auf unsere Warteliste eingetragen hattest, "
+            . "ist wieder frei. Hier kannst du ihn buchen:\n\n" . $bookingUrl . "\n\n"
+            . "Der Termin ist nicht reserviert, solange du ihn nicht wirklich buchst - bei mehreren Interessenten "
+            . "zaehlt, wer zuerst bucht.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Warteliste frei #' . $entry['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die automatische Erinnerungsmail einige Tage vor dem Event
 // (siehe bin/send_event_reminders.php, Einstellung reminder_days_before_event).
 function send_event_reminder_email(array $booking): bool

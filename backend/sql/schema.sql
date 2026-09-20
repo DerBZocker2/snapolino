@@ -170,6 +170,20 @@ CREATE TABLE IF NOT EXISTS booking_addon_charges (
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Warteliste fuer bereits ausgebuchte Termine (Migration 0020) - siehe
+-- notify_waitlist_for_freed_range() in includes/functions.php.
+CREATE TABLE IF NOT EXISTS waitlist_entries (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    event_date     DATE NOT NULL,
+    customer_name  VARCHAR(120) NOT NULL,
+    customer_email VARCHAR(190) NOT NULL,
+    customer_phone VARCHAR(40) NULL,
+    note           TEXT NULL,
+    notified_at    DATETIME NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_waitlist_event_date (event_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Gutscheincodes, im Panel unter "Gutscheine" angelegt. redemption_count
 -- wird erst erhoeht, wenn eine Buchung tatsaechlich bestaetigt wird
 -- (bezahlt oder Admin bestaetigt eine Angebots-Buchung), nicht schon beim

@@ -24,6 +24,14 @@ try {
     $unassignedBookings = 0;
 }
 
+// Warteliste-Tabelle existiert evtl. noch nicht (Migration 0020 nicht
+// eingespielt) - Panel soll deswegen nicht komplett ausfallen.
+try {
+    $waitingEntries = (int) db()->query('SELECT COUNT(*) FROM waitlist_entries WHERE notified_at IS NULL')->fetchColumn();
+} catch (PDOException $e) {
+    $waitingEntries = 0;
+}
+
 function nav_class(array $pages, string $current): string
 {
     return in_array($current, $pages, true) ? 'active' : '';
@@ -59,6 +67,12 @@ function nav_class(array $pages, string $current): string
                 <span class="nav-icon">📦</span> Boxen
                 <?php if ($unassignedBookings > 0): ?>
                     <span class="nav-badge"><?= $unassignedBookings ?></span>
+                <?php endif; ?>
+            </a>
+            <a class="<?= nav_class(['waitlist.php'], $currentPage) ?>" href="waitlist.php">
+                <span class="nav-icon">⏳</span> Warteliste
+                <?php if ($waitingEntries > 0): ?>
+                    <span class="nav-badge"><?= $waitingEntries ?></span>
                 <?php endif; ?>
             </a>
             <a class="<?= nav_class(['layouts.php', 'layout_form.php'], $currentPage) ?>" href="layouts.php">

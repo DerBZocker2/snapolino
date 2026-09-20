@@ -455,6 +455,15 @@ button:hover { background: var(--accent-dark); }
     text-decoration: line-through;
 }
 
+/* Vergebene (aber nicht vergangene) Tage bleiben anklickbar - fuehrt zur
+   Warteliste statt komplett inert zu sein wie ein Tag in der Vergangenheit. */
+.cal-disabled.cal-blocked {
+    cursor: pointer;
+    text-decoration: none;
+    color: #c98a00;
+}
+.cal-disabled.cal-blocked:hover { background: #fff3cd; }
+
 .cal-selected {
     background: var(--accent);
     color: #fff;
