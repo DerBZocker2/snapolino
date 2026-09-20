@@ -22,6 +22,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === '
     // (?since=) einen 304 bekommen und weiter die alte Buchung anzeigen.
     bump_box_version($boxId);
 
+    // Die Box kommt hier typischerweise gerade vom Kunden zurueck - alle
+    // Wartungs-Haekchen zuruecksetzen, damit vor der naechsten Vermietung
+    // erneut geprueft wird (siehe "Wartungs-Checkliste" in CLAUDE.md).
+    reset_box_maintenance_checks($boxId);
+
+    header('Location: boxes.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === 'add_maintenance_item') {
+    check_csrf();
+    $itemName = trim((string) ($_POST['item_name'] ?? ''));
+    if ($itemName !== '') {
+        $nextSort = (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) + 10 FROM maintenance_checklist_items')->fetchColumn();
+        db()->prepare('INSERT INTO maintenance_checklist_items (name, sort_order) VALUES (?, ?)')
+            ->execute([$itemName, $nextSort]);
+    }
+    header('Location: boxes.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === 'delete_maintenance_item') {
+    check_csrf();
+    db()->prepare('DELETE FROM maintenance_checklist_items WHERE id = ?')->execute([(int) ($_POST['item_id'] ?? 0)]);
     header('Location: boxes.php');
     exit;
 }
@@ -76,8 +100,11 @@ $currentBookingStmt = db()->prepare(
 foreach ($boxes as &$box) {
     $currentBookingStmt->execute([$box['id']]);
     $box['current_booking'] = $currentBookingStmt->fetch() ?: null;
+    $box['maintenance_status'] = box_maintenance_status((int) $box['id']);
 }
 unset($box);
+
+$maintenanceItems = fetch_maintenance_items();
 
 // Buchungen ohne Box: frische Anfragen sowie bereits bestaetigte
 // Buchungen, denen (z.B. bei 0 oder mehreren Boxen) noch keine Box
@@ -173,6 +200,27 @@ $layoutStmt = db()->prepare(
                 <?php if ($box['note']): ?>
                     <p class="muted-text"><?= htmlspecialchars($box['note'], ENT_QUOTES) ?></p>
                 <?php endif; ?>
+                <?php if ($maintenanceItems): ?>
+                    <?php
+                    $doneCount = count(array_filter($box['maintenance_status'], static fn (array $s) => $s['checked_at'] !== null));
+                    $totalCount = count($box['maintenance_status']);
+                    ?>
+                    <details class="box-maintenance">
+                        <summary>Wartung
+                            <span class="badge <?= $doneCount === $totalCount ? '' : 'badge-warning' ?>"><?= $doneCount ?>/<?= $totalCount ?></span>
+                        </summary>
+                        <ul class="maintenance-checklist" data-box-id="<?= (int) $box['id'] ?>">
+                            <?php foreach ($box['maintenance_status'] as $item): ?>
+                                <li>
+                                    <label class="checkbox">
+                                        <input type="checkbox" data-item-id="<?= (int) $item['id'] ?>" <?= $item['checked_at'] !== null ? 'checked' : '' ?>>
+                                        <?= htmlspecialchars($item['name'], ENT_QUOTES) ?>
+                                    </label>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </details>
+                <?php endif; ?>
                 <div class="box-card-actions">
                     <a href="box_layouts.php?id=<?= (int) $box['id'] ?>">Layouts &amp; Zugang</a>
                     <form method="post" action="box_delete.php" onsubmit="return confirm('Box wirklich löschen?');">
@@ -186,9 +234,84 @@ $layoutStmt = db()->prepare(
     </div>
 </section>
 
+<section class="panel">
+    <h2>Wartungs-Checkliste verwalten</h2>
+    <p class="muted-text">Diese Punkte erscheinen bei jeder Box unter "Wartung" - werden beim Aufheben einer
+        Buchungs-Zuordnung automatisch fuer diese Box zurueckgesetzt.</p>
+    <form method="post" action="boxes.php" class="inline-form">
+        <?= csrf_field() ?>
+        <input type="hidden" name="form_action" value="add_maintenance_item">
+        <label>Neuer Punkt
+            <input type="text" name="item_name" required placeholder="z.B. Objektiv gereinigt">
+        </label>
+        <button type="submit">Hinzufügen</button>
+    </form>
+    <?php if ($maintenanceItems): ?>
+        <ul class="maintenance-item-list">
+            <?php foreach ($maintenanceItems as $item): ?>
+                <li>
+                    <?= htmlspecialchars($item['name'], ENT_QUOTES) ?>
+                    <form method="post" action="boxes.php" style="display:inline;" onsubmit="return confirm('Wartungspunkt wirklich löschen? Der Erledigt-Status bei allen Boxen geht dabei verloren.');">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="form_action" value="delete_maintenance_item">
+                        <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+                        <button type="submit" class="danger">Löschen</button>
+                    </form>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php else: ?>
+        <p class="muted-text">Noch keine Wartungspunkte angelegt.</p>
+    <?php endif; ?>
+</section>
+
 <script>
 (function () {
     var csrfToken = <?= json_encode(csrf_token()) ?>;
+
+    document.querySelectorAll('.maintenance-checklist').forEach(function (list) {
+        var boxId = list.dataset.boxId;
+        // Badge (z.B. "3/6") direkt aktualisieren statt die Seite neu zu
+        // laden - ein Reload wuerde das <details> wieder zuklappen, was beim
+        // Abhaken mehrerer Punkte hintereinander staendig im Weg waere.
+        var badge = list.closest('.box-maintenance').querySelector('summary .badge');
+        var total = list.querySelectorAll('input[type=checkbox]').length;
+
+        function updateBadge() {
+            var done = list.querySelectorAll('input[type=checkbox]:checked').length;
+            badge.textContent = done + '/' + total;
+            badge.classList.toggle('badge-warning', done !== total);
+        }
+
+        list.querySelectorAll('input[type=checkbox]').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                var wasChecked = !checkbox.checked;
+                var body = 'box_id=' + encodeURIComponent(boxId)
+                    + '&item_id=' + encodeURIComponent(checkbox.dataset.itemId)
+                    + '&checked=' + (checkbox.checked ? '1' : '0')
+                    + '&csrf_token=' + encodeURIComponent(csrfToken);
+
+                fetch('toggle_maintenance_check.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body,
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.ok) {
+                            updateBadge();
+                        } else {
+                            alert(data.error || 'Speichern fehlgeschlagen');
+                            checkbox.checked = wasChecked;
+                        }
+                    })
+                    .catch(function () {
+                        alert('Speichern fehlgeschlagen (Netzwerkfehler)');
+                        checkbox.checked = wasChecked;
+                    });
+            });
+        });
+    });
 
     document.querySelectorAll('.booking-chip').forEach(function (chip) {
         chip.addEventListener('dragstart', function (e) {

@@ -611,6 +611,37 @@ function notify_waitlist_for_date(string $day): void
     }
 }
 
+// ---------- Wartungs-Checkliste ----------
+
+function fetch_maintenance_items(): array
+{
+    return db()->query('SELECT * FROM maintenance_checklist_items ORDER BY sort_order, id')->fetchAll();
+}
+
+// Alle Wartungspunkte fuer eine Box mit ihrem aktuellen Haekchen-Status
+// (checked_at ist NULL, solange fuer diese Box noch keine Zeile existiert
+// oder sie zurueckgesetzt wurde).
+function box_maintenance_status(int $boxId): array
+{
+    $stmt = db()->prepare(
+        'SELECT mci.id, mci.name, bmc.checked_at
+         FROM maintenance_checklist_items mci
+         LEFT JOIN box_maintenance_checks bmc ON bmc.item_id = mci.id AND bmc.box_id = ?
+         ORDER BY mci.sort_order, mci.id'
+    );
+    $stmt->execute([$boxId]);
+    return $stmt->fetchAll();
+}
+
+// Setzt alle Haekchen einer Box zurueck - aufgerufen, wenn die
+// Buchungs-Zuordnung aufgehoben wird (boxes.php), da das haeufig der
+// Moment ist, in dem die Box vom Kunden zurueckkommt und vor der naechsten
+// Vermietung erneut geprueft werden muss.
+function reset_box_maintenance_checks(int $boxId): void
+{
+    db()->prepare('DELETE FROM box_maintenance_checks WHERE box_id = ?')->execute([$boxId]);
+}
+
 // ---------- Einstellungen ----------
 
 function get_setting(string $name, ?string $default = null): ?string

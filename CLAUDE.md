@@ -373,6 +373,20 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+## Wartungs-Checkliste
+Jede Box zeigt im Panel unter **Boxen** einen aufklappbaren "Wartung"-
+Bereich mit einer gemeinsamen, ebenfalls dort verwaltbaren Liste von
+Wartungspunkten (`maintenance_checklist_items`, z.B. "Druckerpapier und
+Farbband kontrolliert") - der Haekchen-Status wird pro Box einzeln
+getrackt (`box_maintenance_checks`, per AJAX in `toggle_maintenance_check.php`
+umgeschaltet, Badge zeigt "3/6 erledigt"). Hebt ein Admin die
+Buchungs-Zuordnung einer Box auf ("Zuordnung aufheben" - haeufig der
+Moment, in dem die Box vom Kunden zurueckkommt), setzt
+`reset_box_maintenance_checks()` automatisch alle Haekchen dieser Box
+zurueck, damit vor der naechsten Vermietung erneut geprueft wird. Rein
+informativ/organisatorisch - blockiert keine Zuordnung einer neuen Buchung,
+auch wenn die Liste noch unvollstaendig ist.
+
 ## Stammkundenrabatt
 `calc_booking_pricing()` (`includes/functions.php`) erkennt zusaetzlich per
 `is_returning_customer()`, ob die buchende E-Mail-Adresse bereits eine

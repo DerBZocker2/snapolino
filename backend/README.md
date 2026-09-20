@@ -569,6 +569,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0021_referral_program.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0022_review_requests.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0023_returning_customer_discount.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0024_maintenance_checklist.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -696,6 +697,10 @@ Migration 0023 ergaenzt `bookings.returning_discount_cents` und die
 Einstellung `returning_customer_discount_percent` fuer den automatischen
 Stammkundenrabatt - siehe "Stammkundenrabatt" in CLAUDE.md. Kein Cronjob
 noetig, laeuft direkt bei jeder Preisberechnung.
+
+Migration 0024 legt `maintenance_checklist_items` und
+`box_maintenance_checks` fuer die Wartungs-Checkliste im Panel unter Boxen
+an - siehe "Wartungs-Checkliste" in CLAUDE.md. Kein Cronjob noetig.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
