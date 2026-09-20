@@ -18,6 +18,7 @@ $referralDiscountPercent = (string) referral_discount_percent();
 $referralRewardEuro = number_format(referral_reward_cents() / 100, 2, '.', '');
 $reviewRequestDaysAfterEvent = (string) review_request_days_after_event();
 $googleReviewUrl = google_review_url();
+$returningCustomerDiscountPercent = (string) returning_customer_discount_percent();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -35,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $referralRewardEuro = trim((string) ($_POST['referral_reward_euro'] ?? ''));
     $reviewRequestDaysAfterEvent = trim((string) ($_POST['review_request_days_after_event'] ?? ''));
     $googleReviewUrl = trim((string) ($_POST['google_review_url'] ?? ''));
+    $returningCustomerDiscountPercent = trim((string) ($_POST['returning_customer_discount_percent'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -60,6 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($googleReviewUrl !== '' && !filter_var($googleReviewUrl, FILTER_VALIDATE_URL)) {
         $errors[] = 'Bitte eine gültige URL für den Bewertungslink angeben.';
     }
+    if (!ctype_digit($returningCustomerDiscountPercent) || (int) $returningCustomerDiscountPercent > 100) {
+        $errors[] = 'Stammkundenrabatt muss zwischen 0 und 100 Prozent liegen.';
+    }
 
     if (!$errors) {
         set_setting('base_price_cents', (string) (int) round(((float) $priceEuro) * 100));
@@ -75,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('referral_reward_cents', (string) (int) round(((float) $referralRewardEuro) * 100));
         set_setting('review_request_days_after_event', (string) (int) $reviewRequestDaysAfterEvent);
         set_setting('google_review_url', $googleReviewUrl);
+        set_setting('returning_customer_discount_percent', (string) (int) $returningCustomerDiscountPercent);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -167,6 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="text" name="google_review_url" placeholder="https://g.page/r/.../review" value="<?= htmlspecialchars($googleReviewUrl, ENT_QUOTES) ?>">
             </label>
         </div>
+
+        <h2>Stammkundenrabatt</h2>
+        <p class="muted-text">Wird automatisch angewendet, sobald eine buchende E-Mail-Adresse bereits eine andere
+            bestätigte Buchung hat (z.B. eine jährlich wiederkehrende Firmenfeier) - zusätzlich zu einem eventuell
+            eingelösten Gutschein, auf den bereits um den Gutschein reduzierten Betrag.</p>
+        <label>Rabatt in %
+            <input type="number" min="0" max="100" name="returning_customer_discount_percent" value="<?= htmlspecialchars($returningCustomerDiscountPercent, ENT_QUOTES) ?>" style="max-width:120px;">
+        </label>
 
         <button type="submit">Speichern</button>
     </form>

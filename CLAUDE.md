@@ -373,6 +373,26 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+## Stammkundenrabatt
+`calc_booking_pricing()` (`includes/functions.php`) erkennt zusaetzlich per
+`is_returning_customer()`, ob die buchende E-Mail-Adresse bereits eine
+andere, tatsaechlich bestaetigte Buchung hat (Status `bestaetigt` - eine
+bloss angefragte, abgelehnte oder stornierte zaehlt nicht) - z.B. eine
+jaehrlich wiederkehrende Firmenfeier. Trifft das zu, wird automatisch der
+Rabatt aus der Einstellung `returning_customer_discount_percent` (Standard
+10 %) angewendet, zusaetzlich zu einem eventuell eingeloesten Gutschein und
+auf den bereits um den Gutschein reduzierten Betrag berechnet
+(`bookings.returning_discount_cents`, eigene Spalte neben `discount_cents`).
+Wird konsistent an allen Stellen angewendet, die den Preis berechnen
+(Buchungsassistent Schritt 5, nachtraegliche Admin-Bearbeitung in
+`booking_detail.php`, sowie die daraus resultierende Zusatzzahlung) - beim
+nachtraeglichen Bearbeiten einer bereits bestaetigten Buchung schliesst
+`is_returning_customer()` die Buchung selbst von der Pruefung aus, sonst
+wuerde sie sich selbst als "vorherige" Buchung zaehlen. Erscheint als eigene
+Zeile "Stammkundenrabatt" in Preisuebersicht, Rechnung/Stripe-Checkout
+(`booking_invoice_items()`) und im Admin-Dashboard (Summe insgesamt
+gewaehrter Stammkundenrabatte).
+
 ## Empfehlungsprogramm
 Sobald eine Buchung zum ersten Mal bestaetigt wird (`assign_box_and_confirm()`
 in `includes/functions.php`, egal ob per Stripe-Zahlung oder Admin-

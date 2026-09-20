@@ -239,13 +239,19 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($formAction === 'apply_coupon' || $formAction === 'remove_coupon') {
         $couponCode = $formAction === 'remove_coupon' ? '' : strtoupper(trim((string) ($_POST['coupon_code'] ?? '')));
-        $pricing = calc_booking_pricing($layoutIds, $extraSelections, $couponCode !== '' ? $couponCode : null);
+        $pricing = calc_booking_pricing(
+            $layoutIds,
+            $extraSelections,
+            $couponCode !== '' ? $couponCode : null,
+            (string) $booking['customer_email'],
+            (int) $booking['id']
+        );
 
         if ($couponCode !== '' && !$pricing['coupon']) {
             $errors[] = 'Dieser Gutscheincode ist ungültig oder abgelaufen.';
         } else {
-            db()->prepare('UPDATE bookings SET coupon_code = ?, discount_cents = ?, total_price_cents = ? WHERE id = ?')
-                ->execute([$couponCode !== '' ? $couponCode : null, $pricing['discount_cents'], $pricing['total'], $booking['id']]);
+            db()->prepare('UPDATE bookings SET coupon_code = ?, discount_cents = ?, returning_discount_cents = ?, total_price_cents = ? WHERE id = ?')
+                ->execute([$couponCode !== '' ? $couponCode : null, $pricing['discount_cents'], $pricing['returning_discount_cents'], $pricing['total'], $booking['id']]);
         }
     } else {
         $phone = trim((string) ($_POST['customer_phone'] ?? ''));
@@ -269,12 +275,18 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errors) {
-            $pricing = calc_booking_pricing($layoutIds, $extraSelections, (string) ($booking['coupon_code'] ?? '') ?: null);
+            $pricing = calc_booking_pricing(
+                $layoutIds,
+                $extraSelections,
+                (string) ($booking['coupon_code'] ?? '') ?: null,
+                (string) $booking['customer_email'],
+                (int) $booking['id']
+            );
 
             $stmt = db()->prepare(
                 'UPDATE bookings SET customer_phone = ?, customer_street = ?, customer_zip = ?, customer_city = ?,
                  customer_company = ?, invoice_to_company = ?, message = ?, discount_cents = ?,
-                 total_price_cents = ?, wants_quote = ?, agb_accepted_at = ? WHERE id = ?'
+                 returning_discount_cents = ?, total_price_cents = ?, wants_quote = ?, agb_accepted_at = ? WHERE id = ?'
             );
             $stmt->execute([
                 $phone !== '' ? $phone : null,
@@ -285,6 +297,7 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $invoiceToCompany ? 1 : 0,
                 $message !== '' ? $message : null,
                 $pricing['discount_cents'],
+                $pricing['returning_discount_cents'],
                 $pricing['total'],
                 $wantsQuote ? 1 : 0,
                 // Zeitstempel als Nachweis der Zustimmung, nicht ueberschreiben,
@@ -1143,8 +1156,15 @@ require __DIR__ . '/_site_header.php';
                 $stmt->execute(array_keys($chosenExtras));
                 $chosenExtraRows = $stmt->fetchAll();
             }
-            $pricing = calc_booking_pricing($chosenLayoutIds, $chosenExtras, (string) ($booking['coupon_code'] ?? '') ?: null);
+            $pricing = calc_booking_pricing(
+                $chosenLayoutIds,
+                $chosenExtras,
+                (string) ($booking['coupon_code'] ?? '') ?: null,
+                (string) $booking['customer_email'],
+                (int) $booking['id']
+            );
             $discount = $pricing['discount_cents'];
+            $returningDiscount = $pricing['returning_discount_cents'];
             $total = $pricing['total'];
 
             $event = new DateTimeImmutable($booking['event_date']);
@@ -1284,6 +1304,10 @@ require __DIR__ . '/_site_header.php';
                             <?php endforeach; ?>
                             <?php if ($discount > 0): ?>
                                 <div class="price-row" style="color:#1f9d55;"><span>Rabatt<?= $booking['coupon_code'] ? ' (' . htmlspecialchars($booking['coupon_code'], ENT_QUOTES) . ')' : '' ?></span><span>&minus;<?= money_from_cents($discount) ?></span></div>
+                            <?php endif; ?>
+                            <?php if ($returningDiscount > 0): ?>
+                                <div class="price-row" style="color:#1f9d55;"><span>Stammkundenrabatt</span><span>&minus;<?= money_from_cents($returningDiscount) ?></span></div>
+                                <p class="muted" style="font-size:12px;margin:-4px 0 8px;">Automatisch, weil du schon einmal bei uns gebucht hast - danke, dass du wiederkommst!</p>
                             <?php endif; ?>
                             <div class="price-row total"><span>Gesamtpreis</span><span><?= money_from_cents($total) ?></span></div>
                         </div>

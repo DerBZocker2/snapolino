@@ -92,7 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!$newLayoutIds) {
             $editError = 'Bitte mindestens ein Layout auswählen.';
         } else {
-            $pricing = calc_booking_pricing($newLayoutIds, $newExtraSelections, (string) ($booking['coupon_code'] ?? '') ?: null);
+            $pricing = calc_booking_pricing(
+                $newLayoutIds,
+                $newExtraSelections,
+                (string) ($booking['coupon_code'] ?? '') ?: null,
+                (string) $booking['customer_email'],
+                $bookingId
+            );
             $currentTotal = (int) ($booking['total_price_cents'] ?? 0);
             $delta = $pricing['total'] - $currentTotal;
             // Nur bei einer bereits abschliessend bestaetigten Buchung
@@ -127,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'extra_selections' => $newExtraSelections,
                         'total_price_cents' => $pricing['total'],
                         'discount_cents' => $pricing['discount_cents'],
+                        'returning_discount_cents' => $pricing['returning_discount_cents'],
                     ]);
                     db()->prepare(
                         'INSERT INTO booking_addon_charges (booking_id, description, amount_cents, pending_changes_json) VALUES (?, ?, ?, ?)'
@@ -152,8 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } else {
                     db()->beginTransaction();
-                    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ? WHERE id = ?')
-                        ->execute([$newEventDate, $pricing['total'], $pricing['discount_cents'], $bookingId]);
+                    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ?, returning_discount_cents = ? WHERE id = ?')
+                        ->execute([$newEventDate, $pricing['total'], $pricing['discount_cents'], $pricing['returning_discount_cents'], $bookingId]);
 
                     db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$bookingId]);
                     $ins = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
@@ -288,6 +295,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         </td></tr>
         <?php if ($booking['coupon_code']): ?>
             <tr><th>Gutschein</th><td><?= htmlspecialchars($booking['coupon_code'], ENT_QUOTES) ?> (&minus;<?= money_from_cents((int) $booking['discount_cents']) ?>)</td></tr>
+        <?php endif; ?>
+        <?php if ((int) $booking['returning_discount_cents'] > 0): ?>
+            <tr><th>Stammkundenrabatt</th><td>&minus;<?= money_from_cents((int) $booking['returning_discount_cents']) ?></td></tr>
         <?php endif; ?>
         <tr><th>Gesamtpreis</th><td>
             <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>

@@ -568,6 +568,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0020_waitlist.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0021_referral_program.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0022_review_requests.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0023_returning_customer_discount.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -690,6 +691,11 @@ Migration 0022 ergaenzt `bookings.review_requested_at` und die Einstellungen
 `review_request_days_after_event`/`google_review_url` fuer die automatische
 Bewertungsanfrage per `bin/send_review_requests.php` (siehe Cronjob-Hinweis
 oben).
+
+Migration 0023 ergaenzt `bookings.returning_discount_cents` und die
+Einstellung `returning_customer_discount_percent` fuer den automatischen
+Stammkundenrabatt - siehe "Stammkundenrabatt" in CLAUDE.md. Kein Cronjob
+noetig, laeuft direkt bei jeder Preisberechnung.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

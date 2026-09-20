@@ -140,6 +140,9 @@ try {
     $totalDiscountGiven = (int) db()->query(
         "SELECT COALESCE(SUM(discount_cents), 0) FROM bookings WHERE status = 'bestaetigt' AND discount_cents > 0"
     )->fetchColumn();
+    $totalReturningDiscountGiven = (int) db()->query(
+        "SELECT COALESCE(SUM(returning_discount_cents), 0) FROM bookings WHERE status = 'bestaetigt' AND returning_discount_cents > 0"
+    )->fetchColumn();
 
     // ---------- Boxen-Auslastung ----------
     $boxStats = db()->query(
@@ -233,6 +236,9 @@ try {
                 <span class="kpi-pill">Anteil online bezahlt (von bestätigt): <?= $onlinePaidShare ?>%</span>
             <?php endif; ?>
             <span class="kpi-pill">Gutscheine eingelöst: <?= money_from_cents($totalDiscountGiven) ?> Rabatt</span>
+            <?php if ($totalReturningDiscountGiven > 0): ?>
+                <span class="kpi-pill">Stammkundenrabatt gewährt: <?= money_from_cents($totalReturningDiscountGiven) ?></span>
+            <?php endif; ?>
             <span class="kpi-pill">Zusatzzahlungen bezahlt: <?= money_from_cents((int) $addonPaidRow['sum_cents']) ?> (<?= (int) $addonPaidRow['cnt'] ?>)</span>
         </div>
     </section>

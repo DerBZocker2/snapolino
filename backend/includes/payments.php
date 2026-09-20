@@ -168,11 +168,12 @@ function mark_addon_charge_paid(int $addonChargeId, ?string $stripeInvoiceId = n
     }
 
     db()->beginTransaction();
-    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ? WHERE id = ?')
+    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ?, returning_discount_cents = ? WHERE id = ?')
         ->execute([
             (string) ($pending['event_date'] ?? ''),
             (int) ($pending['total_price_cents'] ?? 0),
             (int) ($pending['discount_cents'] ?? 0),
+            (int) ($pending['returning_discount_cents'] ?? 0),
             $bookingId,
         ]);
 

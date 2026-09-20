@@ -737,13 +737,20 @@ function booking_invoice_items(int $bookingId): array
         }
     }
 
-    $stmt = db()->prepare('SELECT coupon_code, discount_cents FROM bookings WHERE id = ?');
+    $stmt = db()->prepare('SELECT coupon_code, discount_cents, returning_discount_cents FROM bookings WHERE id = ?');
     $stmt->execute([$bookingId]);
     $couponRow = $stmt->fetch();
     if ($couponRow && (int) $couponRow['discount_cents'] > 0) {
         $items[] = [
             'name' => 'Rabatt' . ($couponRow['coupon_code'] ? ' (' . $couponRow['coupon_code'] . ')' : ''),
             'unit_amount_cents' => -(int) $couponRow['discount_cents'],
+            'quantity' => 1,
+        ];
+    }
+    if ($couponRow && (int) $couponRow['returning_discount_cents'] > 0) {
+        $items[] = [
+            'name' => 'Stammkundenrabatt',
+            'unit_amount_cents' => -(int) $couponRow['returning_discount_cents'],
             'quantity' => 1,
         ];
     }
@@ -839,19 +846,66 @@ function coupon_discount_cents(array $coupon, int $subtotalCents): int
 
 // Rechnet Zwischensumme, Rabatt und Endsumme fuer eine Buchung aus - Basis
 // fuer sowohl das Einloesen im Assistenten als auch das finale Abschicken
-// (Schritt 5), damit beide exakt denselben Betrag ermitteln.
-function calc_booking_pricing(array $layoutIds, array $extraSelections, ?string $couponCode): array
-{
+// (Schritt 5), damit beide exakt denselben Betrag ermitteln. $customerEmail
+// (falls angegeben) prueft zusaetzlich auf einen automatischen
+// Stammkundenrabatt (siehe is_returning_customer()) - kombinierbar mit
+// einem Gutschein, wird aber auf den bereits um den Gutschein reduzierten
+// Betrag berechnet, nicht auf den vollen Zwischenbetrag.
+function calc_booking_pricing(
+    array $layoutIds,
+    array $extraSelections,
+    ?string $couponCode,
+    string $customerEmail = '',
+    ?int $excludeBookingId = null
+): array {
     $subtotal = calc_booking_total($layoutIds, $extraSelections);
     $coupon = $couponCode ? find_active_coupon($couponCode) : null;
-    $discount = $coupon ? coupon_discount_cents($coupon, $subtotal) : 0;
+    $couponDiscount = $coupon ? coupon_discount_cents($coupon, $subtotal) : 0;
+
+    $returningDiscount = 0;
+    if ($customerEmail !== '' && is_returning_customer($customerEmail, $excludeBookingId)) {
+        $returningDiscount = (int) round(max(0, $subtotal - $couponDiscount) * (returning_customer_discount_percent() / 100));
+    }
+
+    $totalDiscount = min($couponDiscount + $returningDiscount, $subtotal);
 
     return [
         'subtotal' => $subtotal,
         'coupon' => $coupon,
-        'discount_cents' => $discount,
-        'total' => max(0, $subtotal - $discount),
+        'discount_cents' => $couponDiscount,
+        'returning_discount_cents' => $returningDiscount,
+        'total' => max(0, $subtotal - $totalDiscount),
     ];
+}
+
+// ---------- Stammkunden-Rabatt ----------
+
+function returning_customer_discount_percent(): int
+{
+    return max(0, (int) get_setting('returning_customer_discount_percent', '10'));
+}
+
+// Ob diese E-Mail-Adresse bereits eine andere, tatsaechlich bestaetigte
+// Buchung hat (bestaetigt oder bezahlt - eine bloss angefragte oder
+// abgelehnte/stornierte Buchung zaehlt nicht). $excludeBookingId schliesst
+// die aktuell bearbeitete Buchung selbst aus (wichtig beim nachtraeglichen
+// Aendern einer bereits bestaetigten Buchung im Admin-Panel, sonst wuerde
+// sie sich selbst als "vorherige" Buchung zaehlen).
+function is_returning_customer(string $email, ?int $excludeBookingId = null): bool
+{
+    if ($email === '') {
+        return false;
+    }
+    $sql = "SELECT 1 FROM bookings WHERE LOWER(customer_email) = LOWER(?) AND status = 'bestaetigt'";
+    $params = [$email];
+    if ($excludeBookingId !== null) {
+        $sql .= ' AND id <> ?';
+        $params[] = $excludeBookingId;
+    }
+    $sql .= ' LIMIT 1';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchColumn() !== false;
 }
 
 // ---------- Empfehlungsprogramm ----------

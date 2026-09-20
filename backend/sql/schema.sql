@@ -118,6 +118,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     invoice_to_company     TINYINT(1) NOT NULL DEFAULT 0,
     coupon_code            VARCHAR(50) NULL,
     discount_cents         INT UNSIGNED NOT NULL DEFAULT 0,
+    -- Automatischer Stammkundenrabatt (Migration 0023), zusaetzlich zu
+    -- discount_cents (Gutschein) - siehe is_returning_customer() in
+    -- includes/functions.php.
+    returning_discount_cents INT UNSIGNED NOT NULL DEFAULT 0,
     event_date             DATE NOT NULL,
     box_id                 INT UNSIGNED NULL,
     status                 VARCHAR(20) NOT NULL DEFAULT 'angefragt',
@@ -300,7 +304,10 @@ INSERT IGNORE INTO settings (name, value) VALUES
     -- automatische Bewertungsanfrage verschickt, sowie der Link zur
     -- Google-Bewertungsseite (leer = kein Bewertungslink-Knopf in der Mail).
     ('review_request_days_after_event', '3'),
-    ('google_review_url', '');
+    ('google_review_url', ''),
+    -- Automatischer Rabatt (Prozent) fuer wiederkehrende Kunden (per
+    -- E-Mail-Adresse erkannt, siehe is_returning_customer()).
+    ('returning_customer_discount_percent', '10');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES
