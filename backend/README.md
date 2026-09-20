@@ -555,6 +555,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0018_gallery_management.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0019_event_reminders.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0020_waitlist.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0021_referral_program.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -666,6 +667,12 @@ Migration 0020 legt `waitlist_entries` fuer die oeffentliche Warteliste
 (`/warteliste.php`) bereits ausgebuchter Termine an - siehe "Warteliste" in
 CLAUDE.md. Kein Cronjob noetig, die Benachrichtigung passiert direkt beim
 Ablehnen/Stornieren einer Buchung im Panel.
+
+Migration 0021 ergaenzt `coupons.referral_owner_booking_id` und
+`bookings.referral_reward_sent_at` sowie die Einstellungen
+`referral_discount_percent`/`referral_reward_cents` fuers Empfehlungsprogramm -
+siehe "Empfehlungsprogramm" in CLAUDE.md. Kein Cronjob noetig, laeuft direkt
+beim Bestaetigen einer Buchung im Panel bzw. per Stripe-Webhook.
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

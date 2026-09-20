@@ -2,6 +2,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+// Fuer send_referral_reward_email() in reward_referral_owner_if_applicable()
+// unten - assign_box_and_confirm() (und damit dieser Pfad) wird auch vom
+// Admin-Panel (assign_box.php) aufgerufen, das mailer.php sonst nicht laedt.
+require_once __DIR__ . '/mailer.php';
 
 function random_key(int $bytes = 20): string
 {
@@ -58,13 +62,26 @@ function assign_box_and_confirm(int $bookingId, int $boxId = 0): bool
     // Gutschein-Einloesung erst zaehlen, wenn die Buchung wirklich bestaetigt
     // wird (bezahlt oder Admin bestaetigt eine Angebots-Buchung) - nicht
     // schon beim blossen Eintippen im Assistenten, und nur einmal pro Buchung.
-    if ($before && $before['status'] !== 'bestaetigt' && !empty($before['coupon_code'])) {
+    $firstConfirmation = $before && $before['status'] !== 'bestaetigt';
+    if ($firstConfirmation && !empty($before['coupon_code'])) {
         db()->prepare('UPDATE coupons SET redemption_count = redemption_count + 1 WHERE code = ?')
             ->execute([$before['coupon_code']]);
     }
 
     bump_box_version($boxId);
     db()->commit();
+
+    // Empfehlungsprogramm: eigenen Empfehlungscode anlegen und, falls diese
+    // Buchung selbst mit einem fremden Empfehlungscode bezahlt hat, die
+    // werbende Person belohnen. Erst nach dem Commit (Mailversand ist ein
+    // Netzwerkaufruf, soll keine offene Transaktion blockieren), und nur bei
+    // der allerersten Bestaetigung dieser Buchung.
+    if ($firstConfirmation) {
+        ensure_referral_coupon_for_booking($bookingId);
+        if (!empty($before['coupon_code'])) {
+            reward_referral_owner_if_applicable($bookingId, (string) $before['coupon_code']);
+        }
+    }
 
     return true;
 }
@@ -820,4 +837,107 @@ function calc_booking_pricing(array $layoutIds, array $extraSelections, ?string 
         'discount_cents' => $discount,
         'total' => max(0, $subtotal - $discount),
     ];
+}
+
+// ---------- Empfehlungsprogramm ----------
+
+// Rabatt (Prozent) fuer die geworbene Person, die einen persoenlichen
+// Empfehlungscode einloest.
+function referral_discount_percent(): int
+{
+    return max(0, (int) get_setting('referral_discount_percent', '10'));
+}
+
+// Belohnung (Cent, als neuer Einmal-Gutschein) fuer die werbende Person,
+// sobald eine mit ihrem Code geworbene Buchung bestaetigt wird.
+function referral_reward_cents(): int
+{
+    return max(0, (int) get_setting('referral_reward_cents', '1500'));
+}
+
+// Erzeugt einen im Panel eindeutigen Gutscheincode mit gegebenem Praefix
+// (z.B. "EMPFEHLUNG" oder "DANKE") plus 5 zufaelligen Grossbuchstaben/Ziffern.
+function generate_unique_coupon_code(string $prefix): string
+{
+    $stmt = db()->prepare('SELECT 1 FROM coupons WHERE code = ?');
+    do {
+        $code = strtoupper($prefix) . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 5));
+        $stmt->execute([$code]);
+    } while ($stmt->fetchColumn() !== false);
+    return $code;
+}
+
+// Legt bei der ersten Bestaetigung einer Buchung (siehe assign_box_and_confirm())
+// deren persoenlichen Empfehlungscode an, falls noch keiner existiert, und
+// gibt ihn zurueck - unbegrenzt oft einloesbar (mehrere Freunde koennen
+// denselben Code nutzen), verfaellt nicht automatisch.
+function ensure_referral_coupon_for_booking(int $bookingId): string
+{
+    $stmt = db()->prepare('SELECT code FROM coupons WHERE referral_owner_booking_id = ?');
+    $stmt->execute([$bookingId]);
+    $existing = $stmt->fetchColumn();
+    if ($existing !== false) {
+        return (string) $existing;
+    }
+
+    $code = generate_unique_coupon_code('EMPFEHLUNG');
+    db()->prepare(
+        'INSERT INTO coupons (code, discount_type, discount_value, is_active, referral_owner_booking_id)
+         VALUES (?, ?, ?, 1, ?)'
+    )->execute([$code, 'percent', referral_discount_percent(), $bookingId]);
+
+    return $code;
+}
+
+function get_referral_coupon_for_booking(int $bookingId): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM coupons WHERE referral_owner_booking_id = ?');
+    $stmt->execute([$bookingId]);
+    return $stmt->fetch() ?: null;
+}
+
+// Wird aufgerufen, wenn eine Buchung, die selbst einen Gutscheincode
+// eingeloest hat, zum ersten Mal bestaetigt wird (siehe assign_box_and_confirm()).
+// War dieser Code ein persoenlicher Empfehlungscode einer anderen Buchung
+// (referral_owner_booking_id), bekommt die werbende Person automatisch einen
+// neuen, einmaligen Belohnungsgutschein per Mail - referral_reward_sent_at
+// auf der geworbenen Buchung verhindert eine doppelte Belohnung. Ein
+// Selbst-Werben mit der eigenen E-Mail-Adresse wird nicht belohnt.
+function reward_referral_owner_if_applicable(int $referredBookingId, string $usedCouponCode): void
+{
+    $stmt = db()->prepare('SELECT referral_reward_sent_at, customer_email FROM bookings WHERE id = ?');
+    $stmt->execute([$referredBookingId]);
+    $referredBooking = $stmt->fetch();
+    if (!$referredBooking || $referredBooking['referral_reward_sent_at'] !== null) {
+        return;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM coupons WHERE code = ? AND referral_owner_booking_id IS NOT NULL');
+    $stmt->execute([strtoupper($usedCouponCode)]);
+    $usedCoupon = $stmt->fetch();
+    if (!$usedCoupon) {
+        return;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM bookings WHERE id = ?');
+    $stmt->execute([(int) $usedCoupon['referral_owner_booking_id']]);
+    $referrerBooking = $stmt->fetch();
+    if (!$referrerBooking) {
+        return;
+    }
+
+    if (strcasecmp((string) $referrerBooking['customer_email'], (string) $referredBooking['customer_email']) === 0) {
+        db()->prepare('UPDATE bookings SET referral_reward_sent_at = NOW() WHERE id = ?')->execute([$referredBookingId]);
+        return;
+    }
+
+    $rewardCode = generate_unique_coupon_code('DANKE');
+    $rewardCents = referral_reward_cents();
+    db()->prepare(
+        'INSERT INTO coupons (code, discount_type, discount_value, max_redemptions, is_active)
+         VALUES (?, ?, ?, 1, 1)'
+    )->execute([$rewardCode, 'fixed', $rewardCents]);
+
+    send_referral_reward_email($referrerBooking, $rewardCode, $rewardCents);
+    db()->prepare('UPDATE bookings SET referral_reward_sent_at = NOW() WHERE id = ?')->execute([$referredBookingId]);
 }

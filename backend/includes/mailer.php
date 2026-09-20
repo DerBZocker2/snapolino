@@ -386,6 +386,51 @@ function send_gallery_email(array $booking, string $galleryUrl, string $deletion
     }
 }
 
+// Verschickt die Belohnung fuers Werben eines neuen Kunden (siehe
+// reward_referral_owner_if_applicable() in functions.php).
+function send_referral_reward_email(array $referrerBooking, string $rewardCode, int $rewardCents): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Empfehlungspraemie Buchung #' . $referrerBooking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($referrerBooking['customer_email'], $referrerBooking['customer_name']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+        $reward = money_from_cents($rewardCents);
+
+        $mail->Subject = 'Danke fürs Weiterempfehlen – ' . $reward . ' geschenkt!';
+        $mail->isHTML(true);
+
+        $codeBox = '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px auto 22px;">'
+            . '<tr><td style="background:#f5f1fc;border:1px dashed #6c5ce7;border-radius:12px;padding:16px 32px;">'
+            . '<span style="font-size:26px;font-weight:700;letter-spacing:2px;color:#241b3a;font-family:monospace;">'
+            . email_e($rewardCode) . '</span></td></tr></table>';
+
+        $html = email_p('Hallo ' . email_e($referrerBooking['customer_name']) . ',')
+            . email_p('jemand hat gerade mit deinem Empfehlungscode gebucht - vielen Dank fürs Weitersagen! Als '
+                . 'Dankeschön schenken wir dir <strong>' . email_e($reward) . '</strong> für deine nächste Buchung.')
+            . $codeBox
+            . email_muted('Der Code ist einmalig einlösbar beim Buchen unter Schritt 5.')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Danke fürs Weiterempfehlen! 🎁', $html, 'Wir schenken dir ' . $reward . ' für deine nächste Buchung.');
+
+        $mail->AltBody = "Hallo " . $referrerBooking['customer_name'] . ",\n\n"
+            . "jemand hat gerade mit deinem Empfehlungscode gebucht - vielen Dank fuers Weitersagen! Als Dankeschoen "
+            . "schenken wir dir " . $reward . " fuer deine naechste Buchung:\n\n" . $rewardCode . "\n\n"
+            . "Der Code ist einmalig einloesbar beim Buchen unter Schritt 5.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Empfehlungspraemie Buchung #' . $referrerBooking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die Bestaetigung der Warteliste-Eintragung (warteliste.php).
 function send_waitlist_signup_email(array $entry): bool
 {

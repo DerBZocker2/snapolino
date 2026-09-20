@@ -98,6 +98,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- Gesetzt von bin/send_event_reminders.php, sobald die automatische
     -- Erinnerungsmail vor dem Event verschickt wurde (Migration 0019).
     reminder_sent_at       DATETIME NULL,
+    -- Verhindert eine doppelte Empfehlungspraemie, falls diese Buchung
+    -- (die selbst einen Empfehlungscode genutzt hat) mehrfach bestaetigt
+    -- wird (Migration 0021, siehe reward_referral_owner_if_applicable()).
+    referral_reward_sent_at DATETIME NULL,
     stripe_session_id      VARCHAR(255) NULL UNIQUE,
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
@@ -197,7 +201,12 @@ CREATE TABLE IF NOT EXISTS coupons (
     redemption_count  INT UNSIGNED NOT NULL DEFAULT 0,
     valid_until       DATE NULL,
     is_active         TINYINT(1) NOT NULL DEFAULT 1,
-    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    -- Gesetzt, wenn dieser Code der persoenliche Empfehlungscode einer
+    -- Buchung ist (Migration 0021) - siehe ensure_referral_coupon_for_booking()
+    -- in includes/functions.php.
+    referral_owner_booking_id INT UNSIGNED NULL,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (referral_owner_booking_id) REFERENCES bookings(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Atomarer Zaehler fuer fortlaufende Rechnungsnummern (ein Zaehler pro Jahr,
@@ -278,7 +287,12 @@ INSERT IGNORE INTO settings (name, value) VALUES
     ('gallery_retention_days', '30'),
     -- Tage VOR DEM EVENTDATUM, ab denen bin/send_event_reminders.php die
     -- automatische Erinnerungsmail verschickt.
-    ('reminder_days_before_event', '7');
+    ('reminder_days_before_event', '7'),
+    -- Empfehlungsprogramm: Rabatt fuer die geworbene Person (Prozent) und
+    -- Belohnung fuer die werbende Person (Cent), siehe "Empfehlungsprogramm"
+    -- in CLAUDE.md.
+    ('referral_discount_percent', '10'),
+    ('referral_reward_cents', '1500');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES

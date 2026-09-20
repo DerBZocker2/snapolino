@@ -14,6 +14,8 @@ $businessEmail = (string) get_setting('business_email', '');
 $businessPhone = (string) get_setting('business_phone', '');
 $galleryRetentionDays = (string) gallery_retention_days();
 $reminderDaysBeforeEvent = (string) reminder_days_before_event();
+$referralDiscountPercent = (string) referral_discount_percent();
+$referralRewardEuro = number_format(referral_reward_cents() / 100, 2, '.', '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -27,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $businessPhone = trim((string) ($_POST['business_phone'] ?? ''));
     $galleryRetentionDays = trim((string) ($_POST['gallery_retention_days'] ?? ''));
     $reminderDaysBeforeEvent = trim((string) ($_POST['reminder_days_before_event'] ?? ''));
+    $referralDiscountPercent = trim((string) ($_POST['referral_discount_percent'] ?? ''));
+    $referralRewardEuro = trim((string) ($_POST['referral_reward_euro'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -40,6 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!ctype_digit($reminderDaysBeforeEvent)) {
         $errors[] = 'Vorlauf der Erinnerungsmail muss eine ganze Zahl >= 0 sein.';
     }
+    if (!ctype_digit($referralDiscountPercent) || (int) $referralDiscountPercent < 0 || (int) $referralDiscountPercent > 100) {
+        $errors[] = 'Empfehlungsrabatt muss zwischen 0 und 100 Prozent liegen.';
+    }
+    if (!is_numeric($referralRewardEuro) || (float) $referralRewardEuro < 0) {
+        $errors[] = 'Empfehlungspraemie muss eine Zahl >= 0 sein.';
+    }
 
     if (!$errors) {
         set_setting('base_price_cents', (string) (int) round(((float) $priceEuro) * 100));
@@ -51,6 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('business_phone', $businessPhone);
         set_setting('gallery_retention_days', (string) (int) $galleryRetentionDays);
         set_setting('reminder_days_before_event', (string) (int) $reminderDaysBeforeEvent);
+        set_setting('referral_discount_percent', (string) (int) $referralDiscountPercent);
+        set_setting('referral_reward_cents', (string) (int) round(((float) $referralRewardEuro) * 100));
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -116,6 +128,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label>Vorlauf in Tagen
             <input type="number" min="0" name="reminder_days_before_event" value="<?= htmlspecialchars($reminderDaysBeforeEvent, ENT_QUOTES) ?>" style="max-width:120px;">
         </label>
+
+        <h2>Empfehlungsprogramm</h2>
+        <p class="muted-text">Jede bestätigte Buchung bekommt automatisch einen persönlichen Rabattcode zum
+            Weitergeben. Löst eine neue Buchung diesen Code ein und wird selbst bestätigt, bekommt die werbende
+            Person automatisch einen Belohnungsgutschein per Mail.</p>
+        <div class="grid3">
+            <label>Rabatt für die geworbene Person in %
+                <input type="number" min="0" max="100" name="referral_discount_percent" value="<?= htmlspecialchars($referralDiscountPercent, ENT_QUOTES) ?>">
+            </label>
+            <label>Prämie für die werbende Person in EUR
+                <input type="text" name="referral_reward_euro" value="<?= htmlspecialchars($referralRewardEuro, ENT_QUOTES) ?>">
+            </label>
+        </div>
 
         <button type="submit">Speichern</button>
     </form>

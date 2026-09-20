@@ -12,10 +12,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
     exit;
 }
 
-$coupons = db()->query('SELECT * FROM coupons ORDER BY created_at DESC')->fetchAll();
+// Automatisch generierte Empfehlungscodes (persoenlicher Code pro Buchung
+// sowie Belohnungsgutscheine, siehe "Empfehlungsprogramm" in CLAUDE.md)
+// koennen schnell zahlreich werden - standardmaessig ausgeblendet, damit die
+// selbst angelegten Gutscheine uebersichtlich bleiben.
+$showReferral = isset($_GET['referral']);
+$referralFilter = "referral_owner_booking_id IS NOT NULL OR code LIKE 'DANKE-%'";
+$coupons = db()->query(
+    'SELECT * FROM coupons' . ($showReferral ? '' : " WHERE NOT ($referralFilter)") . ' ORDER BY created_at DESC'
+)->fetchAll();
+$referralCount = (int) db()->query("SELECT COUNT(*) FROM coupons WHERE $referralFilter")->fetchColumn();
 ?>
 
 <p><a href="coupon_form.php" class="button">+ Neuer Gutschein</a></p>
+
+<?php if ($referralCount > 0): ?>
+    <p class="muted-text">
+        <?php if ($showReferral): ?>
+            Zeigt auch die <?= $referralCount ?> automatisch generierten Empfehlungscodes.
+            <a href="coupons.php">Nur eigene Gutscheine anzeigen</a>
+        <?php else: ?>
+            <?= $referralCount ?> automatisch generierte Empfehlungscodes ausgeblendet.
+            <a href="coupons.php?referral=1">Alle anzeigen</a>
+        <?php endif; ?>
+    </p>
+<?php endif; ?>
 
 <section class="panel">
     <table>
@@ -36,7 +57,14 @@ $coupons = db()->query('SELECT * FROM coupons ORDER BY created_at DESC')->fetchA
             $exhausted = $coupon['max_redemptions'] !== null && (int) $coupon['redemption_count'] >= (int) $coupon['max_redemptions'];
             ?>
             <tr>
-                <td><strong><?= htmlspecialchars($coupon['code'], ENT_QUOTES) ?></strong></td>
+                <td>
+                    <strong><?= htmlspecialchars($coupon['code'], ENT_QUOTES) ?></strong>
+                    <?php if ($coupon['referral_owner_booking_id']): ?>
+                        <br><a class="muted-text" href="booking_detail.php?id=<?= (int) $coupon['referral_owner_booking_id'] ?>">Empfehlungscode von Buchung #<?= (int) $coupon['referral_owner_booking_id'] ?></a>
+                    <?php elseif (str_starts_with((string) $coupon['code'], 'DANKE-')): ?>
+                        <br><span class="muted-text">Empfehlungs-Prämie</span>
+                    <?php endif; ?>
+                </td>
                 <td><?= $coupon['discount_type'] === 'percent' ? (int) $coupon['discount_value'] . ' %' : money_from_cents((int) $coupon['discount_value']) ?></td>
                 <td><?= (int) $coupon['redemption_count'] ?><?= $coupon['max_redemptions'] !== null ? ' / ' . (int) $coupon['max_redemptions'] : '' ?></td>
                 <td><?= $coupon['valid_until'] ? htmlspecialchars($coupon['valid_until'], ENT_QUOTES) : '—' ?></td>

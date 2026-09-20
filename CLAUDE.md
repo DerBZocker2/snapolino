@@ -373,6 +373,29 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+## Empfehlungsprogramm
+Sobald eine Buchung zum ersten Mal bestaetigt wird (`assign_box_and_confirm()`
+in `includes/functions.php`, egal ob per Stripe-Zahlung oder Admin-
+Bestaetigung einer Angebots-Buchung), legt `ensure_referral_coupon_for_booking()`
+automatisch einen persoenlichen, unbegrenzt oft einloesbaren Rabattcode
+(`EMPFEHLUNG-XXXXX`, `coupons.referral_owner_booking_id`) fuer diese Buchung
+an - Rabatt in Prozent ueber Einstellung `referral_discount_percent`
+(Standard 10 %). Der Code ist ein ganz normaler Gutschein (`coupons`-Tabelle,
+funktioniert unveraendert im 5-Schritte-Assistenten) und wird der Buchenden
+Person im **Kundenkonto** (`konto.php`) bei jeder bestaetigten Buchung
+angezeigt. Loest eine neue Buchung so einen fremden Empfehlungscode ein und
+wird ihrerseits zum ersten Mal bestaetigt, prueft
+`reward_referral_owner_if_applicable()` (gleicher Aufrufzeitpunkt) dies und
+verschickt der werbenden Person automatisch einen neuen, einmaligen
+Belohnungsgutschein (`DANKE-XXXXX`, fester Betrag ueber Einstellung
+`referral_reward_cents`, Standard 15 EUR) per Mail
+(`send_referral_reward_email()`) - `bookings.referral_reward_sent_at` auf der
+geworbenen Buchung verhindert eine doppelte Praemie, ein Einloesen der
+eigenen E-Mail-Adresse wird nicht belohnt. Im Panel unter **Gutscheine**
+sind die automatisch generierten Codes standardmaessig ausgeblendet (koennen
+schnell zahlreich werden), ueber "Alle anzeigen" trotzdem einsehbar, mit
+Link zur jeweiligen Buchung.
+
 ## Warteliste
 Fuer bereits ausgebuchte Termine gibt es unter `/warteliste.php` eine
 oeffentliche Warteliste: Interessenten tragen Wunschtermin, Name, E-Mail

@@ -103,6 +103,17 @@ $pendingEmail = (string) ($_SESSION['pending_login_email'] ?? '');
                             <a class="button-secondary" href="buchen.php?step=5&token=<?= urlencode((string) $booking['edit_token']) ?>">Ansehen</a>
                         <?php endif; ?>
                     </div>
+                    <?php if ($booking['status'] === 'bestaetigt'): ?>
+                        <?php $referralCoupon = get_referral_coupon_for_booking((int) $booking['id']); ?>
+                        <?php if ($referralCoupon): ?>
+                            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border, #eee);">
+                                <p class="muted" style="margin-bottom:6px;">🎁 Freunde einladen: gib
+                                    <code><?= htmlspecialchars($referralCoupon['code'], ENT_QUOTES) ?></code>
+                                    weiter - <?= (int) $referralCoupon['discount_value'] ?> % Rabatt für sie, und du
+                                    bekommst eine Prämie, sobald sie damit buchen.</p>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
