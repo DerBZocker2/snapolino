@@ -26,6 +26,7 @@ backend/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
     purge_expired_galleries.php  Loescht abgelaufene Galerie-Fotos (DSGVO), fuer taeglichen Cronjob
     send_event_reminders.php     Verschickt Erinnerungsmails vor dem Event, fuer taeglichen Cronjob
+    send_review_requests.php     Verschickt Bewertungsanfragen nach dem Event, fuer taeglichen Cronjob
   tools/
     generate_presets.py      Erzeugt die 22 mitgelieferten Preset-Rahmen per PIL
                              (kein Laufzeit-Bestandteil, nur bei Design-Ueberarbeitung)
@@ -111,6 +112,16 @@ sudo apt install php-gd php-curl php-mbstring && sudo systemctl reload apache2
    Ohne diesen Cronjob bekommen Kunden keine automatische Erinnerung - im
    Panel unter Buchungsdetails laesst sie sich bei Bedarf trotzdem jederzeit
    manuell verschicken.
+8. Fuer die automatische Bewertungsanfrage nach dem Event (Panel unter
+   **Einstellungen** editierbar, Standard 3 Tage danach) ebenfalls einen
+   taeglichen Cronjob einrichten:
+   ```
+   crontab -e
+   # taeglich um 9 Uhr morgens:
+   0 9 * * * php /var/www/snapolino.de/backend/bin/send_review_requests.php >> /var/log/snapolino-reviews.log 2>&1
+   ```
+   Ohne hinterlegten Google-Bewertungslink (Einstellung `google_review_url`)
+   verschickt die Mail trotzdem eine Feedback-Bitte, nur ohne Bewertungs-Knopf.
 
 ## Ablauf beim Anlegen einer Box
 
@@ -556,6 +567,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0019_event_reminders.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0020_waitlist.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0021_referral_program.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0022_review_requests.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -673,6 +685,11 @@ Migration 0021 ergaenzt `coupons.referral_owner_booking_id` und
 `referral_discount_percent`/`referral_reward_cents` fuers Empfehlungsprogramm -
 siehe "Empfehlungsprogramm" in CLAUDE.md. Kein Cronjob noetig, laeuft direkt
 beim Bestaetigen einer Buchung im Panel bzw. per Stripe-Webhook.
+
+Migration 0022 ergaenzt `bookings.review_requested_at` und die Einstellungen
+`review_request_days_after_event`/`google_review_url` fuer die automatische
+Bewertungsanfrage per `bin/send_review_requests.php` (siehe Cronjob-Hinweis
+oben).
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

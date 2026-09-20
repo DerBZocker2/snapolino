@@ -430,6 +430,19 @@ Events werden nicht mehr angeschrieben. Im Panel unter Buchungsdetails
 zeigt ein eigener Bereich, ob/wann die Mail schon raus ist, mit einem
 Knopf zum manuellen (erneuten) Verschicken.
 
+Analog verschickt `bin/send_review_requests.php` an alle bestaetigten
+Buchungen, deren Eventdatum mindestens `review_request_days_after_event`
+Tage (Panel unter **Einstellungen**, Standard 3) zurueckliegt und die noch
+keine Anfrage bekommen haben, eine Bitte um eine Google-Bewertung
+(`bookings.review_requested_at`) - mit Link zur Bewertungsseite
+(`google_review_url`), falls hinterlegt, sonst ohne Bewertungs-Knopf nur als
+Feedback-Bitte. Zeitfenster mit festem Nachholpuffer
+(`REVIEW_REQUEST_CATCHUP_DAYS = 4` in `bin/send_review_requests.php`) statt
+eines einzigen Stichtags - holt einen versaeumten Cronjob-Lauf nach, ohne
+eine erst Monate spaeter (wieder-)bestaetigte alte Buchung noch anzuschreiben.
+Ebenfalls mit Status-Anzeige und manuellem Sende-Knopf in den
+Buchungsdetails.
+
 ## Online-Galerie
 
 Sobald die Fotobox nach dem Event wieder mit dem Internet verbunden ist

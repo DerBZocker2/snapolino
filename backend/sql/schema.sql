@@ -102,6 +102,9 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- (die selbst einen Empfehlungscode genutzt hat) mehrfach bestaetigt
     -- wird (Migration 0021, siehe reward_referral_owner_if_applicable()).
     referral_reward_sent_at DATETIME NULL,
+    -- Gesetzt von bin/send_review_requests.php, sobald die automatische
+    -- Bewertungsanfrage nach dem Event verschickt wurde (Migration 0022).
+    review_requested_at   DATETIME NULL,
     stripe_session_id      VARCHAR(255) NULL UNIQUE,
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
@@ -292,7 +295,12 @@ INSERT IGNORE INTO settings (name, value) VALUES
     -- Belohnung fuer die werbende Person (Cent), siehe "Empfehlungsprogramm"
     -- in CLAUDE.md.
     ('referral_discount_percent', '10'),
-    ('referral_reward_cents', '1500');
+    ('referral_reward_cents', '1500'),
+    -- Tage NACH DEM EVENTDATUM, ab denen bin/send_review_requests.php die
+    -- automatische Bewertungsanfrage verschickt, sowie der Link zur
+    -- Google-Bewertungsseite (leer = kein Bewertungslink-Knopf in der Mail).
+    ('review_request_days_after_event', '3'),
+    ('google_review_url', '');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES

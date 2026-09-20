@@ -14,9 +14,9 @@ declare(strict_types=1);
 // reminder_sent_at verhindert dabei eine doppelte Mail. Bereits vergangene
 // Events (event_date < heute) werden nicht mehr angeschrieben.
 
-require __DIR__ . '/../includes/db.php';
-require __DIR__ . '/../includes/functions.php';
-require __DIR__ . '/../includes/mailer.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/mailer.php';
 
 $daysBefore = reminder_days_before_event();
 $today = (new DateTimeImmutable('today'))->format('Y-m-d');

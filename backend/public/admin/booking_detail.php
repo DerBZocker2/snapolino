@@ -53,6 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'send_review_request_email') {
+        if (send_review_request_email($booking)) {
+            db()->prepare('UPDATE bookings SET review_requested_at = NOW() WHERE id = ?')->execute([$bookingId]);
+        }
+        header('Location: booking_detail.php?id=' . $bookingId . '&review_mail=1');
+        exit;
+    }
+
     if ($action === 'toggle_unlock') {
         $newValue = (int) $booking['edit_unlocked_by_admin'] === 1 ? 0 : 1;
         db()->prepare('UPDATE bookings SET edit_unlocked_by_admin = ? WHERE id = ?')
@@ -232,6 +240,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 <?php if (isset($_GET['reminder_mail'])): ?>
     <p class="badge">Erinnerungsmail verschickt</p>
 <?php endif; ?>
+<?php if (isset($_GET['review_mail'])): ?>
+    <p class="badge">Bewertungsanfrage verschickt</p>
+<?php endif; ?>
 
 <section class="panel">
     <h2>
@@ -373,6 +384,24 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
             <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
             <input type="hidden" name="form_action" value="send_reminder_email">
             <button type="submit" class="button-secondary"><?= $booking['reminder_sent_at'] ? 'Erneut senden' : 'Jetzt senden' ?></button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <h2>Bewertungsanfrage</h2>
+        <?php if ($booking['review_requested_at']): ?>
+            <p class="muted-text">Verschickt am
+                <?= htmlspecialchars((new DateTimeImmutable($booking['review_requested_at']))->format('d.m.Y H:i'), ENT_QUOTES) ?>.</p>
+        <?php else: ?>
+            <p class="muted-text">Wird automatisch <?= review_request_days_after_event() ?> Tag(e) nach dem Event
+                verschickt, sofern der Cronjob (<code>bin/send_review_requests.php</code>) eingerichtet ist. Noch
+                nicht verschickt.</p>
+        <?php endif; ?>
+        <form method="post" action="booking_detail.php" style="display:inline;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+            <input type="hidden" name="form_action" value="send_review_request_email">
+            <button type="submit" class="button-secondary"><?= $booking['review_requested_at'] ? 'Erneut senden' : 'Jetzt senden' ?></button>
         </form>
     </section>
 

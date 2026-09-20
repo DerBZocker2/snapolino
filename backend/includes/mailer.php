@@ -431,6 +431,50 @@ function send_referral_reward_email(array $referrerBooking, string $rewardCode, 
     }
 }
 
+// Verschickt die automatische Bewertungsanfrage einige Tage nach dem Event
+// (siehe bin/send_review_requests.php, Einstellungen
+// review_request_days_after_event/google_review_url).
+function send_review_request_email(array $booking): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Bewertungsanfrage Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+        $reviewUrl = google_review_url();
+
+        $mail->Subject = 'Wie war\'s mit der Fotobox? – Snapolino';
+        $mail->isHTML(true);
+
+        $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
+            . email_p('wir hoffen, ihr hattet mit unserer Fotobox eine tolle Zeit bei eurer Veranstaltung!')
+            . ($reviewUrl !== ''
+                ? email_p('Wir würden uns riesig über eine kurze Google-Bewertung freuen - das hilft uns sehr und '
+                    . 'dauert nur eine Minute.') . email_button($reviewUrl, 'Jetzt bewerten')
+                : email_p('Wir würden uns riesig über euer Feedback freuen - meldet euch gerne einfach bei uns.'))
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Wie war\'s? 💬', $html, 'Wir freuen uns über dein Feedback.');
+
+        $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "wir hoffen, ihr hattet mit unserer Fotobox eine tolle Zeit bei eurer Veranstaltung!\n\n"
+            . ($reviewUrl !== ''
+                ? "Wir wuerden uns riesig ueber eine kurze Google-Bewertung freuen - das hilft uns sehr und dauert "
+                    . "nur eine Minute:\n\n" . $reviewUrl . "\n\n"
+                : "Wir wuerden uns riesig ueber euer Feedback freuen - meldet euch gerne einfach bei uns.\n\n")
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Bewertungsanfrage Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die Bestaetigung der Warteliste-Eintragung (warteliste.php).
 function send_waitlist_signup_email(array $entry): bool
 {

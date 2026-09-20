@@ -505,6 +505,21 @@ function reminder_days_before_event(): int
     return max(0, (int) get_setting('reminder_days_before_event', '7'));
 }
 
+// Tage NACH DEM EVENTDATUM, ab denen bin/send_review_requests.php die
+// automatische Bewertungsanfrage verschickt, im Panel unter Einstellungen
+// editierbar.
+function review_request_days_after_event(): int
+{
+    return max(0, (int) get_setting('review_request_days_after_event', '3'));
+}
+
+// Link zur Google-Bewertungsseite fuer die Bewertungsanfrage-Mail, im Panel
+// unter Einstellungen editierbar - leer = Mail ohne Bewertungslink-Knopf.
+function google_review_url(): string
+{
+    return (string) get_setting('google_review_url', '');
+}
+
 // ---------- Buchungen ----------
 
 // Eine Box ist ab Versand bis Rueckversand blockiert, nicht nur am

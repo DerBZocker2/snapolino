@@ -16,6 +16,8 @@ $galleryRetentionDays = (string) gallery_retention_days();
 $reminderDaysBeforeEvent = (string) reminder_days_before_event();
 $referralDiscountPercent = (string) referral_discount_percent();
 $referralRewardEuro = number_format(referral_reward_cents() / 100, 2, '.', '');
+$reviewRequestDaysAfterEvent = (string) review_request_days_after_event();
+$googleReviewUrl = google_review_url();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -31,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $reminderDaysBeforeEvent = trim((string) ($_POST['reminder_days_before_event'] ?? ''));
     $referralDiscountPercent = trim((string) ($_POST['referral_discount_percent'] ?? ''));
     $referralRewardEuro = trim((string) ($_POST['referral_reward_euro'] ?? ''));
+    $reviewRequestDaysAfterEvent = trim((string) ($_POST['review_request_days_after_event'] ?? ''));
+    $googleReviewUrl = trim((string) ($_POST['google_review_url'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -50,6 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_numeric($referralRewardEuro) || (float) $referralRewardEuro < 0) {
         $errors[] = 'Empfehlungspraemie muss eine Zahl >= 0 sein.';
     }
+    if (!ctype_digit($reviewRequestDaysAfterEvent)) {
+        $errors[] = 'Vorlauf der Bewertungsanfrage muss eine ganze Zahl >= 0 sein.';
+    }
+    if ($googleReviewUrl !== '' && !filter_var($googleReviewUrl, FILTER_VALIDATE_URL)) {
+        $errors[] = 'Bitte eine gültige URL für den Bewertungslink angeben.';
+    }
 
     if (!$errors) {
         set_setting('base_price_cents', (string) (int) round(((float) $priceEuro) * 100));
@@ -63,6 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('reminder_days_before_event', (string) (int) $reminderDaysBeforeEvent);
         set_setting('referral_discount_percent', (string) (int) $referralDiscountPercent);
         set_setting('referral_reward_cents', (string) (int) round(((float) $referralRewardEuro) * 100));
+        set_setting('review_request_days_after_event', (string) (int) $reviewRequestDaysAfterEvent);
+        set_setting('google_review_url', $googleReviewUrl);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -139,6 +151,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </label>
             <label>Prämie für die werbende Person in EUR
                 <input type="text" name="referral_reward_euro" value="<?= htmlspecialchars($referralRewardEuro, ENT_QUOTES) ?>">
+            </label>
+        </div>
+
+        <h2>Bewertungsanfrage</h2>
+        <p class="muted-text">Wie viele Tage <strong>nach dem Eventdatum</strong> Kunden mit bestätigter Buchung
+            automatisch um eine Google-Bewertung gebeten werden - erfordert einen täglichen Cronjob für
+            <code>bin/send_review_requests.php</code>, siehe <code>backend/README.md</code>. Ohne hinterlegten Link
+            enthält die Mail keinen Bewertungs-Knopf.</p>
+        <div class="grid3">
+            <label>Vorlauf in Tagen
+                <input type="number" min="0" name="review_request_days_after_event" value="<?= htmlspecialchars($reviewRequestDaysAfterEvent, ENT_QUOTES) ?>">
+            </label>
+            <label>Google-Bewertungslink
+                <input type="text" name="google_review_url" placeholder="https://g.page/r/.../review" value="<?= htmlspecialchars($googleReviewUrl, ENT_QUOTES) ?>">
             </label>
         </div>
 
