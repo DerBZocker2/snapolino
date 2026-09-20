@@ -95,6 +95,9 @@ CREATE TABLE IF NOT EXISTS bookings (
     gallery_token          VARCHAR(64) NULL UNIQUE,
     gallery_guest_token    VARCHAR(64) NULL UNIQUE,
     gallery_deleted_at     DATETIME NULL,
+    -- Gesetzt von bin/send_event_reminders.php, sobald die automatische
+    -- Erinnerungsmail vor dem Event verschickt wurde (Migration 0019).
+    reminder_sent_at       DATETIME NULL,
     stripe_session_id      VARCHAR(255) NULL UNIQUE,
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
@@ -258,7 +261,10 @@ INSERT IGNORE INTO settings (name, value) VALUES
     ('business_phone', ''),
     -- Tage NACH DEM EVENTDATUM, nach denen bin/purge_expired_galleries.php
     -- die Galerie-Fotos einer Buchung endgueltig loescht (DSGVO).
-    ('gallery_retention_days', '30');
+    ('gallery_retention_days', '30'),
+    -- Tage VOR DEM EVENTDATUM, ab denen bin/send_event_reminders.php die
+    -- automatische Erinnerungsmail verschickt.
+    ('reminder_days_before_event', '7');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES

@@ -13,6 +13,7 @@ $businessTaxNote = (string) get_setting('business_tax_note', '');
 $businessEmail = (string) get_setting('business_email', '');
 $businessPhone = (string) get_setting('business_phone', '');
 $galleryRetentionDays = (string) gallery_retention_days();
+$reminderDaysBeforeEvent = (string) reminder_days_before_event();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -25,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $businessEmail = trim((string) ($_POST['business_email'] ?? ''));
     $businessPhone = trim((string) ($_POST['business_phone'] ?? ''));
     $galleryRetentionDays = trim((string) ($_POST['gallery_retention_days'] ?? ''));
+    $reminderDaysBeforeEvent = trim((string) ($_POST['reminder_days_before_event'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -34,6 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (!ctype_digit($galleryRetentionDays) || (int) $galleryRetentionDays < 1) {
         $errors[] = 'Aufbewahrungsfrist der Galerie-Fotos muss eine ganze Zahl >= 1 sein.';
+    }
+    if (!ctype_digit($reminderDaysBeforeEvent)) {
+        $errors[] = 'Vorlauf der Erinnerungsmail muss eine ganze Zahl >= 0 sein.';
     }
 
     if (!$errors) {
@@ -45,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('business_email', $businessEmail);
         set_setting('business_phone', $businessPhone);
         set_setting('gallery_retention_days', (string) (int) $galleryRetentionDays);
+        set_setting('reminder_days_before_event', (string) (int) $reminderDaysBeforeEvent);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -101,6 +107,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             für <code>bin/purge_expired_galleries.php</code>, siehe <code>backend/README.md</code>.</p>
         <label>Aufbewahrungsfrist in Tagen
             <input type="number" min="1" name="gallery_retention_days" value="<?= htmlspecialchars($galleryRetentionDays, ENT_QUOTES) ?>" style="max-width:120px;">
+        </label>
+
+        <h2>Erinnerungsmail</h2>
+        <p class="muted-text">Wie viele Tage <strong>vor dem Eventdatum</strong> Kunden mit bestätigter Buchung
+            automatisch eine Erinnerungsmail bekommen - erfordert einen täglichen Cronjob für
+            <code>bin/send_event_reminders.php</code>, siehe <code>backend/README.md</code>. 0 = am Eventtag selbst.</p>
+        <label>Vorlauf in Tagen
+            <input type="number" min="0" name="reminder_days_before_event" value="<?= htmlspecialchars($reminderDaysBeforeEvent, ENT_QUOTES) ?>" style="max-width:120px;">
         </label>
 
         <button type="submit">Speichern</button>

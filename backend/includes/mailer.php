@@ -386,6 +386,49 @@ function send_gallery_email(array $booking, string $galleryUrl, string $deletion
     }
 }
 
+// Verschickt die automatische Erinnerungsmail einige Tage vor dem Event
+// (siehe bin/send_event_reminders.php, Einstellung reminder_days_before_event).
+function send_event_reminder_email(array $booking): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Erinnerungsmail Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Bald ist es soweit – deine Fotobox am ' . $eventDate;
+        $mail->isHTML(true);
+
+        $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
+            . email_p('nur noch kurz hin bis zu eurer Veranstaltung am <strong>' . email_e($eventDate)
+                . '</strong> - wir wollten euch rechtzeitig daran erinnern.')
+            . email_p('Die Fotobox wird euch pünktlich zugestellt bzw. steht bereit, alles Weitere ist bereits erledigt. '
+                . 'Falls sich noch etwas an Datum oder Ablauf ändert, meldet euch gerne kurz bei uns.')
+            . email_p('Wir wünschen euch schon jetzt eine wundervolle Feier!')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Bald geht’s los! 🎉', $html, 'Nur noch wenige Tage bis zu eurer Veranstaltung.');
+
+        $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "nur noch kurz hin bis zu eurer Veranstaltung am " . $eventDate . " - wir wollten euch rechtzeitig "
+            . "daran erinnern.\n\n"
+            . "Die Fotobox wird euch puenktlich zugestellt bzw. steht bereit, alles Weitere ist bereits erledigt. "
+            . "Falls sich noch etwas an Datum oder Ablauf aendert, meldet euch gerne kurz bei uns.\n\n"
+            . "Wir wuenschen euch schon jetzt eine wundervolle Feier!\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Erinnerungsmail Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die Bestaetigung, sobald eine Zusatzzahlung tatsaechlich
 // eingegangen ist (siehe mark_addon_charge_paid()). Fuer diese kleinen
 // Nachforderungen gibt es keine eigene fortlaufende Rechnungsnummer wie bei

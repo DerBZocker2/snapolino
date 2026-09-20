@@ -25,6 +25,7 @@ backend/
   bin/
     create_admin.php        CLI-Skript zum Anlegen/Aendern eines Admin-Logins
     purge_expired_galleries.php  Loescht abgelaufene Galerie-Fotos (DSGVO), fuer taeglichen Cronjob
+    send_event_reminders.php     Verschickt Erinnerungsmails vor dem Event, fuer taeglichen Cronjob
   tools/
     generate_presets.py      Erzeugt die 22 mitgelieferten Preset-Rahmen per PIL
                              (kein Laufzeit-Bestandteil, nur bei Design-Ueberarbeitung)
@@ -99,6 +100,17 @@ sudo apt install php-gd php-curl php-mbstring && sudo systemctl reload apache2
    Ohne diesen Cronjob werden die Fotos weiterhin unbegrenzt gespeichert -
    die Anzeige der Aufbewahrungsfrist im Panel/auf der Galerie-Seite selbst
    loescht nichts, sie ist nur die Ankuendigung dafuer.
+7. Fuer die automatische Erinnerungsmail vor dem Event (Panel unter
+   **Einstellungen** editierbar, Standard 7 Tage vorher) ebenfalls einen
+   taeglichen Cronjob einrichten:
+   ```
+   crontab -e
+   # taeglich um 8 Uhr morgens:
+   0 8 * * * php /var/www/snapolino.de/backend/bin/send_event_reminders.php >> /var/log/snapolino-reminders.log 2>&1
+   ```
+   Ohne diesen Cronjob bekommen Kunden keine automatische Erinnerung - im
+   Panel unter Buchungsdetails laesst sie sich bei Bedarf trotzdem jederzeit
+   manuell verschicken.
 
 ## Ablauf beim Anlegen einer Box
 
@@ -541,6 +553,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0016_photo_gallery.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0017_preset_redesign.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0018_gallery_management.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0019_event_reminders.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und
@@ -642,6 +655,11 @@ Fotos) - siehe "Online-Galerie" in CLAUDE.md. Ergaenzt ausserdem
 Einstellung `gallery_retention_days` (Standard 30 Tage nach Eventdatum) fuer
 die automatische Loeschung per `bin/purge_expired_galleries.php` (siehe
 Cronjob-Hinweis oben unter "Ablauf beim Anlegen einer Box").
+
+Migration 0019 ergaenzt `bookings.reminder_sent_at` und die Einstellung
+`reminder_days_before_event` (Standard 7 Tage vor Eventdatum) fuer die
+automatische Erinnerungsmail per `bin/send_event_reminders.php` (siehe
+Cronjob-Hinweis oben).
 
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.

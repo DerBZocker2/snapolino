@@ -45,6 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'send_reminder_email') {
+        if (send_event_reminder_email($booking)) {
+            db()->prepare('UPDATE bookings SET reminder_sent_at = NOW() WHERE id = ?')->execute([$bookingId]);
+        }
+        header('Location: booking_detail.php?id=' . $bookingId . '&reminder_mail=1');
+        exit;
+    }
+
     if ($action === 'toggle_unlock') {
         $newValue = (int) $booking['edit_unlocked_by_admin'] === 1 ? 0 : 1;
         db()->prepare('UPDATE bookings SET edit_unlocked_by_admin = ? WHERE id = ?')
@@ -221,6 +229,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 <?php if (isset($_GET['galerie_mail'])): ?>
     <p class="badge">Galerie-Link per Mail verschickt</p>
 <?php endif; ?>
+<?php if (isset($_GET['reminder_mail'])): ?>
+    <p class="badge">Erinnerungsmail verschickt</p>
+<?php endif; ?>
 
 <section class="panel">
     <h2>
@@ -348,6 +359,23 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 <?php endif; ?>
 
 <?php if ($booking['status'] === 'bestaetigt'): ?>
+    <section class="panel">
+        <h2>Erinnerungsmail</h2>
+        <?php if ($booking['reminder_sent_at']): ?>
+            <p class="muted-text">Verschickt am
+                <?= htmlspecialchars((new DateTimeImmutable($booking['reminder_sent_at']))->format('d.m.Y H:i'), ENT_QUOTES) ?>.</p>
+        <?php else: ?>
+            <p class="muted-text">Wird automatisch <?= reminder_days_before_event() ?> Tag(e) vor dem Event verschickt,
+                sofern der Cronjob (<code>bin/send_event_reminders.php</code>) eingerichtet ist. Noch nicht verschickt.</p>
+        <?php endif; ?>
+        <form method="post" action="booking_detail.php" style="display:inline;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+            <input type="hidden" name="form_action" value="send_reminder_email">
+            <button type="submit" class="button-secondary"><?= $booking['reminder_sent_at'] ? 'Erneut senden' : 'Jetzt senden' ?></button>
+        </form>
+    </section>
+
     <section class="panel">
         <h2>Online-Galerie</h2>
         <?php if ($booking['gallery_deleted_at']): ?>

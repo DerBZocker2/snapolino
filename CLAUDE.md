@@ -373,6 +373,20 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+## Automatische E-Mails
+`bin/send_event_reminders.php` (fuer einen taeglichen Cronjob gedacht, siehe
+`backend/README.md`) verschickt an alle bestaetigten Buchungen, deren
+Eventdatum innerhalb von `reminder_days_before_event` Tagen (Panel unter
+**Einstellungen**, Standard 7) liegt und die noch keine Erinnerung bekommen
+haben (`bookings.reminder_sent_at`), eine Erinnerungsmail
+(`send_event_reminder_email()` in `mailer.php`). Das Zeitfenster (Eventdatum
+zwischen heute und dem Stichtag, statt eines einzigen exakten Tages) holt
+einen versaeumten Cronjob-Lauf am naechsten Tag automatisch nach,
+`reminder_sent_at` verhindert dabei eine doppelte Mail; bereits vergangene
+Events werden nicht mehr angeschrieben. Im Panel unter Buchungsdetails
+zeigt ein eigener Bereich, ob/wann die Mail schon raus ist, mit einem
+Knopf zum manuellen (erneuten) Verschicken.
+
 ## Online-Galerie
 
 Sobald die Fotobox nach dem Event wieder mit dem Internet verbunden ist

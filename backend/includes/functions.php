@@ -480,6 +480,14 @@ function gallery_deletion_date(string $eventDate): DateTimeImmutable
     return (new DateTimeImmutable($eventDate))->modify('+' . gallery_retention_days() . ' days');
 }
 
+// Tage VOR DEM EVENTDATUM, ab denen bin/send_event_reminders.php die
+// automatische Erinnerungsmail verschickt, im Panel unter Einstellungen
+// editierbar.
+function reminder_days_before_event(): int
+{
+    return max(0, (int) get_setting('reminder_days_before_event', '7'));
+}
+
 // ---------- Buchungen ----------
 
 // Eine Box ist ab Versand bis Rueckversand blockiert, nicht nur am
