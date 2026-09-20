@@ -180,6 +180,19 @@ im Panel angezeigt).
   in `_site_header.php` (oeffentliche Seiten), `admin/_header.php`
   (Sidebar) und `admin/login.php`, jeweils per `asset_url()` mit
   Cache-Busting.
+- Alle Transaktionsmails (`includes/mailer.php`, PHPMailer/SMTP) sind
+  HTML mit `AltBody`-Fallback fuer Clients ohne HTML-Anzeige: zentrierte
+  Karte (tabellenbasiert statt CSS `margin:auto`, damit es auch in Outlook
+  Desktop - rendert HTML-Mails mit der Word-Engine - zuverlaessig
+  zentriert bleibt), Logo oben per `addEmbeddedImage()`/`cid:` direkt in
+  die Mail eingebettet statt extern verlinkt (funktioniert unabhaengig von
+  Bilderblockierung, wirkt nicht wie eine nachladende externe Ressource).
+  Gemeinsame Bausteine `render_email_html()`/`email_p()`/`email_button()`/
+  `email_muted()`/`email_signoff()`, jede `send_*_email()`-Funktion baut
+  daraus ihren HTML-Body und behaelt parallel eine reine Textversion fuer
+  `AltBody`. Ein "Profilbild" neben der Absenderadresse (z.B. in Gmail)
+  ist keine Sache des Mailinhalts, sondern des Postfachs/der Domain -
+  siehe Offene Punkte.
 
 ## Buchungssystem
 Kunden buchen öffentlich unter `/buchen.php`, ein 5-Schritte-Assistent
@@ -429,6 +442,14 @@ u.a. die Windows-Taste per Registry-Scancode-Map deaktivieren (Qt selbst
 kann sie nicht abfangen).
 
 ## Offene Punkte
+- Absender-"Profilbild" neben `info@snapolino.de` (z.B. in Gmail) ist keine
+  Code-Frage, sondern Konto-/Domain-Einstellung - noch nicht eingerichtet:
+  Gravatar (gravatar.com-Konto fuer die Adresse, Logo hochladen - wirkt in
+  Outlook/Apple Mail/Thunderbird), Google-Konto-Profilbild (falls das
+  Postfach ueber Google Workspace laeuft) oder BIMI (zeigt das Logo bei
+  DMARC-Enforcement in Gmail/Yahoo u.a. an, braucht i.d.R. ein teures
+  verifiziertes Markenzertifikat - fuer die aktuelle Groesse eher nicht
+  lohnend).
 - Online-Galerie (siehe oben) hat noch keinen QR-Code auf der Box selbst
   (z.B. auf der COLLAGE-Seite fuers direkte Scannen durch Gaeste vor Ort) -
   aktuell nur per Mail-Link vom Admin verschickt, sobald die Box wieder
