@@ -59,7 +59,7 @@ require __DIR__ . '/_site_header.php';
 </div>
 
 <section class="section" id="ablauf">
-    <h2>So funktioniert's</h2>
+    <h2>🚀 So funktioniert's</h2>
     <p class="lead">In vier einfachen Schritten zu deiner eigenen Fotobox.</p>
     <div class="feature-grid">
         <div class="feature-card">
@@ -86,7 +86,7 @@ require __DIR__ . '/_site_header.php';
 </section>
 
 <section class="section" id="design-optionen">
-    <h2>So gestaltest du deine <span class="accent-text">Fotobox</span></h2>
+    <h2>🎨 So gestaltest du deine <span class="accent-text">Fotobox</span></h2>
     <p class="lead">
         Für jeden Anlass das passende Layout – drei Wege, wie du dein
         Design festlegst.
@@ -112,7 +112,7 @@ require __DIR__ . '/_site_header.php';
 
 <?php if ($testimonials): ?>
 <section class="section" id="bewertungen">
-    <h2>Das sagen unsere <span class="accent-text">Kunden</span></h2>
+    <h2>💬 Das sagen unsere <span class="accent-text">Kunden</span></h2>
     <p class="lead">Echte Rückmeldungen von echten Veranstaltungen.</p>
     <div class="testimonial-grid">
         <?php foreach ($testimonials as $t): ?>
@@ -134,26 +134,27 @@ require __DIR__ . '/_site_header.php';
 <?php endif; ?>
 
 <section class="section" id="faq">
-    <h2>Häufige Fragen</h2>
-    <p class="lead">Frage antippen, Antwort erscheint.</p>
+    <h2>❓ Häufige Fragen</h2>
+    <p class="lead">Frage antippen, Antwort erscheint. Weitere Fragen findest du auf unserer
+        <a href="faq.php">FAQ-Seite</a>.</p>
 
     <details class="panel-box">
-        <summary>Muss jemand die Fotobox bedienen?</summary>
+        <summary>🙋 Muss jemand die Fotobox bedienen?</summary>
         <div class="faq-answer"><p>Nein. Deine Gäste tippen ein Layout an, schauen in die Kamera und der
             Countdown startet automatisch – ganz ohne Personal.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Was ist im Lieferumfang enthalten?</summary>
+        <summary>📦 Was ist im Lieferumfang enthalten?</summary>
         <div class="faq-answer"><p>Die fertig eingerichtete Fotobox inkl. Drucker, Kamera und deinem
             gewählten Design – einfach auspacken, aufstellen und einschalten.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Brauche ich Internet vor Ort?</summary>
+        <summary>📶 Brauche ich Internet vor Ort?</summary>
         <div class="faq-answer"><p>Nein. Die Box ist offline-first und speichert alles lokal – für
             Aufnahme, Anzeige und Druck brauchst du kein WLAN am Veranstaltungsort.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Wie viele Fotos landen auf einem Ausdruck?</summary>
+        <summary>🖼️ Wie viele Fotos landen auf einem Ausdruck?</summary>
         <div class="faq-answer"><p>Standard sind 4 Bilder pro Collage. Auf Wunsch kannst du bei der
             Buchung zusätzlich Layouts mit 1, 2 oder 3 Fotos dazuwählen (bis zu drei
             Zusatzformate gleichzeitig) – deine Gäste entscheiden dann direkt an der Box,
@@ -162,31 +163,31 @@ require __DIR__ . '/_site_header.php';
             als Extra-Abzug drucken.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Wie gestalte ich mein Design?</summary>
+        <summary>🎨 Wie gestalte ich mein Design?</summary>
         <div class="faq-answer"><p>Du hast drei Wege: eine fertige Design-Vorlage aus unserer Galerie
             wählen, im kostenlosen Online-Designer Farbe, Muster und Text selbst anpassen,
             oder ein eigenes PNG mit transparenten Fotoflächen hochladen.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Kann ich meine Buchung nachträglich ändern?</summary>
+        <summary>✏️ Kann ich meine Buchung nachträglich ändern?</summary>
         <div class="faq-answer"><p>Ja. Sobald du deine E-Mail-Adresse zur Buchung angegeben hast,
             kannst du dich unter <a href="konto.php">Mein Konto</a> per E-Mail-Code einloggen
             und dort Datum, Design und Extras anpassen, solange noch nicht bezahlt wurde.
             Danach ist die Buchung nur noch einsehbar.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Wie lange vorher sollte ich buchen?</summary>
+        <summary>⏰ Wie lange vorher sollte ich buchen?</summary>
         <div class="faq-answer"><p>Je früher, desto besser – vor allem an Wochenenden in der Hochsaison sind
             Termine schnell vergeben. Da wir aktuell nur eine Box haben, ist mit dem Absenden
             deiner Anfrage der Termin sofort für andere gesperrt, bis wir sie bearbeitet haben.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Kann ich stornieren?</summary>
+        <summary>❌ Kann ich stornieren?</summary>
         <div class="faq-answer"><p>Ja, die genauen Fristen und Bedingungen findest du in unseren
             <a href="agb.php">AGB</a>.</p></div>
     </details>
     <details class="panel-box">
-        <summary>Sind meine Zahlungsdaten sicher?</summary>
+        <summary>🔒 Sind meine Zahlungsdaten sicher?</summary>
         <div class="faq-answer"><p>Ja. Die Zahlung läuft komplett über den Zahlungsdienstleister Stripe –
             deine Kartendaten erreichen unseren Server nie. Details dazu in unserer
             <a href="datenschutz.php">Datenschutzerklärung</a>.</p></div>

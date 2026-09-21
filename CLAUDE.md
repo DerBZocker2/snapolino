@@ -326,6 +326,35 @@ Admin-Panel wird auf keiner oeffentlichen Seite verlinkt (kein
 "Admin-Login" mehr auf Startseite/Buchungsseite) - Zugriff nur ueber die
 direkte URL `admin/login.php`.
 
+Die **AGB** (`agb.php`) regeln zusaetzlich zu den Standardklauseln: eine nach
+Zeitpunkt vor dem Eventdatum gestaffelte Stornogebuehr (10 %/30 %/60 %/80 %
+des Mietpreises je nach Frist, mit Recht des Mieters zum Nachweis eines
+geringeren Schadens), eine Verspaetungsgebuehr pro Tag bei zu spaeter
+Rueckgabe, einen gedeckelten Selbstbehalt bei waehrend der Miete
+entstandenen Schaeden (mit Ausnahmen fuer grobe Pflichtverletzungen wie
+unbefugtes Oeffnen der Box), Eigentum an nicht verbrauchtem Druckmaterial
+(Farbband/Fotopapier bleibt Snapolino-Eigentum, Ruecksendepflicht) sowie
+eine Klausel zur optionalen Online-Galerie (nutzt `gallery_retention_days()`
+statt eines hardgecodeten Zeitraums, damit der Text automatisch mit der
+Einstellung mitzieht; kein Passwort noetig, da der unratbare Link selbst
+die Zugriffskontrolle ist). Das Widerrufsrecht bleibt bewusst ausgeschlossen
+(Freizeitleistung mit festem Termin, § 312g Abs. 2 Nr. 9 BGB) - ein
+eventuell ein USB-Stick waehrend der Nutzung an der Box steckt (z.B. vom
+Mieter selbst mitgebracht), kopiert die Box automatisch alle Fotos zusaetzlich
+darauf, ein USB-Stick ist aber kein Bestandteil der Buchung.
+
+Eine eigene Seite **`faq.php`** (verlinkt aus der Hauptnavigation sowie aus
+der kurzen FAQ-Vorschau auf der Startseite) sammelt alle haeufigen Fragen
+mit Kategorie-Filter (Alle/Ablauf & Buchung/Kosten & Bezahlung/Technik &
+Aufbau/Fotos & Drucke/Design & Vorlagen, Klick auf einen Tab blendet per
+Vanilla-JS alle `<details class="panel-box">`-Elemente anderer Kategorien
+aus - nutzt dieselben `.category-tabs`/`.cat-tab`-Klassen wie der
+Design-Kategorie-Filter im Buchungsassistenten). Preis- und Fristangaben
+darin sind bewusst dynamisch aus denselben Settings/Konstanten wie anderswo
+(`base_price_cents()`, `gallery_retention_days()`, Rabatt-Prozentsaetze)
+gezogen statt hartkodiert, damit sie nicht veralten; die Fussnote "Stand:
+<Monat> <Jahr>" wird ebenfalls automatisch aus dem aktuellen Datum gebildet.
+
 **Kundenkonten** (`konto.php`, `includes/customer_auth.php`): ein Konto
 pro E-Mail-Adresse, Login per 6-stelligem Code per Mail statt Passwort
 (15 Minuten gueltig, max. 5 Fehlversuche, 60s Sperre zwischen zwei
