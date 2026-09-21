@@ -13,7 +13,7 @@ $addressLines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r
 ?>
 
 <section class="section legal-page">
-    <h2>Impressum</h2>
+    <h2>🏢 Impressum</h2>
 
     <div class="panel-box">
         <h3>Angaben gemäß § 5 DDG</h3>

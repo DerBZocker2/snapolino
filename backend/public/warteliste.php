@@ -83,14 +83,14 @@ require __DIR__ . '/_site_header.php';
 ?>
 
 <section class="section">
-    <h2>Warteliste</h2>
+    <h2>⏳ Warteliste</h2>
     <p class="lead">Dein Wunschtermin ist schon vergeben? Trag dich hier ein - wir melden uns automatisch per
         E-Mail, sobald der Tag wieder frei wird.</p>
 
     <?php $successDateObj = $success ? (DateTimeImmutable::createFromFormat('Y-m-d', $eventDate) ?: null) : null; ?>
     <?php if ($success): ?>
         <div class="panel-box" style="max-width:520px;margin:0 auto;text-align:center;">
-            <h3>Danke!</h3>
+            <h3>🎉 Danke!</h3>
             <p class="muted">Du bist auf der Warteliste<?= $successDateObj ? ' für den ' . htmlspecialchars($successDateObj->format('d.m.Y'), ENT_QUOTES) : '' ?>.
                 Wir melden uns, sobald der Termin wieder frei wird.</p>
             <a class="button" href="/">Zur Startseite</a>

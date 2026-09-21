@@ -349,7 +349,7 @@ require __DIR__ . '/_site_header.php';
 
 <section class="section" style="padding-top:40px;">
     <?php if ($success): ?>
-        <h2>Fotobox buchen</h2>
+        <h2>📸 Fotobox buchen</h2>
         <div class="panel-box success-box">
             <?php if (isset($_GET['paid'])): ?>
                 <h3>🎉 Danke für deine Zahlung!</h3>
@@ -368,9 +368,9 @@ require __DIR__ . '/_site_header.php';
             </p>
         </div>
     <?php elseif ($bookingLocked): ?>
-        <h2>Fotobox buchen</h2>
+        <h2>📸 Fotobox buchen</h2>
         <div class="panel-box" style="max-width:520px;margin:0 auto;text-align:center;">
-            <h3>Diese Buchung ist bereits abgeschlossen</h3>
+            <h3>🔒 Diese Buchung ist bereits abgeschlossen</h3>
             <p class="muted">
                 Sie kann nicht mehr geändert werden. In deinem
                 <a href="konto.php">Konto</a> kannst du sie dir jederzeit ansehen. Falls doch noch
@@ -387,7 +387,7 @@ require __DIR__ . '/_site_header.php';
 
         <?php if ($step === 1): ?>
             <div class="panel-box" style="max-width:520px;margin:0 auto;">
-                <h3>Wähle deinen Wunschtermin</h3>
+                <h3>📅 Wähle deinen Wunschtermin</h3>
                 <p class="muted">Bereits vergebene Tage sind ausgegraut - such dir einfach einen freien Tag aus.</p>
                 <div id="calendar"></div>
                 <p id="selected-date-label" class="muted">Tippe auf einen freien Tag, um fortzufahren.</p>
@@ -403,7 +403,7 @@ require __DIR__ . '/_site_header.php';
                 <a href="buchen.php?step=1">Ändern</a>
             </div>
             <div class="panel-box" style="max-width:480px;margin:0 auto;">
-                <h3>Deinen Termin anfragen</h3>
+                <h3>✍️ Deinen Termin anfragen</h3>
                 <p class="muted">Gib deine Kontaktdaten ein, um deinen Wunschtermin anzufragen - im nächsten Schritt wählst du Design und Extras.</p>
                 <p class="price-line">
                     <?= money_from_cents(base_price_cents()) ?>
@@ -460,7 +460,7 @@ require __DIR__ . '/_site_header.php';
             }, $designerLayouts), JSON_UNESCAPED_UNICODE);
             ?>
             <div class="panel-box" style="max-width:760px;margin:0 auto;">
-                <h3>Wähle dein <span class="accent-text">Design</span></h3>
+                <h3>🎨 Wähle dein <span class="accent-text">Design</span></h3>
                 <p class="muted">Wie sollen deine Ausdrucke aussehen? Du kannst das später noch ändern.</p>
 
                 <div class="design-options">
@@ -1050,7 +1050,7 @@ require __DIR__ . '/_site_header.php';
             $baseTotal = base_price_cents() + $layoutSurcharge;
             ?>
             <div class="panel-box" style="max-width:600px;margin:0 auto;">
-                <h3>Möchtest du dein Erlebnis aufwerten?</h3>
+                <h3>✨ Möchtest du dein Erlebnis aufwerten?</h3>
                 <p class="muted">Ganz nach Wunsch dazubuchen oder einfach weiter - der Preis unten aktualisiert sich direkt.</p>
                 <form method="post" action="buchen.php?step=4&token=<?= urlencode($token) ?>" id="extras-form">
                     <?= csrf_field() ?>
@@ -1174,7 +1174,7 @@ require __DIR__ . '/_site_header.php';
             ?>
             <div class="summary-layout">
                 <div class="panel-box">
-                    <h3>Rechnungsadresse</h3>
+                    <h3>🧾 Rechnungsadresse</h3>
                     <p class="muted">Die Rechnung geht an diese Adresse.</p>
 
                     <form method="post" action="buchen.php?step=5&token=<?= urlencode($token) ?>">
@@ -1226,7 +1226,7 @@ require __DIR__ . '/_site_header.php';
 
                 <div class="summary-sidebar">
                     <div class="panel-box">
-                        <h3>Fast geschafft! Hier deine Übersicht</h3>
+                        <h3>🎯 Fast geschafft! Hier deine Übersicht</h3>
                         <p class="muted">📅 <?= htmlspecialchars(german_weekday($event) . ', ' . $event->format('d.m.Y'), ENT_QUOTES) ?></p>
 
                         <div class="summary-card">

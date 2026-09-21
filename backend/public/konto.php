@@ -70,7 +70,7 @@ $pendingEmail = (string) ($_SESSION['pending_login_email'] ?? '');
 
 <section class="section legal-page">
     <?php if ($account): ?>
-        <h2>Mein Konto</h2>
+        <h2>👤 Mein Konto</h2>
         <p class="muted">Angemeldet als <strong><?= htmlspecialchars($account['email'], ENT_QUOTES) ?></strong></p>
 
         <?php if (!$bookings): ?>
@@ -125,7 +125,7 @@ $pendingEmail = (string) ($_SESSION['pending_login_email'] ?? '');
         </form>
 
     <?php elseif ($pendingEmail !== ''): ?>
-        <h2>Anmeldecode eingeben</h2>
+        <h2>🔑 Anmeldecode eingeben</h2>
         <div class="panel-box" style="max-width:420px;margin:0 auto;">
             <p class="muted">Wir haben einen Code an <strong><?= htmlspecialchars($pendingEmail, ENT_QUOTES) ?></strong> geschickt (falls diese Adresse bei uns bekannt ist). Er ist <?= CUSTOMER_LOGIN_CODE_TTL_MINUTES ?> Minuten gültig.</p>
 
@@ -151,7 +151,7 @@ $pendingEmail = (string) ($_SESSION['pending_login_email'] ?? '');
             </form>
         </div>
     <?php else: ?>
-        <h2>Mein Konto</h2>
+        <h2>👤 Mein Konto</h2>
         <div class="panel-box" style="max-width:420px;margin:0 auto;">
             <p class="muted">Melde dich mit deiner E-Mail-Adresse an, um deine Buchungen anzusehen oder anzupassen - ganz ohne Passwort, per Code per E-Mail.</p>
 

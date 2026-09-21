@@ -13,7 +13,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
 ?>
 
 <section class="section legal-page">
-    <h2>Datenschutzerklärung</h2>
+    <h2>🔒 Datenschutzerklärung</h2>
 
     <div class="panel-box">
         <h3>1. Verantwortlicher</h3>

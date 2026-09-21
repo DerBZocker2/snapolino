@@ -338,7 +338,7 @@ $daysLeft = $deletionDate ? (int) (new DateTimeImmutable('today'))->diff($deleti
 
         <?php if ($role === 'organizer'): ?>
             <div class="guest-link-box">
-                <h2>Link für eure Gäste</h2>
+                <h2>🔗 Link für eure Gäste</h2>
                 <p>Diesen Link könnt ihr an alle Gäste weitergeben - er zeigt nur die Fotos, die du nicht
                     ausgeblendet hast, und erlaubt keine Änderungen.</p>
                 <div class="guest-link-row">
