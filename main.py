@@ -39,6 +39,7 @@ PAGE_LOCKED = 6
 EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
 MAX_INDIVIDUAL_PRINT_COPIES = 3
 REVIEW_THUMB_SIZE = 220  # Kachelgroesse in der Gesamtuebersicht, siehe _refresh_review_thumbs()
+CAROUSEL_PREVIEW_SIZE = (560, 373)  # grosse Vorschau im Rahmen-Karussell, siehe _update_carousel_view()
 
 
 def setup_logging():
@@ -365,30 +366,78 @@ class Fotobox(QWidget):
         lw.addWidget(self.btn_welcome_continue)
         self.pages.addWidget(pw)
 
-        # Seite 1: BEREIT - Rahmenauswahl direkt hier, Antippen startet sofort
-        # die Aufnahme (kein separater Zwischenschritt mit Start-Knopf mehr).
+        # Seite 1: BEREIT - gestaltete Rahmen (Presets + individuelle Designs)
+        # laufen als Karussell: ein grosses Vorschaubild, per Pfeil
+        # durchblaetterbar, erst der Start-Knopf unten mittig loest die
+        # Aufnahme fuer den gerade angezeigten Rahmen aus. Schlichte
+        # Format-Layouts (category "Format", z.B. "1 Bild"/"2 Bilder") sind
+        # keine "richtigen" Designs, sondern nur ein alternativer Zuschnitt -
+        # die bleiben als einfache Liste darunter und starten weiterhin
+        # sofort bei Antippen, wie vorher die gesamte Seite.
         p0 = QWidget()
         l0 = QVBoxLayout(p0)
         title0 = QLabel("Deine Rahmen")
         title0.setStyleSheet("font-size: 26px; font-weight: bold;")
         l0.addWidget(title0)
-        subtitle0 = QLabel("Zum Starten auf einen Rahmen tippen")
+        subtitle0 = QLabel("Mit den Pfeilen durchblättern, dann Start drücken")
         subtitle0.setStyleSheet("font-size: 16px; color: #aaa;")
         l0.addWidget(subtitle0)
-        # In einer QScrollArea statt direkt im Layout, damit viele Rahmen
-        # (mehrere zusaetzliche Formate pro Buchung moeglich) bei wenig
-        # Bildschirmhoehe scrollen statt ueber den sichtbaren Bereich
-        # hinauszuwachsen - die Buttons behalten dabei ihre volle,
-        # gut lesbare Groesse samt Vorschaubild.
-        self.layout_choice_box = QVBoxLayout()
-        choice_container = QWidget()
-        choice_container.setLayout(self.layout_choice_box)
-        choice_container.setStyleSheet("background: transparent;")
-        choice_scroll = QScrollArea()
-        choice_scroll.setWidgetResizable(True)
-        choice_scroll.setWidget(choice_container)
-        choice_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
-        l0.addWidget(choice_scroll, 1)
+
+        carousel_row = QHBoxLayout()
+        self.btn_carousel_prev = QPushButton("◀")
+        self.btn_carousel_next = QPushButton("▶")
+        for b in (self.btn_carousel_prev, self.btn_carousel_next):
+            b.setFixedWidth(70)
+            b.setMinimumHeight(CAROUSEL_PREVIEW_SIZE[1])
+            b.setStyleSheet(
+                "font-size: 30px; background: #34495e; color: white; border-radius: 10px;"
+            )
+        self.btn_carousel_prev.clicked.connect(self._carousel_show_prev)
+        self.btn_carousel_next.clicked.connect(self._carousel_show_next)
+
+        self.carousel_preview = QLabel()
+        self.carousel_preview.setAlignment(Qt.AlignCenter)
+        self.carousel_preview.setMinimumSize(*CAROUSEL_PREVIEW_SIZE)
+
+        carousel_row.addWidget(self.btn_carousel_prev)
+        carousel_row.addWidget(self.carousel_preview, 1)
+        carousel_row.addWidget(self.btn_carousel_next)
+        l0.addLayout(carousel_row)
+
+        self.carousel_name_label = QLabel("")
+        self.carousel_name_label.setAlignment(Qt.AlignCenter)
+        self.carousel_name_label.setStyleSheet("font-size: 20px; font-weight: bold;")
+        l0.addWidget(self.carousel_name_label)
+
+        # Format-Liste in einer QScrollArea, damit auch mehrere zusaetzlich
+        # gebuchte Formate bei wenig Bildschirmhoehe scrollen statt den
+        # Bereich fuer das Karussell zu verdraengen - bewusst niedrig
+        # gehalten, der Fokus soll auf dem Karussell liegen.
+        self.format_choice_box = QVBoxLayout()
+        format_container = QWidget()
+        format_container.setLayout(self.format_choice_box)
+        format_container.setStyleSheet("background: transparent;")
+        self.format_choice_scroll = QScrollArea()
+        self.format_choice_scroll.setWidgetResizable(True)
+        self.format_choice_scroll.setWidget(format_container)
+        self.format_choice_scroll.setMaximumHeight(160)
+        self.format_choice_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        l0.addWidget(self.format_choice_scroll)
+
+        l0.addStretch()
+
+        start_row = QHBoxLayout()
+        start_row.addStretch()
+        self.btn_carousel_start = QPushButton("Start")
+        self.btn_carousel_start.setMinimumSize(260, 90)
+        self.btn_carousel_start.setStyleSheet(
+            "font-size: 34px; background: #27ae60; color: white; border-radius: 12px;"
+        )
+        self.btn_carousel_start.clicked.connect(self._start_carousel_layout)
+        start_row.addWidget(self.btn_carousel_start)
+        start_row.addStretch()
+        l0.addLayout(start_row)
+
         self.pages.addWidget(p0)
 
         # Seite 2: LIVE + COUNTDOWN
@@ -504,28 +553,81 @@ class Fotobox(QWidget):
         self._refresh_layout_choices()
 
     def _refresh_layout_choices(self):
-        while self.layout_choice_box.count():
-            item = self.layout_choice_box.takeAt(0)
+        # Format-Layouts (category "Format") sind schlichte Zuschnitte ohne
+        # eigenes Design ("1 Bild", "2 Bilder" ...) - die landen in der
+        # einfachen Liste unten. Alles andere (Standard-Collage, gestaltete
+        # Presets, individuelle Designs) gehoert ins Karussell.
+        self.carousel_layouts = [l for l in self.layouts if l.get("category") != "Format"]
+        format_layouts = [l for l in self.layouts if l.get("category") == "Format"]
+        self.carousel_index = 0
+
+        while self.format_choice_box.count():
+            item = self.format_choice_box.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        for layout in self.layouts:
+        for layout in format_layouts:
             label = "  " + layout["name"]
             if layout.get("surcharge_cents"):
                 label += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
             btn = QPushButton(label)
-            btn.setMinimumHeight(100)
+            btn.setMinimumHeight(70)
             btn.setStyleSheet(
-                "font-size: 22px; background: #2980b9; color: white; border-radius: 10px;"
+                "font-size: 18px; background: #2980b9; color: white; border-radius: 10px;"
                 " text-align: left; padding-left: 10px;"
             )
             frame_path = layout.get("frame_path")
             if frame_path and os.path.exists(frame_path):
-                pix = QPixmap(frame_path).scaled(150, 90, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pix = QPixmap(frame_path).scaled(110, 65, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 btn.setIcon(QIcon(pix))
                 btn.setIconSize(pix.size())
             btn.clicked.connect(lambda checked=False, ly=layout: self.choose_layout(ly))
-            self.layout_choice_box.addWidget(btn)
+            self.format_choice_box.addWidget(btn)
+
+        self.format_choice_scroll.setVisible(bool(format_layouts))
+        self._update_carousel_view()
+
+    def _update_carousel_view(self):
+        has_layouts = bool(self.carousel_layouts)
+        can_scroll = has_layouts and len(self.carousel_layouts) > 1
+        self.btn_carousel_prev.setEnabled(can_scroll)
+        self.btn_carousel_next.setEnabled(can_scroll)
+        self.btn_carousel_start.setEnabled(has_layouts)
+
+        if not has_layouts:
+            self.carousel_preview.setPixmap(QPixmap())
+            self.carousel_name_label.setText("Kein Design verfügbar")
+            return
+
+        layout = self.carousel_layouts[self.carousel_index]
+        frame_path = layout.get("frame_path")
+        if frame_path and os.path.exists(frame_path):
+            pix = QPixmap(frame_path).scaled(
+                CAROUSEL_PREVIEW_SIZE[0], CAROUSEL_PREVIEW_SIZE[1],
+                Qt.KeepAspectRatio, Qt.SmoothTransformation,
+            )
+            self.carousel_preview.setPixmap(pix)
+        else:
+            self.carousel_preview.setPixmap(QPixmap())
+
+        name = layout["name"]
+        if layout.get("surcharge_cents"):
+            name += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
+        self.carousel_name_label.setText(name)
+
+    def _carousel_show_prev(self):
+        if len(self.carousel_layouts) > 1:
+            self.carousel_index = (self.carousel_index - 1) % len(self.carousel_layouts)
+            self._update_carousel_view()
+
+    def _carousel_show_next(self):
+        if len(self.carousel_layouts) > 1:
+            self.carousel_index = (self.carousel_index + 1) % len(self.carousel_layouts)
+            self._update_carousel_view()
+
+    def _start_carousel_layout(self):
+        if self.carousel_layouts:
+            self.choose_layout(self.carousel_layouts[self.carousel_index])
 
     def _start_camera(self):
         names = hardware.find_cameras()

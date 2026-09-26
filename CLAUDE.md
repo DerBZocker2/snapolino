@@ -29,8 +29,7 @@ Build mit PyInstaller `--onedir --windowed`.
 ## Ablauf
 WILLKOMMEN (einmalig beim Start, nur falls eine Buchung bekannt ist -
 "Hallo Name, danke fuer die Buchung") → BEREIT (zeigt "Deine Rahmen" -
-alle verfuegbaren Formate direkt mit Vorschau, kein separater
-Start-Knopf mehr, Antippen eines Rahmens startet sofort) → LIVE →
+siehe eigener Absatz unten fuer den genauen Aufbau) → LIVE →
 COUNTDOWN → AUFNAHME → EINZELANSICHT
 (Wiederholen/Weiter) → nächstes Bild oder GESAMTUEBERSICHT (alle Bilder;
 falls Extra "Einzelne Bilder drucken" gebucht ist, zusaetzlich ein Bild
@@ -48,6 +47,22 @@ ein und erst danach die eigentlichen Druckauftraege (`OutputWorker.submit(...,
 save=False)`) - sonst wuerde ein an einem Druckerproblem haengender
 Collage-Druck (siehe naechster Absatz) das Speichern der danach
 eingereihten Einzelbilder verzoegern bzw. verhindern.
+
+**BEREIT-Seite ("Deine Rahmen")**: gestaltete Rahmen (alle Layouts ausser
+`category = "Format"` - also Presets mit Design sowie individuelle
+Buchungs-Designs) laufen als Karussell: ein grosses Vorschaubild, per
+Pfeil-Knopf links/rechts durchblaetterbar (`_carousel_show_prev()`/
+`_carousel_show_next()` in main.py, umlaufend), erst der **Start-Knopf
+unten mittig** (`_start_carousel_layout()`) loest die Aufnahme fuer den
+gerade angezeigten Rahmen aus. Schlichte Format-Layouts (`category
+"Format"`, z.B. "1 Bild"/"2 Bilder"/"3 Bilder" - reiner Fotoanzahl-
+Zuschnitt ohne eigenes Design) sind bewusst **kein** Teil des Karussells,
+sondern eine einfache Liste darunter, die nur erscheint, wenn mindestens
+ein solches Format tatsaechlich gebucht wurde - Antippen startet dort
+weiterhin sofort, ohne Umweg ueber den Start-Knopf (unveraendert zum
+bisherigen Verhalten). `api.php` liefert dafuer zusaetzlich `category` und
+`is_custom` je Layout mit, `cloudsync.get_layouts()` reicht beide
+unveraendert durch.
 
 Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
 (Ziffernblock statt Tastatur, PIN kommt per Cloud-Sync von der jeweiligen

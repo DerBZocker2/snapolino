@@ -107,6 +107,12 @@ foreach ($layouts as $layout) {
     $result[] = [
         'id'              => (int) $layout['id'],
         'name'            => $layout['name'],
+        // 'category'/'is_custom' braucht main.py, um auf der BEREIT-Seite
+        // schlichte Format-Layouts (category "Format", z.B. "1 Bild") von
+        // gestalteten Rahmen und Custom-Designs zu unterscheiden - siehe
+        // "Ablauf" in CLAUDE.md.
+        'category'        => $layout['category'],
+        'is_custom'       => (bool) $layout['is_custom'],
         'slot_count'      => (int) $layout['slot_count'],
         'is_default'      => (bool) $layout['is_default'],
         'surcharge_cents' => (int) $layout['surcharge_cents'],
