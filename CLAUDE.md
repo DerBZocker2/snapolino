@@ -237,8 +237,15 @@ Im Panel unter **Buchungen** ablehnen/stornieren. Eine Box zuordnen (und
 damit gleichzeitig bestätigen) passiert unter **Boxen** per Drag & Drop:
 Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe
 `assign_box_and_confirm()` auf, die auch nach Zahlungseingang automatisch
-läuft) - überträgt die vom Kunden gewünschten Layouts nach `box_layouts`
-und erhöht `config_version`. Aktuell fest auf eine Box ausgelegt (kein
+läuft) - ersetzt dabei `box_layouts` dieser Box komplett durch die vom
+Kunden gewuenschten Layouts dieser Buchung (erst `DELETE FROM box_layouts
+WHERE box_id = ?`, dann neu einfuegen - nicht additiv) und erhöht
+`config_version`. Ohne das vorherige Loeschen blieben Zusatzformate einer
+frueher zugeordneten Buchung dauerhaft auf der Box sichtbar, auch nach
+"Zuordnung aufheben" und Neuzuordnung an eine andere Buchung, da
+"Zuordnung aufheben" selbst `box_layouts` nicht anfasst (nur `box_id` auf
+`NULL`). `sync_booking_to_box()` (Admin-Bearbeitung, siehe unten) macht es
+aus demselben Grund identisch. Aktuell fest auf eine Box ausgelegt (kein
 Verfügbarkeits-Overbooking-Schutz über mehrere Boxen). Über "Zuordnung
 aufheben" auf der Box-Karte lässt sich die Zuordnung wieder entfernen
 (`box_id` auf `NULL`, Status bleibt `bestätigt`, `config_version` wird

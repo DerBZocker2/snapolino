@@ -54,7 +54,13 @@ function assign_box_and_confirm(int $bookingId, int $boxId = 0): bool
     $stmt->execute([$bookingId]);
     $layoutIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    $ins = db()->prepare('INSERT IGNORE INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
+    // Erst loeschen, dann neu einfuegen (nicht additiv) - sonst blieben
+    // Layouts einer vorherigen Buchung, die dieser Box zugeordnet war,
+    // dauerhaft auf der Box sichtbar, auch wenn die neue Buchung sie gar
+    // nicht gewaehlt hat. Eine Box gehoert immer nur der aktuell
+    // zugeordneten Buchung.
+    db()->prepare('DELETE FROM box_layouts WHERE box_id = ?')->execute([$boxId]);
+    $ins = db()->prepare('INSERT INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
     foreach ($layoutIds as $layoutId) {
         $ins->execute([$boxId, (int) $layoutId]);
     }
@@ -125,7 +131,11 @@ function sync_booking_to_box(int $bookingId): void
     $stmt->execute([$bookingId]);
     $layoutIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    $ins = db()->prepare('INSERT IGNORE INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
+    // Wie in assign_box_and_confirm(): erst loeschen, dann neu einfuegen,
+    // damit ein bei der Admin-Bearbeitung entferntes Zusatzformat auch
+    // wirklich von der Box verschwindet statt nur ergaenzt zu werden.
+    db()->prepare('DELETE FROM box_layouts WHERE box_id = ?')->execute([$boxId]);
+    $ins = db()->prepare('INSERT INTO box_layouts (box_id, layout_id, sort_order) VALUES (?, ?, 0)');
     foreach ($layoutIds as $layoutId) {
         $ins->execute([$boxId, (int) $layoutId]);
     }
