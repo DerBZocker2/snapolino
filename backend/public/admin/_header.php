@@ -63,6 +63,9 @@ function nav_class(array $pages, string $current): string
                     <span class="nav-badge"><?= $openBookings ?></span>
                 <?php endif; ?>
             </a>
+            <a class="<?= nav_class(['invoices.php'], $currentPage) ?>" href="invoices.php">
+                <span class="nav-icon">🧾</span> Rechnungen
+            </a>
             <a class="<?= nav_class(['boxes.php', 'box_layouts.php'], $currentPage) ?>" href="boxes.php">
                 <span class="nav-icon">📦</span> Boxen
                 <?php if ($unassignedBookings > 0): ?>

@@ -420,6 +420,18 @@ direkt aus den Buchungsdetails heraus ansehen/anpassen (Link zu
 `layout_form.php?id=...`, das ohne weitere Anpassung auch fuer
 Custom-Layouts funktioniert).
 
+Im Panel unter **Rechnungen** (`admin/invoices.php`) sieht der Admin alle
+bei Stripe entstandenen Rechnungen an einer Stelle statt durch jede
+Buchung einzeln klicken zu muessen - fasst `bookings.stripe_invoice_pdf_url`/
+`stripe_invoice_hosted_url` (Hauptbuchung), `bookings.stripe_credit_note_pdf_url`
+(Stornorechnung) und `booking_addon_charges.stripe_invoice_pdf_url`/
+`stripe_invoice_hosted_url` (Zusatzzahlungen) zu einer einzigen, nach Datum
+sortierten Liste zusammen (Typ-Badge, Betrag, direkter PDF-/Ansehen-Link zu
+Stripe, Link zur jeweiligen Buchung). Erzeugt selbst keine PDFs - Stripe
+bleibt die einzige Quelle der Rechnungen, die Seite ist rein lesend. Eine
+Stornorechnung fliesst mit negativem Betrag in die Liste ein, wird aber
+bei der Umsatzsumme oben bewusst nicht mitgezaehlt.
+
 ## Wartungs-Checkliste
 Jede Box zeigt im Panel unter **Boxen** einen aufklappbaren "Wartung"-
 Bereich mit einer gemeinsamen, ebenfalls dort verwaltbaren Liste von
