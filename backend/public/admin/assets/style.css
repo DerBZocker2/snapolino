@@ -392,6 +392,10 @@ button.danger:hover { background: var(--danger-bg); box-shadow: none; opacity: 1
 
 .muted-text { color: var(--muted); font-size: 12px; }
 
+/* Buchungen: Zeilen, deren Versand in Kuerze ansteht, dezent hervorheben. */
+.row-urgent { box-shadow: inset 3px 0 0 var(--accent); background: #fff8f6; }
+.row-urgent:hover { background: #fdeeea; }
+
 .button-secondary.active {
     background: linear-gradient(90deg, var(--accent), var(--accent-dark));
     color: #fff;

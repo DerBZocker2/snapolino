@@ -227,6 +227,24 @@ aufheben" auf der Box-Karte lässt sich die Zuordnung wieder entfernen
 ebenfalls erhöht) - die Buchung erscheint danach wieder unter "Buchungen
 ohne Box".
 
+Die Buchungsliste (`admin/bookings.php`) zeigt neben dem Eventdatum
+zusaetzlich das spaeteste **Versanddatum** (`booking_ship_date()` in
+`functions.php`, rein rechnerisch aus Eventdatum minus `BOOKING_BUFFER_DAYS`
+- keine eigene DB-Spalte), jeweils mit Wochentag. Eine Zeile wird optisch
+hervorgehoben (`.row-urgent`), wenn die Buchung bestaetigt ist, das Event
+noch bevorsteht und der Versand innerhalb der naechsten 3 Tage faellig ist
+- Badge "bald versenden" daneben. Bei abgelehnten/stornierten Buchungen
+entfaellt die Versand-Spalte (kein Versand mehr relevant). Die
+Status-Filter-Tabs zeigen zusaetzlich die Anzahl je Status. Der Kundenname
+ist direkt zur Detailseite verlinkt (wie auf `dashboard.php`).
+
+`admin/booking_detail.php` zeigt zusaetzlich dieselbe Versanddatum-Zeile
+sowie einen eigenen Bereich **"Weitere Buchungen dieser E-Mail-Adresse"**
+(alle anderen Buchungen derselben `customer_email`, mit bereits bezahlter
+Gesamtsumme als kurze Zusammenfassung) - blendet komplett weg, wenn es
+keine weiteren gibt, gibt dem Admin aber sonst auf einen Blick Kontext zu
+Stammkunden, ohne extra in der Buchungsliste danach suchen zu muessen.
+
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
 filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos, bis zu 3 Zusatzformate
 gleichzeitig ankreuzbar - clientseitig deaktiviert das JS weitere

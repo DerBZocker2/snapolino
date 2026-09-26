@@ -550,6 +550,13 @@ function booking_block_range(string $eventDate): array
     ];
 }
 
+// Spaetester Termin, um die Box rechtzeitig vor dem Event loszuschicken -
+// rein informativ fuers Admin-Panel, keine eigene DB-Spalte noetig.
+function booking_ship_date(string $eventDate): DateTimeImmutable
+{
+    return (new DateTimeImmutable($eventDate))->modify('-' . BOOKING_BUFFER_DAYS . ' days');
+}
+
 // Alle Tage, die aktuell blockiert sind (inkl. Puffer): jede echte
 // Buchungsanfrage haelt den Termin dauerhaft, bis ein Admin sie ablehnt
 // oder storniert - es gibt keine unverbindliche, automatisch verfallende

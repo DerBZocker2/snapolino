@@ -228,6 +228,21 @@ $galleryCounts = $stmt->fetch();
 $galleryPhotoCount = (int) ($galleryCounts['total'] ?? 0);
 $galleryHiddenCount = (int) ($galleryCounts['hidden_count'] ?? 0);
 
+// Andere Buchungen derselben E-Mail-Adresse - gibt dem Admin auf einen
+// Blick Kontext zum Kunden (Stammkunde? schon mal Probleme gehabt?),
+// ohne die Buchungsliste selbst danach durchsuchen zu muessen.
+$stmt = db()->prepare(
+    "SELECT * FROM bookings WHERE customer_email = ? AND id != ? ORDER BY event_date DESC"
+);
+$stmt->execute([$booking['customer_email'], $bookingId]);
+$otherBookings = $stmt->fetchAll();
+$otherBookingsPaidTotal = 0;
+foreach ($otherBookings as $ob) {
+    if ($ob['paid_at']) {
+        $otherBookingsPaidTotal += (int) $ob['total_price_cents'];
+    }
+}
+
 // Fuer die erneute Anzeige des Formulars nach einer abgebrochenen/noch zu
 // bestaetigenden Aenderung die vorgeschlagenen statt der gespeicherten
 // Werte verwenden.
@@ -259,7 +274,18 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         </span>
     </h2>
     <table class="key-table">
-        <tr><th>Eventdatum</th><td><?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?></td></tr>
+        <tr><th>Eventdatum</th><td>
+            <?php $eventDateObj2 = new DateTimeImmutable($booking['event_date']); ?>
+            <?= htmlspecialchars($eventDateObj2->format('d.m.Y'), ENT_QUOTES) ?>
+            <span class="muted-text">(<?= htmlspecialchars(german_weekday($eventDateObj2), ENT_QUOTES) ?>)</span>
+        </td></tr>
+        <?php if (!in_array($booking['status'], ['abgelehnt', 'storniert'], true)): ?>
+            <tr><th>Versand spätestens</th><td>
+                <?php $shipDateObj = booking_ship_date($booking['event_date']); ?>
+                <?= htmlspecialchars($shipDateObj->format('d.m.Y'), ENT_QUOTES) ?>
+                <span class="muted-text">(<?= htmlspecialchars(german_weekday($shipDateObj), ENT_QUOTES) ?>, <?= BOOKING_BUFFER_DAYS ?> Tage Puffer vor dem Event)</span>
+            </td></tr>
+        <?php endif; ?>
         <tr><th>E-Mail</th><td><a href="mailto:<?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?>"><?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?></a></td></tr>
         <tr><th>Telefon</th><td><?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?: '—' ?></td></tr>
         <tr><th>Versandadresse</th><td>
@@ -354,6 +380,35 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         </td></tr>
     </table>
 </section>
+
+<?php if ($otherBookings): ?>
+    <section class="panel">
+        <h2>Weitere Buchungen dieser E-Mail-Adresse</h2>
+        <p class="muted-text">
+            <?= count($otherBookings) ?> weitere Buchung<?= count($otherBookings) === 1 ? '' : 'en' ?>
+            <?php if ($otherBookingsPaidTotal > 0): ?>
+                · davon <?= money_from_cents($otherBookingsPaidTotal) ?> bereits bezahlt
+            <?php endif; ?>
+        </p>
+        <div class="table-responsive">
+        <table>
+            <thead><tr><th>Eventdatum</th><th>Status</th><th>Preis</th><th></th></tr></thead>
+            <tbody>
+                <?php foreach ($otherBookings as $ob): ?>
+                    <tr>
+                        <td class="nowrap"><?= htmlspecialchars((new DateTimeImmutable($ob['event_date']))->format('d.m.Y'), ENT_QUOTES) ?></td>
+                        <td class="nowrap"><span class="status-pill status-<?= htmlspecialchars($ob['status'], ENT_QUOTES) ?>">
+                            <?= htmlspecialchars(booking_status_label($ob['status']), ENT_QUOTES) ?>
+                        </span></td>
+                        <td class="nowrap"><?= $ob['total_price_cents'] !== null ? money_from_cents((int) $ob['total_price_cents']) : '—' ?></td>
+                        <td><a href="booking_detail.php?id=<?= (int) $ob['id'] ?>">Details</a></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        </div>
+    </section>
+<?php endif; ?>
 
 <?php if ($addonCharges): ?>
     <section class="panel">

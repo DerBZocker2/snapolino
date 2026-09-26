@@ -55,29 +55,41 @@ if ($statusFilter !== '' && in_array($statusFilter, BOOKING_STATUSES, true)) {
 }
 $bookings = $stmt->fetchAll();
 
+// Anzahl je Status fuer die Filter-Tabs, damit man auf einen Blick sieht,
+// wo gerade etwas zu tun ist (z.B. offene Anfragen), ohne erst zu filtern.
+$statusCounts = array_fill_keys(BOOKING_STATUSES, 0);
+foreach (db()->query('SELECT status, COUNT(*) AS cnt FROM bookings GROUP BY status')->fetchAll() as $row) {
+    $statusCounts[$row['status']] = (int) $row['cnt'];
+}
+
 $boxes = db()->query('SELECT id, name FROM boxes ORDER BY name')->fetchAll();
 
 $layoutStmt = db()->prepare(
     'SELECT l.name FROM booking_layouts bl INNER JOIN layouts l ON l.id = bl.layout_id WHERE bl.booking_id = ?'
 );
+
+$today = new DateTimeImmutable('today');
 ?>
 
 <section class="panel">
     <div class="inline-form" style="margin-bottom:16px;">
-        <a href="bookings.php" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">Alle</a>
+        <a href="bookings.php" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">
+            Alle (<?= array_sum($statusCounts) ?>)
+        </a>
         <?php foreach (BOOKING_STATUSES as $status): ?>
             <a href="bookings.php?status=<?= urlencode($status) ?>"
                class="button-secondary <?= $statusFilter === $status ? 'active' : '' ?>">
-                <?= htmlspecialchars(booking_status_label($status), ENT_QUOTES) ?>
+                <?= htmlspecialchars(booking_status_label($status), ENT_QUOTES) ?> (<?= $statusCounts[$status] ?>)
             </a>
         <?php endforeach; ?>
     </div>
 
     <div class="table-responsive">
-    <table>
+    <table class="bookings-table">
         <thead>
         <tr>
-            <th>Eventdatum</th>
+            <th>Event</th>
+            <th>Versand</th>
             <th>Kunde</th>
             <th>Layouts</th>
             <th>Preis</th>
@@ -99,11 +111,30 @@ $layoutStmt = db()->prepare(
                     }
                 }
             }
+
+            $eventDate = new DateTimeImmutable($booking['event_date']);
+            $shipDate = booking_ship_date($booking['event_date']);
+            // Nur bei bestaetigten, noch bevorstehenden Events ist "bald
+            // versenden" ueberhaupt eine sinnvolle Handlungsaufforderung.
+            $shipUrgent = $booking['status'] === 'bestaetigt'
+                && $eventDate >= $today
+                && $shipDate <= $today->modify('+3 days');
             ?>
-            <tr>
-                <td class="nowrap"><?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?></td>
+            <tr class="<?= $shipUrgent ? 'row-urgent' : '' ?>">
+                <td class="nowrap">
+                    <?= htmlspecialchars($eventDate->format('d.m.Y'), ENT_QUOTES) ?>
+                    <br><span class="muted-text"><?= htmlspecialchars(german_weekday($eventDate), ENT_QUOTES) ?></span>
+                </td>
+                <td class="nowrap">
+                    <?php if ($booking['status'] === 'abgelehnt' || $booking['status'] === 'storniert'): ?>
+                        <span class="muted-text">—</span>
+                    <?php else: ?>
+                        <?= htmlspecialchars($shipDate->format('d.m.Y'), ENT_QUOTES) ?>
+                        <?php if ($shipUrgent): ?><br><span class="badge badge-warning">bald versenden</span><?php endif; ?>
+                    <?php endif; ?>
+                </td>
                 <td>
-                    <?= htmlspecialchars($booking['customer_name'], ENT_QUOTES) ?><br>
+                    <a href="booking_detail.php?id=<?= (int) $booking['id'] ?>"><strong><?= htmlspecialchars($booking['customer_name'], ENT_QUOTES) ?></strong></a><br>
                     <span class="muted-text"><?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?></span>
                     <?php if ($booking['customer_phone']): ?>
                         <br><span class="muted-text"><?= htmlspecialchars($booking['customer_phone'], ENT_QUOTES) ?></span>
@@ -142,7 +173,7 @@ $layoutStmt = db()->prepare(
             </tr>
         <?php endforeach; ?>
         <?php if (!$bookings): ?>
-            <tr><td colspan="7">Keine Buchungen gefunden.</td></tr>
+            <tr><td colspan="8">Keine Buchungen gefunden.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>
