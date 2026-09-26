@@ -135,8 +135,15 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $designMode = (string) ($_POST['mode'] ?? 'gallery');
+    // Ein generischer Name wie "Eigenes Design (Upload)" half auf der Box
+    // niemandem beim Wiedererkennen - der Kunde vergibt seinen Design-
+    // Namen jetzt selbst (z.B. "Julias Geburtstag"), Pflichtfeld in beiden
+    // Formularen (Upload und Online-Designer).
+    $customDesignName = mb_substr(trim((string) ($_POST['custom_design_name'] ?? '')), 0, 100);
 
-    if ($designMode === 'upload') {
+    if (($designMode === 'upload' || $designMode === 'designer') && $customDesignName === '') {
+        $errors[] = 'Bitte gib deinem Design einen Namen.';
+    } elseif ($designMode === 'upload') {
         $uploadError = validate_custom_design_upload($_FILES['custom_design_file'] ?? null);
         if ($uploadError !== null) {
             $errors[] = $uploadError;
@@ -147,7 +154,7 @@ if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 save_custom_layout_for_booking(
                     (int) $booking['id'], $_FILES['custom_design_file']['tmp_name'],
-                    $slotInfo['slots'], $slotInfo['width'], $slotInfo['height'], 'Eigenes Design (Upload)'
+                    $slotInfo['slots'], $slotInfo['width'], $slotInfo['height'], $customDesignName
                 );
                 header('Location: buchen.php?step=4&token=' . urlencode($token));
                 exit;
@@ -177,7 +184,7 @@ if ($step === 3 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 save_custom_layout_for_booking(
                     (int) $booking['id'], $tmpPath, $slots,
                     (int) $baseLayout['canvas_width'], (int) $baseLayout['canvas_height'],
-                    'Eigenes Design (Online-Designer)'
+                    $customDesignName
                 );
                 unlink($tmpPath);
                 header('Location: buchen.php?step=4&token=' . urlencode($token));
@@ -444,6 +451,13 @@ require __DIR__ . '/_site_header.php';
                 }
             }
             $startPanel = $customLayout ? 'upload' : 'gallery';
+            // Schlaegt ein Upload/Designer-Versuch fehl (z.B. fehlender
+            // Design-Name), soll das richtige Panel mitsamt Fehlermeldung
+            // wieder aufgehen statt stillschweigend auf Galerie/Upload
+            // zurueckzufallen.
+            if ($errors && isset($designMode) && in_array($designMode, ['designer', 'upload'], true)) {
+                $startPanel = $designMode;
+            }
 
             $designerLayouts = array_merge([$defaultLayout], $extraLayouts);
             $designerLayoutsJson = json_encode(array_map(static function (array $l) {
@@ -469,7 +483,7 @@ require __DIR__ . '/_site_header.php';
                         <strong>Fertige Vorlage</strong>
                         <span class="muted-text">Aus <?= count($extraLayouts) + 1 ?> Designs wählen</span>
                     </div>
-                    <div class="design-option" data-panel="designer">
+                    <div class="design-option <?= $startPanel === 'designer' ? 'active' : '' ?>" data-panel="designer">
                         <div class="design-icon">✏️</div>
                         <strong>Online-Designer</strong>
                         <span class="muted-text">Farbe, Muster &amp; Text selbst gestalten</span>
@@ -537,11 +551,16 @@ require __DIR__ . '/_site_header.php';
                 </div>
 
                 <!-- Panel 2: Online-Designer -->
-                <div class="design-panel" id="panel-designer" hidden>
+                <div class="design-panel" id="panel-designer" <?= $startPanel === 'designer' ? '' : 'hidden' ?>>
                     <p class="muted">Wähle Farben und ein Muster, füge beliebig viele Texte und Sticker/Emojis hinzu und ziehe sie direkt im Bild an die gewünschte Stelle. Die Fotoflächen (gestrichelt) lassen sich ebenso per Maus verschieben und in der Größe anpassen.</p>
                     <div class="designer-layout">
                         <canvas id="designer-canvas" width="600" height="400"></canvas>
                         <div class="designer-controls">
+                            <label>Name für dein Design
+                                <input type="text" id="designer-name" maxlength="60" required
+                                    placeholder="z.B. Julias Geburtstag"
+                                    value="<?= $customLayout ? htmlspecialchars($customLayout['name'], ENT_QUOTES) : '' ?>">
+                            </label>
                             <label>Basis-Layout
                                 <select id="designer-base">
                                     <?php foreach ($designerLayouts as $l): ?>
@@ -580,6 +599,7 @@ require __DIR__ . '/_site_header.php';
                         <input type="hidden" name="base_layout_id" id="designer-base-id">
                         <input type="hidden" name="custom_slots" id="designer-slots">
                         <input type="hidden" name="custom_design_data" id="designer-data">
+                        <input type="hidden" name="custom_design_name" id="designer-name-hidden">
                     </form>
                 </div>
 
@@ -589,17 +609,22 @@ require __DIR__ . '/_site_header.php';
                         <div class="info-banner">
                             <span class="info-icon">✅</span>
                             <div>
-                                <strong>Eigenes Design gespeichert</strong>
+                                <strong>„<?= htmlspecialchars($customLayout['name'], ENT_QUOTES) ?>“ gespeichert</strong>
                                 <p><?= (int) $customLayout['slot_count'] ?> Fotoflächen erkannt. Du kannst es unten ersetzen.</p>
                             </div>
                         </div>
-                        <img src="layout_preview.php?id=<?= (int) $customLayout['id'] ?>" alt="Eigenes Design" style="max-width:280px;border:1px solid var(--border);border-radius:8px;">
+                        <img src="layout_preview.php?id=<?= (int) $customLayout['id'] ?>" alt="<?= htmlspecialchars($customLayout['name'], ENT_QUOTES) ?>" style="max-width:280px;border:1px solid var(--border);border-radius:8px;">
                     <?php endif; ?>
                     <p class="muted">Lade ein fertiges PNG hoch (Querformat, Seitenverhältnis ca. 3:2). Die Bereiche, die du transparent gelassen hast, werden automatisch als Fotoflächen erkannt.</p>
                     <form method="post" action="buchen.php?step=3&token=<?= urlencode($token) ?>" enctype="multipart/form-data">
                         <?= csrf_field() ?>
                         <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
                         <input type="hidden" name="mode" value="upload">
+                        <label>Name für dein Design
+                            <input type="text" name="custom_design_name" maxlength="60" required
+                                placeholder="z.B. Julias Geburtstag"
+                                value="<?= $customLayout ? htmlspecialchars($customLayout['name'], ENT_QUOTES) : '' ?>">
+                        </label>
                         <label>PNG-Datei<input type="file" name="custom_design_file" accept="image/png" required></label>
                         <button type="submit"><?= $customLayout ? 'Design ersetzen' : 'Hochladen' ?></button>
                     </form>
@@ -1026,6 +1051,12 @@ require __DIR__ . '/_site_header.php';
                 });
 
                 document.getElementById('designer-save').addEventListener('click', function () {
+                    var nameInput = document.getElementById('designer-name');
+                    if (!nameInput.value.trim()) {
+                        nameInput.reportValidity();
+                        nameInput.focus();
+                        return;
+                    }
                     var layout = currentLayout();
                     var full = document.createElement('canvas');
                     full.width = layout.canvas_width;
@@ -1034,6 +1065,7 @@ require __DIR__ . '/_site_header.php';
                     document.getElementById('designer-base-id').value = layout.id;
                     document.getElementById('designer-slots').value = JSON.stringify(customSlots);
                     document.getElementById('designer-data').value = full.toDataURL('image/png');
+                    document.getElementById('designer-name-hidden').value = nameInput.value.trim();
                     document.getElementById('designer-form').submit();
                 });
             })();

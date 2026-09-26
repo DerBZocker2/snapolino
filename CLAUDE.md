@@ -62,7 +62,10 @@ ein solches Format tatsaechlich gebucht wurde - Antippen startet dort
 weiterhin sofort, ohne Umweg ueber den Start-Knopf (unveraendert zum
 bisherigen Verhalten). `api.php` liefert dafuer zusaetzlich `category` und
 `is_custom` je Layout mit, `cloudsync.get_layouts()` reicht beide
-unveraendert durch.
+unveraendert durch. Weder Karussell noch Format-Liste zeigen einen
+`surcharge_cents`-Aufpreis im Namen an - der wurde schon bei der Buchung
+entschieden/bezahlt und ist waehrend der Veranstaltung fuer die Gaeste
+nicht mehr relevant, nur reine Optik.
 
 Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
 (Ziffernblock statt Tastatur, PIN kommt per Cloud-Sync von der jeweiligen
@@ -274,10 +277,17 @@ platzierbare Text- und Sticker/Emoji-Elemente - je Element eigene
 Größe, Text-Elemente zusätzlich eigene Farbe -, auch um eine Vorlage per
 "Anpassen" umzugestalten) oder
 eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
-Flächen automatisch per Connected-Component-Analyse). Alle drei Wege legen
+Flächen automatisch per Connected-Component-Analyse). Beide Wege legen
 bei einer Aenderung ein `is_custom=1`-Layout an, das nur dieser einen
 Buchung zugeordnet ist und weder in der öffentlichen Galerie noch im
-allgemeinen Panel bei anderen Kunden auftaucht. Admin legt neue
+allgemeinen Panel bei anderen Kunden auftaucht - ein vorheriges eigenes
+Design derselben Buchung wird dabei ersetzt statt angehaeuft
+(`save_custom_layout_for_booking()`/`delete_custom_layouts_for_booking()`).
+Online-Designer und Upload verlangen dafuer je ein Pflichtfeld "Name für
+dein Design" (max. 60 Zeichen, HTML5 `required` sowie serverseitige
+Pruefung in `buchen.php`) statt eines generischen Namens wie "Eigenes
+Design (Upload)" - der von der Kundschaft selbst vergebene Name erscheint
+so auch auf der BEREIT-Seite der Box wieder. Admin legt neue
 Layout-Vorlagen (auch mit anderer Fotoanzahl) im Panel per Drag-Editor an
 (`layout_form.php`) statt Pixel-Koordinaten von Hand einzutippen.
 

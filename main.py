@@ -567,10 +567,10 @@ class Fotobox(QWidget):
                 item.widget().deleteLater()
 
         for layout in format_layouts:
-            label = "  " + layout["name"]
-            if layout.get("surcharge_cents"):
-                label += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
-            btn = QPushButton(label)
+            # Kein Preis-Zusatz im Namen: der Aufpreis wurde schon bei der
+            # Buchung entschieden/bezahlt, auf der Box waehrend der
+            # Veranstaltung ist er fuer die Gaeste nicht mehr relevant.
+            btn = QPushButton("  " + layout["name"])
             btn.setMinimumHeight(70)
             btn.setStyleSheet(
                 "font-size: 18px; background: #2980b9; color: white; border-radius: 10px;"
@@ -610,10 +610,7 @@ class Fotobox(QWidget):
         else:
             self.carousel_preview.setPixmap(QPixmap())
 
-        name = layout["name"]
-        if layout.get("surcharge_cents"):
-            name += f" (+{layout['surcharge_cents'] / 100:.2f} EUR)"
-        self.carousel_name_label.setText(name)
+        self.carousel_name_label.setText(layout["name"])
 
     def _carousel_show_prev(self):
         if len(self.carousel_layouts) > 1:
