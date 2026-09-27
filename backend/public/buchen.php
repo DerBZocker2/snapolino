@@ -117,10 +117,10 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $newToken = random_key(24);
         $accountId = find_or_create_customer_account($email);
         $stmt = db()->prepare(
-            'INSERT INTO bookings (edit_token, customer_name, customer_email, customer_account_id, event_date, status)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO bookings (edit_token, customer_pin, customer_name, customer_email, customer_account_id, event_date, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$newToken, trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, 'angefragt']);
+        $stmt->execute([$newToken, generate_customer_pin(), trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, 'angefragt']);
         $newBookingId = (int) db()->lastInsertId();
 
         $stmt = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
@@ -318,6 +318,11 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Wer erst ein schriftliches Angebot moechte, zahlt nicht sofort -
                 // normale Anfrage, Admin bearbeitet sie im Panel wie bisher.
                 db()->prepare("UPDATE bookings SET status = 'angefragt' WHERE id = ?")->execute([$booking['id']]);
+                try {
+                    send_booking_request_email($booking);
+                } catch (Throwable $e) {
+                    error_log('Eingangsbestaetigung fehlgeschlagen fuer Buchung #' . $booking['id'] . ': ' . $e->getMessage());
+                }
                 header('Location: buchen.php?danke=1');
                 exit;
             }

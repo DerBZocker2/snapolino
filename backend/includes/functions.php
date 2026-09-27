@@ -515,6 +515,24 @@ function reminder_days_before_event(): int
     return max(0, (int) get_setting('reminder_days_before_event', '7'));
 }
 
+// Bis zu wie vielen Tagen vor dem Eventdatum eine bereits bestaetigte
+// Buchung fuer den Kunden noch aenderbar bleibt, siehe
+// booking_customer_editable() in includes/customer_auth.php.
+function design_edit_deadline_days(): int
+{
+    return max(0, (int) get_setting('design_edit_deadline_days', '7'));
+}
+
+// 4-stellige, ueber den Ziffernblock der Box leicht eintippbare PIN je
+// Buchung (nicht je Box) - schuetzt dort den Bereich zum nachtraeglichen
+// Aktivieren/Deaktivieren der eigenen Design-Layouts. Keine
+// Login-Zugangsdaten, daher genuegt eine kurze numerische PIN ohne
+// Eindeutigkeitspruefung ueber alle Buchungen hinweg.
+function generate_customer_pin(): string
+{
+    return str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+}
+
 // Tage NACH DEM EVENTDATUM, ab denen bin/send_review_requests.php die
 // automatische Bewertungsanfrage verschickt, im Panel unter Einstellungen
 // editierbar.

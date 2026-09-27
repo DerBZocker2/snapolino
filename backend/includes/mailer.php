@@ -162,6 +162,12 @@ function send_booking_confirmation_email(array $booking): bool
                 . 'eingegangen, die Fotobox ist für den <strong>' . email_e($eventDate) . '</strong> fest für dich reserviert.')
             . ($hostedInvoiceUrl !== '' ? email_button($hostedInvoiceUrl, 'Rechnung ansehen') : '')
             . email_p('Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.')
+            . email_p('Bis <strong>' . design_edit_deadline_days() . ' Tage vor deinem Event</strong> kannst du '
+                . 'Design und Extras in deinem <a href="' . email_e(rtrim((string) backend_config()['base_url'], '/')) . '/konto.php">Konto</a> '
+                . 'noch anpassen.')
+            . email_p('Deine <strong>Design-PIN: ' . email_e($booking['customer_pin']) . '</strong> - damit lässt '
+                . 'sich direkt an der Fotobox einstellen, welche eurer Designs während der Feier verfügbar sein '
+                . 'sollen (über den Logo-Knopf oben links, "Eigene Designs verwalten").')
             . email_signoff($fromName);
         $mail->Body = render_email_html($mail, 'Buchung bestätigt 🎉', $html, 'Deine Zahlung ist eingegangen - die Box ist für dich reserviert.');
 
@@ -173,6 +179,60 @@ function send_booking_confirmation_email(array $booking): bool
             . "die Fotobox ist für den " . $eventDate . " fest für dich reserviert.\n\n"
             . $invoiceNote
             . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
+            . "Bis " . design_edit_deadline_days() . " Tage vor deinem Event kannst du Design und Extras in deinem "
+            . "Konto noch anpassen: " . rtrim((string) backend_config()['base_url'], '/') . "/konto.php\n\n"
+            . "Deine Design-PIN: " . $booking['customer_pin'] . " - damit lässt sich direkt an der Fotobox "
+            . "einstellen, welche eurer Designs während der Feier verfügbar sein sollen (über den Logo-Knopf "
+            . "oben links, \"Eigene Designs verwalten\").\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt eine kurze Eingangsbestaetigung fuer eine Buchung, die nur ein
+// schriftliches Angebot moechte (status bleibt "angefragt", keine Zahlung -
+// siehe buchen.php Schritt 5). Ohne Zahlung gibt es sonst gar keine Mail an
+// den Kunden, bis ein Admin die Anfrage manuell bearbeitet - die Design-PIN
+// (siehe generate_customer_pin()) muss aber in jedem Fall direkt bei der
+// Buchung ankommen, nicht erst bei einer eventuell viel spaeteren
+// Bestaetigung.
+function send_booking_request_email(array $booking): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+
+        $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Deine Anfrage ist bei uns eingegangen – Snapolino (' . $eventDate . ')';
+
+        $mail->isHTML(true);
+        $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
+            . email_p('vielen Dank für deine Anfrage für den <strong>' . email_e($eventDate) . '</strong>! '
+                . 'Wir prüfen die Verfügbarkeit und melden uns zeitnah mit einem schriftlichen Angebot bei dir.')
+            . email_p('Deine <strong>Design-PIN: ' . email_e($booking['customer_pin']) . '</strong> - damit lässt '
+                . 'sich später direkt an der Fotobox einstellen, welche eurer Designs während der Feier verfügbar '
+                . 'sein sollen (über den Logo-Knopf oben links, "Eigene Designs verwalten").')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Anfrage eingegangen 📩', $html, 'Wir melden uns zeitnah mit einem schriftlichen Angebot.');
+
+        $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "vielen Dank für deine Anfrage für den " . $eventDate . "! Wir prüfen die Verfügbarkeit und melden "
+            . "uns zeitnah mit einem schriftlichen Angebot bei dir.\n\n"
+            . "Deine Design-PIN: " . $booking['customer_pin'] . " - damit lässt sich später direkt an der Fotobox "
+            . "einstellen, welche eurer Designs während der Feier verfügbar sein sollen (über den Logo-Knopf "
+            . "oben links, \"Eigene Designs verwalten\").\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();

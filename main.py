@@ -1,4 +1,5 @@
 import ctypes
+import json
 import logging
 import os
 import sys
@@ -10,8 +11,8 @@ from PIL import Image
 from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QDialog, QGridLayout, QHBoxLayout, QLabel,
+    QLineEdit, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 import cloudsync
@@ -40,6 +41,10 @@ EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
 MAX_INDIVIDUAL_PRINT_COPIES = 3
 REVIEW_THUMB_SIZE = 220  # Kachelgroesse in der Gesamtuebersicht, siehe _refresh_review_thumbs()
 CAROUSEL_PREVIEW_SIZE = (560, 373)  # grosse Vorschau im Rahmen-Karussell, siehe _update_carousel_view()
+# Rein lokale, nie in die Cloud zurueckgesyncte Ablage dafuer, welche Layouts
+# der Kunde ueber "Eigene Designs verwalten" (Logo-Menue) deaktiviert hat -
+# siehe load_disabled_layout_ids()/save_disabled_layout_ids().
+DISABLED_LAYOUTS_FILE = os.path.join(config.CACHE_DIR, "disabled_layouts.json")
 
 
 def setup_logging():
@@ -158,6 +163,32 @@ def return_lock_active(booking):
         return False
     lock_date = event_date + timedelta(days=config.RETURN_BUFFER_DAYS)
     return date.today() >= lock_date
+
+
+def load_disabled_layout_ids(booking_id):
+    """Liest die vom Kunden ueber "Eigene Designs verwalten" deaktivierten
+    Layout-IDs aus dem lokalen Cache - gebunden an die Buchungs-ID, damit
+    eine neu synchronisierte Buchung nicht versehentlich die Auswahl der
+    vorherigen erbt."""
+    try:
+        with open(DISABLED_LAYOUTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return set()
+    if data.get("booking_id") != booking_id:
+        return set()
+    return set(data.get("disabled_ids", []))
+
+
+def save_disabled_layout_ids(booking_id, disabled_ids):
+    """Schreibt die deaktivierten Layout-IDs atomar (os.replace) in den
+    lokalen Cache - rein lokal, wird nie in die Cloud zurueckgesynct (die
+    Box arbeitet offline-first, siehe CLAUDE.md)."""
+    os.makedirs(config.CACHE_DIR, exist_ok=True)
+    tmp_path = DISABLED_LAYOUTS_FILE + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump({"booking_id": booking_id, "disabled_ids": sorted(disabled_ids)}, f)
+    os.replace(tmp_path, DISABLED_LAYOUTS_FILE)
 
 
 def prepare_single_print(frame_bgr, ratio):
@@ -553,12 +584,24 @@ class Fotobox(QWidget):
         self._refresh_layout_choices()
 
     def _refresh_layout_choices(self):
+        booking = cloudsync.get_booking()
+        booking_id = booking.get("id") if booking else None
+        disabled_ids = load_disabled_layout_ids(booking_id)
+        visible_layouts = [l for l in self.layouts if l["id"] not in disabled_ids]
+        if not visible_layouts:
+            # Sicherheitsnetz: sollte durch die "mindestens 1 Design"-Regel
+            # im Design-Manager eigentlich nie vorkommen, ausser eine neue
+            # Cloud-Konfiguration hat inzwischen alle bisher bekannten
+            # Layouts ersetzt - dann lieber alle zeigen statt gar keins.
+            log.warning("Alle Layouts waeren deaktiviert, zeige stattdessen alle an")
+            visible_layouts = self.layouts
+
         # Format-Layouts (category "Format") sind schlichte Zuschnitte ohne
         # eigenes Design ("1 Bild", "2 Bilder" ...) - die landen in der
         # einfachen Liste unten. Alles andere (Standard-Collage, gestaltete
         # Presets, individuelle Designs) gehoert ins Karussell.
-        self.carousel_layouts = [l for l in self.layouts if l.get("category") != "Format"]
-        format_layouts = [l for l in self.layouts if l.get("category") == "Format"]
+        self.carousel_layouts = [l for l in visible_layouts if l.get("category") != "Format"]
+        format_layouts = [l for l in visible_layouts if l.get("category") == "Format"]
         self.carousel_index = 0
 
         while self.format_choice_box.count():
@@ -1033,11 +1076,11 @@ class Fotobox(QWidget):
                 return
         self._show_admin_actions()
 
-    def _ask_pin(self):
+    def _ask_pin(self, title="Admin-PIN"):
         """Zeigt ein Ziffernblock-Popup (keine Tastatur im Betrieb) und
         liefert die eingegebene PIN, oder None falls abgebrochen."""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Admin-PIN")
+        dialog.setWindowTitle(title)
         dialog.setStyleSheet("background: #222; color: #eee;")
         dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout(dialog)
@@ -1092,6 +1135,15 @@ class Fotobox(QWidget):
         info.setStyleSheet("font-size: 18px;")
         layout.addWidget(info)
 
+        def open_design_manager():
+            dialog.accept()
+            self._open_design_manager()
+
+        btn_designs = QPushButton("Eigene Designs verwalten")
+        btn_designs.setStyleSheet("font-size: 20px; background: #2980b9; color: white; padding: 14px;")
+        btn_designs.clicked.connect(open_design_manager)
+        layout.addWidget(btn_designs)
+
         def close_app():
             dialog.accept()
             self.request_exit()
@@ -1105,6 +1157,91 @@ class Fotobox(QWidget):
         btn_ok.setStyleSheet("font-size: 20px; padding: 14px;")
         btn_ok.clicked.connect(dialog.accept)
         layout.addWidget(btn_ok)
+
+        dialog.raise_()
+        dialog.activateWindow()
+        dialog.exec()
+
+    # ---------- Eigene Designs verwalten (per Kunden-PIN aus der Buchung) ----------
+
+    def _open_design_manager(self):
+        booking = cloudsync.get_booking()
+        if not booking:
+            self.hint.setText("Keine Buchung bekannt - Designverwaltung nicht verfügbar")
+            return
+        pin = booking.get("customer_pin")
+        if not pin:
+            self.hint.setText("Keine Design-PIN für diese Buchung hinterlegt")
+            return
+        entered = self._ask_pin(title="Design-PIN")
+        if entered != pin:
+            if entered is not None:
+                self.hint.setText("Falsche PIN")
+            return
+        self._show_design_manager_dialog(booking["id"])
+
+    def _show_design_manager_dialog(self, booking_id):
+        disabled_ids = load_disabled_layout_ids(booking_id)
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Eigene Designs verwalten")
+        dialog.setStyleSheet("background: #222; color: #eee;")
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
+        outer = QVBoxLayout(dialog)
+
+        info = QLabel(
+            "Wählt, welche eurer Designs während der Feier an der Box verfügbar sein sollen. "
+            "Mindestens ein Design muss ausgewählt bleiben."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("font-size: 16px;")
+        outer.addWidget(info)
+
+        # In einer QScrollArea, damit auch mehrere zusaetzlich gebuchte
+        # Formate/Designs bei wenig Platz scrollen statt den Dialog zu
+        # sprengen (gleiches Muster wie bei der Format-Liste auf BEREIT).
+        checklist_box = QVBoxLayout()
+        checklist_container = QWidget()
+        checklist_container.setLayout(checklist_box)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(checklist_container)
+        scroll.setMaximumHeight(400)
+        outer.addWidget(scroll)
+
+        checkboxes = []
+        for layout_item in self.layouts:
+            cb = QCheckBox(layout_item["name"])
+            cb.setStyleSheet("font-size: 18px; padding: 6px;")
+            cb.setChecked(layout_item["id"] not in disabled_ids)
+            checkboxes.append((cb, layout_item["id"]))
+            checklist_box.addWidget(cb)
+
+        warning = QLabel("")
+        warning.setWordWrap(True)
+        warning.setStyleSheet("font-size: 14px; color: #e74c3c;")
+        outer.addWidget(warning)
+
+        def save_and_close():
+            checked_ids = [lid for cb, lid in checkboxes if cb.isChecked()]
+            if not checked_ids:
+                warning.setText("Mindestens ein Design muss ausgewählt bleiben.")
+                return
+            new_disabled = {lid for cb, lid in checkboxes if not cb.isChecked()}
+            save_disabled_layout_ids(booking_id, new_disabled)
+            self._refresh_layout_choices()
+            dialog.accept()
+
+        btn_row = QHBoxLayout()
+        btn_cancel = QPushButton("Abbrechen")
+        btn_cancel.setStyleSheet("font-size: 18px; padding: 12px;")
+        btn_cancel.clicked.connect(dialog.reject)
+        btn_save = QPushButton("Speichern")
+        btn_save.setStyleSheet("font-size: 18px; background: #27ae60; color: white; padding: 12px;")
+        btn_save.clicked.connect(save_and_close)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_save)
+        outer.addLayout(btn_row)
 
         dialog.raise_()
         dialog.activateWindow()

@@ -65,13 +65,37 @@ bisherigen Verhalten). `api.php` liefert dafuer zusaetzlich `category` und
 unveraendert durch. Weder Karussell noch Format-Liste zeigen einen
 `surcharge_cents`-Aufpreis im Namen an - der wurde schon bei der Buchung
 entschieden/bezahlt und ist waehrend der Veranstaltung fuer die Gaeste
-nicht mehr relevant, nur reine Optik.
+nicht mehr relevant, nur reine Optik. Ueber "Eigene Designs verwalten" (siehe
+naechster Absatz) vom Kunden deaktivierte Layouts filtert `_refresh_layout_choices()`
+bereits vor dieser Karussell-/Format-Aufteilung heraus - beide Bereiche zeigen
+also nur noch die vom Kunden aktuell freigegebenen Designs.
 
 Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
 (Ziffernblock statt Tastatur, PIN kommt per Cloud-Sync von der jeweiligen
 Box - Panel unter **Boxen → Layouts & Zugang**, leer = kein Schutz):
 Programm beenden oder die aktuell zwischengespeicherten Buchungsinfos
-(Kundenname, Eventdatum, gebuchte Extras) ansehen.
+(Kundenname, Eventdatum, gebuchte Extras) ansehen. Ein weiterer Knopf dort,
+**"Eigene Designs verwalten"**, oeffnet nach Eingabe der **Design-PIN** (4-stellig,
+`booking.customer_pin` - eine eigene, andere PIN als die Admin-PIN der Box,
+siehe Buchungssystem/Online-Galerie unten) eine Checkliste aller der Buchung
+zugeordneten Layouts (Karussell- **und** Format-Layouts zusammen). Damit kann
+der Kunde selbst noch waehrend der Feier einzelne gebuchte Designs abwaehlen
+(z.B. weil eines nicht gefaellt), ohne dafuer den Admin/das Buchungssystem zu
+bemuehen - **mindestens ein Design muss dabei ausgewaehlt bleiben**, "Speichern"
+lehnt eine komplett leere Auswahl mit einer Fehlermeldung ab.
+`_ask_pin()` (bisher nur fuer die Admin-PIN) bekam dafuer einen `title`-Parameter,
+um denselben Ziffernblock-Dialog fuer beide PIN-Arten wiederzuverwenden, ohne den
+Dialog-Code zu duplizieren. Die Auswahl wird **rein lokal** unter
+`config.CACHE_DIR/disabled_layouts.json` gespeichert (atomar per `os.replace()`),
+gebunden an die jeweilige Buchungs-ID - eine neu synchronisierte Buchung startet
+also automatisch wieder mit allen Layouts aktiv, statt versehentlich die Auswahl
+der vorherigen Buchung zu erben. Bewusst **nie in die Cloud zurueckgesynct** (Offline-First,
+siehe Architekturentscheidungen) - die Funktion muss live waehrend eines Events
+ganz ohne Internetverbindung funktionieren. Sollte eine neue Cloud-Konfiguration
+zufaellig alle bisher bekannten Layout-IDs deaktiviert vorfinden (z.B. weil das
+Buchungssystem inzwischen alle Layouts dieser Buchung ausgetauscht hat), zeigt
+`_refresh_layout_choices()` als Sicherheitsnetz trotzdem wieder alle Layouts an,
+statt die Box designlos daliegen zu lassen.
 
 Standard sind 4 Bilder als Collage. Andere Layouts (bis zu 3 zusaetzliche
 pro Buchung waehlbar) nur, wenn der Kunde sie zur Buchung dazugewaehlt
@@ -252,6 +276,36 @@ aufheben" auf der Box-Karte lässt sich die Zuordnung wieder entfernen
 ebenfalls erhöht) - die Buchung erscheint danach wieder unter "Buchungen
 ohne Box".
 
+Jede Buchung bekommt bei der Erstellung (Schritt 2) automatisch eine
+**Design-PIN** (`bookings.customer_pin`, 4-stellig, `generate_customer_pin()`
+in `functions.php` - anders als `boxes.admin_pin` je Buchung statt je Box,
+keine Eindeutigkeitspruefung noetig, da keine Login-Zugangsdaten). Sie
+schuetzt auf der Box selbst den Bereich "Eigene Designs verwalten" (siehe
+Ablauf/BEREIT-Seite oben) und wird direkt bei der Buchung per Mail an den
+Kunden verschickt: bei einer sofort per Stripe bezahlten Buchung in
+`send_booking_confirmation_email()`, bei einer nur angefragten
+("nur ein schriftliches Angebot") in der eigens dafuer neu hinzugefuegten
+`send_booking_request_email()` (`mailer.php`) - ohne diese zweite Mail
+haette eine Angebots-Buchung sonst ueberhaupt keine Mail zum Zeitpunkt der
+Buchung bekommen (die einzige Bestaetigungsmail im System haengt sonst am
+Zahlungs-Webhook), die PIN muss aber unabhaengig vom Zahlweg sofort beim
+Kunden ankommen. `api.php` liefert `customer_pin` zusaetzlich im
+`booking`-Objekt an die Box mit, im Admin-Panel steht sie in
+`booking_detail.php` neben der E-Mail-Adresse.
+
+Eine bereits **bestätigte** Buchung bleibt fuer den Kunden nur noch bis
+`design_edit_deadline_days()` Tage (Einstellung `design_edit_deadline_days`,
+Panel unter Einstellungen, Standard 7) **vor dem Eventdatum** selbst
+aenderbar (`booking_customer_editable()` in `includes/customer_auth.php`) -
+danach nicht mehr, ausser ein Admin hat die Bearbeitung fuer diese eine
+Buchung ausdruecklich wieder freigeschaltet (`edit_unlocked_by_admin`, siehe
+Kundenkonten unten - diese Freischaltung umgeht die Frist vollstaendig,
+unabhaengig davon wie kurz vor dem Event das Event bereits liegt). Eine noch
+nicht bestaetigte Anfrage (`angefragt`) bleibt davon unberuehrt, immer
+aenderbar. Vorher war eine bestaetigte Buchung ausschliesslich per
+Admin-Freischaltung aenderbar - die Frist ist die neue Standard-Regel dafuer,
+ersetzt aber nicht die Freischaltung fuer Ausnahmefaelle.
+
 Die Buchungsliste (`admin/bookings.php`) zeigt neben dem Eventdatum
 zusaetzlich das spaeteste **Versanddatum** (`booking_ship_date()` in
 `functions.php`, rein rechnerisch aus Eventdatum minus `BOOKING_BUFFER_DAYS`
@@ -414,8 +468,10 @@ Konto alle Buchungen dieser E-Mail-Adresse (auch Alt-Buchungen von vor
 Einfuehrung der Kontenfunktion, per Migration ueber die E-Mail-Adresse
 verknuepft) mit Bearbeiten-Link (fuehrt zum bestehenden `edit_token`-Link
 in `buchen.php`) oder Ansehen-Link. Eine Buchung ist fuer den Kunden
-bearbeitbar, solange sie noch `angefragt` ist, oder wenn ein
-Admin sie trotz `bestaetigt`-Status ausdruecklich wieder freigeschaltet
+bearbeitbar, solange sie noch `angefragt` ist, oder solange eine bereits
+`bestaetigt`e Buchung noch innerhalb der `design_edit_deadline_days()`-Frist
+vor dem Eventdatum liegt (siehe Buchungssystem oben), oder wenn ein
+Admin sie unabhaengig von dieser Frist ausdruecklich wieder freigeschaltet
 hat (`bookings.edit_unlocked_by_admin`, Button in booking_detail.php) -
 `buchen.php` selbst blockt Schritt 2-5 serverseitig fuer nicht (mehr)
 bearbeitbare Buchungen (`booking_customer_editable()`), zeigt stattdessen

@@ -149,8 +149,12 @@ function customer_account_bookings(int $accountId): array
     return $stmt->fetchAll();
 }
 
-// Ob eine Buchung fuer den Kunden noch aenderbar ist: solange sie noch
-// nicht abschliessend bestaetigt ist (angefragt), oder wenn ein Admin die
+// Ob eine Buchung fuer den Kunden noch aenderbar ist: eine noch nicht
+// abschliessend bestaetigte Anfrage (angefragt) immer, eine bereits
+// bestaetigte Buchung nur noch bis design_edit_deadline_days() Tage vor dem
+// Eventdatum (Standard 7 - danach ist z.B. schon versendet oder die Box
+// steht kurz vor dem Losgehen, eine Design-Aenderung waere dann nicht mehr
+// praktikabel) - oder unabhaengig von der Frist, wenn ein Admin die
 // Bearbeitung fuer diese eine Buchung ausdruecklich wieder freigeschaltet
 // hat (siehe booking_detail.php).
 function booking_customer_editable(array $booking): bool
@@ -158,5 +162,12 @@ function booking_customer_editable(array $booking): bool
     if ($booking['status'] === 'angefragt') {
         return true;
     }
-    return $booking['status'] === 'bestaetigt' && (int) $booking['edit_unlocked_by_admin'] === 1;
+    if ((int) $booking['edit_unlocked_by_admin'] === 1) {
+        return true;
+    }
+    if ($booking['status'] !== 'bestaetigt') {
+        return false;
+    }
+    $deadline = (new DateTimeImmutable($booking['event_date']))->modify('-' . design_edit_deadline_days() . ' days');
+    return new DateTimeImmutable('today') < $deadline;
 }

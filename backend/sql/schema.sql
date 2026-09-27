@@ -112,6 +112,11 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
 CREATE TABLE IF NOT EXISTS bookings (
     id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     edit_token             VARCHAR(64) NULL UNIQUE,
+    -- 4-stellige PIN fuer den neuen Design-Aktivieren/Deaktivieren-Bereich
+    -- auf der Box selbst (main.py) - anders als edit_token nicht geheim
+    -- gegenueber der Buchenden Person, sondern per Mail an sie verschickt
+    -- und im Admin-Panel sichtbar (Migration 0026).
+    customer_pin           CHAR(4) NOT NULL,
     -- Erzeugt beim ersten Foto-Upload aus der Cloud-Galerie (Migration 0016,
     -- siehe gallery_photos unten), nicht schon bei der Buchung selbst.
     -- gallery_token ist der Verwalter-Link (Fotos ausblenden, Gaeste-Link
@@ -349,7 +354,11 @@ INSERT IGNORE INTO settings (name, value) VALUES
     ('google_review_url', ''),
     -- Automatischer Rabatt (Prozent) fuer wiederkehrende Kunden (per
     -- E-Mail-Adresse erkannt, siehe is_returning_customer()).
-    ('returning_customer_discount_percent', '10');
+    ('returning_customer_discount_percent', '10'),
+    -- Bis zu wie vielen Tagen VOR DEM EVENTDATUM eine bereits bestaetigte
+    -- Buchung fuer den Kunden noch aenderbar bleibt, siehe
+    -- booking_customer_editable() in includes/customer_auth.php.
+    ('design_edit_deadline_days', '7');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES

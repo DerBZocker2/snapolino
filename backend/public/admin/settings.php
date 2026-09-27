@@ -19,6 +19,7 @@ $referralRewardEuro = number_format(referral_reward_cents() / 100, 2, '.', '');
 $reviewRequestDaysAfterEvent = (string) review_request_days_after_event();
 $googleReviewUrl = google_review_url();
 $returningCustomerDiscountPercent = (string) returning_customer_discount_percent();
+$designEditDeadlineDays = (string) design_edit_deadline_days();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -37,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $reviewRequestDaysAfterEvent = trim((string) ($_POST['review_request_days_after_event'] ?? ''));
     $googleReviewUrl = trim((string) ($_POST['google_review_url'] ?? ''));
     $returningCustomerDiscountPercent = trim((string) ($_POST['returning_customer_discount_percent'] ?? ''));
+    $designEditDeadlineDays = trim((string) ($_POST['design_edit_deadline_days'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -65,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!ctype_digit($returningCustomerDiscountPercent) || (int) $returningCustomerDiscountPercent > 100) {
         $errors[] = 'Stammkundenrabatt muss zwischen 0 und 100 Prozent liegen.';
     }
+    if (!ctype_digit($designEditDeadlineDays)) {
+        $errors[] = 'Bearbeitungsfrist für Design/Extras muss eine ganze Zahl >= 0 sein.';
+    }
 
     if (!$errors) {
         set_setting('base_price_cents', (string) (int) round(((float) $priceEuro) * 100));
@@ -81,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('review_request_days_after_event', (string) (int) $reviewRequestDaysAfterEvent);
         set_setting('google_review_url', $googleReviewUrl);
         set_setting('returning_customer_discount_percent', (string) (int) $returningCustomerDiscountPercent);
+        set_setting('design_edit_deadline_days', (string) (int) $designEditDeadlineDays);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -180,6 +186,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             eingelösten Gutschein, auf den bereits um den Gutschein reduzierten Betrag.</p>
         <label>Rabatt in %
             <input type="number" min="0" max="100" name="returning_customer_discount_percent" value="<?= htmlspecialchars($returningCustomerDiscountPercent, ENT_QUOTES) ?>" style="max-width:120px;">
+        </label>
+
+        <h2>Bearbeitungsfrist für Design/Extras</h2>
+        <p class="muted-text">Bis zu wie vielen Tagen <strong>vor dem Eventdatum</strong> Kunden mit bereits
+            bestätigter Buchung ihr Design und ihre Extras im eigenen Konto noch selbst ändern können - danach
+            geht das nur noch, wenn ein Admin die Bearbeitung für diese eine Buchung in den Buchungsdetails
+            ausdrücklich wieder freischaltet. Eine noch nicht bestätigte Anfrage bleibt davon unberührt, immer
+            änderbar.</p>
+        <label>Frist in Tagen
+            <input type="number" min="0" name="design_edit_deadline_days" value="<?= htmlspecialchars($designEditDeadlineDays, ENT_QUOTES) ?>" style="max-width:120px;">
         </label>
 
         <button type="submit">Speichern</button>

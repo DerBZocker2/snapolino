@@ -287,6 +287,12 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
             </td></tr>
         <?php endif; ?>
         <tr><th>E-Mail</th><td><a href="mailto:<?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?>"><?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?></a></td></tr>
+        <tr><th>Design-PIN</th><td>
+            <code><?= htmlspecialchars($booking['customer_pin'], ENT_QUOTES) ?></code>
+            <span class="muted-text">wurde dem Kunden per Mail geschickt - schützt auf der Box den Bereich zum
+                nachträglichen Aktivieren/Deaktivieren der eigenen Designs ("Eigene Designs verwalten" im
+                Logo-Menü).</span>
+        </td></tr>
         <tr><th>Telefon</th><td><?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?: '—' ?></td></tr>
         <tr><th>Versandadresse</th><td>
             <?php $addressLines = booking_address_lines($booking); ?>

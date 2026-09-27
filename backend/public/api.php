@@ -85,6 +85,10 @@ if ($currentBooking) {
         'id' => (int) $currentBooking['id'],
         'customer_name' => $currentBooking['customer_name'],
         'event_date' => $currentBooking['event_date'],
+        // Schuetzt auf der Box den Bereich zum nachtraeglichen Aktivieren/
+        // Deaktivieren der eigenen Design-Layouts (main.py,
+        // _open_design_manager()) - per Mail an den Kunden verschickt.
+        'customer_pin' => $currentBooking['customer_pin'],
     ];
 
     $stmt = db()->prepare(
