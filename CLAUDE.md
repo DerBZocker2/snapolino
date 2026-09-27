@@ -339,6 +339,25 @@ entfaellt die Versand-Spalte (kein Versand mehr relevant). Die
 Status-Filter-Tabs zeigen zusaetzlich die Anzahl je Status. Der Kundenname
 ist direkt zur Detailseite verlinkt (wie auf `dashboard.php`).
 
+Im Panel unter **Kalender** (`admin/calendar.php`) zeigt eine
+Monats-Rasteransicht (Montag als Wochenstart, wie der Kalender in
+`buchen.php`) auf einen Blick, was diesen Monat ansteht - Ergaenzung zur
+Listenansicht in `bookings.php`, nicht deren Ersatz. Jeder Tag zeigt zwei
+Arten von Eintraegen nebeneinander: **Events** (`bookings.event_date`, als
+farbiger Chip je Status - angefragt/bestaetigt/abgelehnt/storniert in
+denselben Farben wie die `status-pill`-Badges) und **Versand-Faelligkeiten**
+(`booking_ship_date()`, nur fuer noch aktive Buchungen `angefragt`/
+`bestaetigt` - abgelehnte/stornierte blockieren wie in `bookings.php` keinen
+Versand mehr, siehe oben) als eigene, schmaler gestaltete Zeile mit
+Akzentfarbe, da beide Termine sich stark unterscheiden koennen (ein Event am
+Monatsende kann seine Versand-Faelligkeit noch im aktuellen Raster zeigen,
+auch wenn das Event selbst schon im naechsten Monat liegt - die Abfrage laedt
+dafuer bewusst bis zu `BOOKING_BUFFER_DAYS` Tage ueber das sichtbare
+Monatsraster hinaus). Navigation per `?month=YYYY-MM`-Parameter (Vormonat/
+Heute/naechster Monat), Tage ausserhalb des aktuellen Monats werden dezent
+abgesetzt (heller Hintergrund, duennere Schrift), der heutige Tag farblich
+hervorgehoben. Jeder Eintrag verlinkt direkt zu `booking_detail.php`.
+
 `admin/booking_detail.php` zeigt zusaetzlich dieselbe Versanddatum-Zeile
 sowie einen eigenen Bereich **"Weitere Buchungen dieser E-Mail-Adresse"**
 (alle anderen Buchungen derselben `customer_email`, mit bereits bezahlter

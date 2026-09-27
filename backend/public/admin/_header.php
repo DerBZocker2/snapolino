@@ -63,6 +63,9 @@ function nav_class(array $pages, string $current): string
                     <span class="nav-badge"><?= $openBookings ?></span>
                 <?php endif; ?>
             </a>
+            <a class="<?= nav_class(['calendar.php'], $currentPage) ?>" href="calendar.php">
+                Kalender
+            </a>
             <a class="<?= nav_class(['invoices.php'], $currentPage) ?>" href="invoices.php">
                 Rechnungen
             </a>
