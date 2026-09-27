@@ -1067,14 +1067,33 @@ class Fotobox(QWidget):
     # ---------- Admin-Menue (per Logo oben links, PIN aus Cloud-Sync) ----------
 
     def open_admin_menu(self):
-        pin = cloudsync.get_admin_pin()
-        if pin:
-            entered = self._ask_pin()
-            if entered != pin:
-                if entered is not None:
-                    self.hint.setText("Falsche PIN")
-                return
-        self._show_admin_actions()
+        """Fragt ueber den Logo-Knopf eine einzige PIN ab und oeffnet je
+        nachdem, welche PIN sie trifft, entweder das Admin-Menue (Admin-PIN,
+        cloudsync.get_admin_pin()) oder direkt "Eigene Designs verwalten"
+        (Design-PIN der aktuellen Buchung, booking["customer_pin"]) - eine
+        einzige Eingabe statt zwei getrennter Abfragen fuer zwei PIN-Arten
+        am selben Knopf."""
+        admin_pin = cloudsync.get_admin_pin()
+        booking = cloudsync.get_booking()
+        customer_pin = booking.get("customer_pin") if booking else None
+
+        if not admin_pin and not customer_pin:
+            # Weder Admin- noch Design-PIN vorhanden (kein Schutz
+            # konfiguriert, keine Buchung bekannt) - Admin-Menue wie bisher
+            # ohne jede Abfrage direkt oeffnen.
+            self._show_admin_actions()
+            return
+
+        entered = self._ask_pin(title="PIN eingeben")
+        if entered is None:
+            return
+        if customer_pin and entered == customer_pin:
+            self._show_design_manager_dialog(booking["id"])
+            return
+        if not admin_pin or entered == admin_pin:
+            self._show_admin_actions()
+            return
+        self.hint.setText("Falsche PIN")
 
     def _ask_pin(self, title="Admin-PIN"):
         """Zeigt ein Ziffernblock-Popup (keine Tastatur im Betrieb) und
@@ -1165,18 +1184,14 @@ class Fotobox(QWidget):
     # ---------- Eigene Designs verwalten (per Kunden-PIN aus der Buchung) ----------
 
     def _open_design_manager(self):
+        """Oeffnet "Eigene Designs verwalten" ohne erneute PIN-Abfrage - wird
+        nur aus dem bereits per Admin-PIN freigeschalteten Admin-Menue heraus
+        aufgerufen. open_admin_menu() fragt die Design-PIN direkt selbst ab
+        und oeffnet in dem Fall den Dialog ohne den Umweg ueber dieses
+        Admin-Menue."""
         booking = cloudsync.get_booking()
         if not booking:
             self.hint.setText("Keine Buchung bekannt - Designverwaltung nicht verfügbar")
-            return
-        pin = booking.get("customer_pin")
-        if not pin:
-            self.hint.setText("Keine Design-PIN für diese Buchung hinterlegt")
-            return
-        entered = self._ask_pin(title="Design-PIN")
-        if entered != pin:
-            if entered is not None:
-                self.hint.setText("Falsche PIN")
             return
         self._show_design_manager_dialog(booking["id"])
 

@@ -70,22 +70,31 @@ naechster Absatz) vom Kunden deaktivierte Layouts filtert `_refresh_layout_choic
 bereits vor dieser Karussell-/Format-Aufteilung heraus - beide Bereiche zeigen
 also nur noch die vom Kunden aktuell freigegebenen Designs.
 
-Oben links ein Logo-Knopf oeffnet ein PIN-gesichertes Admin-Menue
-(Ziffernblock statt Tastatur, PIN kommt per Cloud-Sync von der jeweiligen
-Box - Panel unter **Boxen → Layouts & Zugang**, leer = kein Schutz):
-Programm beenden oder die aktuell zwischengespeicherten Buchungsinfos
-(Kundenname, Eventdatum, gebuchte Extras) ansehen. Ein weiterer Knopf dort,
-**"Eigene Designs verwalten"**, oeffnet nach Eingabe der **Design-PIN** (4-stellig,
-`booking.customer_pin` - eine eigene, andere PIN als die Admin-PIN der Box,
-siehe Buchungssystem/Online-Galerie unten) eine Checkliste aller der Buchung
-zugeordneten Layouts (Karussell- **und** Format-Layouts zusammen). Damit kann
-der Kunde selbst noch waehrend der Feier einzelne gebuchte Designs abwaehlen
-(z.B. weil eines nicht gefaellt), ohne dafuer den Admin/das Buchungssystem zu
-bemuehen - **mindestens ein Design muss dabei ausgewaehlt bleiben**, "Speichern"
-lehnt eine komplett leere Auswahl mit einer Fehlermeldung ab.
-`_ask_pin()` (bisher nur fuer die Admin-PIN) bekam dafuer einen `title`-Parameter,
-um denselben Ziffernblock-Dialog fuer beide PIN-Arten wiederzuverwenden, ohne den
-Dialog-Code zu duplizieren. Die Auswahl wird **rein lokal** unter
+Oben links ein Logo-Knopf (`open_admin_menu()`) fragt ueber denselben
+Ziffernblock-Dialog (`_ask_pin()`) **eine einzige PIN** ab und oeffnet je
+nachdem, welche PIN sie trifft, entweder das **Admin-Menue** (Admin-PIN, kommt
+per Cloud-Sync von der jeweiligen Box - Panel unter **Boxen → Layouts &
+Zugang**, leer = kein Schutz) oder direkt **"Eigene Designs verwalten"**
+(**Design-PIN** der aktuellen Buchung, `booking.customer_pin` - eine eigene,
+andere PIN als die Admin-PIN, siehe Buchungssystem/Online-Galerie unten) -
+keine zwei getrennten Abfragen fuer zwei PIN-Arten am selben Knopf. Ist weder
+eine Admin-PIN konfiguriert noch eine Buchung (und damit eine Design-PIN)
+bekannt, entfaellt die Abfrage komplett und das Admin-Menue oeffnet direkt
+(unveraendert zum bisherigen "kein Schutz"-Verhalten); ist nur die Admin-PIN
+leer, aber eine Design-PIN bekannt, oeffnet jede nicht zur Design-PIN passende
+Eingabe (auch eine leere) weiterhin ohne weitere Pruefung das Admin-Menue.
+Das Admin-Menue selbst bietet: Programm beenden, die aktuell
+zwischengespeicherten Buchungsinfos (Kundenname, Eventdatum, gebuchte Extras)
+ansehen, sowie denselben Design-Manager nochmal ueber einen eigenen Knopf
+**ohne erneute PIN-Abfrage** (der Admin ist an dieser Stelle ja schon per
+Admin-PIN freigeschaltet, `_open_design_manager()` prueft dort nur noch, ob
+ueberhaupt eine Buchung bekannt ist). Der Design-Manager selbst zeigt eine
+Checkliste aller der Buchung zugeordneten Layouts (Karussell- **und**
+Format-Layouts zusammen). Damit kann der Kunde selbst noch waehrend der Feier
+einzelne gebuchte Designs abwaehlen (z.B. weil eines nicht gefaellt), ohne
+dafuer den Admin/das Buchungssystem zu bemuehen - **mindestens ein Design muss
+dabei ausgewaehlt bleiben**, "Speichern" lehnt eine komplett leere Auswahl mit
+einer Fehlermeldung ab. Die Auswahl wird **rein lokal** unter
 `config.CACHE_DIR/disabled_layouts.json` gespeichert (atomar per `os.replace()`),
 gebunden an die jeweilige Buchungs-ID - eine neu synchronisierte Buchung startet
 also automatisch wieder mit allen Layouts aktiv, statt versehentlich die Auswahl
