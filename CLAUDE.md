@@ -224,7 +224,20 @@ im Panel angezeigt).
   erhöht `config_version` der betroffenen Box(en).
 - DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
   `config.php.example`), analog zu `box.ini` auf der Box.
-- Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts).
+- Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts). Bewusst
+  **nüchtern-professionelles** statt verspieltes Design (`admin/assets/style.css`,
+  einzige Farbdatei fürs gesamte Panel - anders als die bunte öffentliche
+  Webseite mit `assets/site.css`): ein einzelner Blauton als Akzentfarbe
+  (`--accent`/`--accent-dark`/`--accent-soft`) statt zwei knalliger Marken-
+  farben, keine Farbverlaeufe auf Text/Flaechen (Zahlen/Ueberschriften in
+  gedecktem Dunkelgrau `--dark`, keine `background-clip: text`-Effekte mehr),
+  dezente neutrale Schatten (`rgba(16, 24, 40, ...)`) statt farbiger "Candy"-
+  Schatten, kleinere Eckenradien (6-10px statt 14-16px) und eine dunkle,
+  einfarbige Sidebar (`--dark`) ohne Farbverlauf. Die Sidebar-Navigation
+  (`admin/_header.php`) zeigt reinen Text ohne Emoji-Icons davor, aktive
+  Eintraege markiert ein schmaler Akzent-Balken links statt einer bunten
+  Farbverlauf-Pille. Gilt fuer das gesamte Panel (jede Seite bindet dieselbe
+  `style.css` ein), nicht nur fuer `dashboard.php`.
 - Aktions-Buttons einer Tabellenzeile (`bookings.php`, `coupons.php`,
   `extras.php`, `layouts.php`) stehen in einem `<div class="actions-row">`
   *innerhalb* der `<td class="actions">`, nicht direkt als `display: flex`

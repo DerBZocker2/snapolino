@@ -151,7 +151,7 @@ $layoutStmt = db()->prepare(
             <div class="booking-chip" draggable="true" data-booking-id="<?= (int) $booking['id'] ?>">
                 <div class="booking-chip-name"><?= htmlspecialchars($booking['customer_name'], ENT_QUOTES) ?></div>
                 <div class="booking-chip-meta">
-                    📅 <?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?>
+                    <?= htmlspecialchars($booking['event_date'], ENT_QUOTES) ?>
                     <span class="status-pill status-<?= htmlspecialchars($booking['status'], ENT_QUOTES) ?>">
                         <?= htmlspecialchars(booking_status_label($booking['status']), ENT_QUOTES) ?>
                     </span>
@@ -183,7 +183,7 @@ $layoutStmt = db()->prepare(
                     <?php if ($box['current_booking']): ?>
                         <div class="box-card-booking">
                             <strong><?= htmlspecialchars($box['current_booking']['customer_name'], ENT_QUOTES) ?></strong>
-                            <span class="muted-text">📅 <?= htmlspecialchars($box['current_booking']['event_date'], ENT_QUOTES) ?></span>
+                            <span class="muted-text"><?= htmlspecialchars($box['current_booking']['event_date'], ENT_QUOTES) ?></span>
                             <form method="post" action="boxes.php" class="box-card-unassign"
                                   onsubmit="return confirm('Zuordnung wirklich aufheben? Die Box zeigt danach keine Buchung mehr an.');">
                                 <?= csrf_field() ?>

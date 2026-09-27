@@ -55,43 +55,43 @@ function nav_class(array $pages, string $current): string
         </div>
         <nav class="sidebar-nav">
             <a class="<?= nav_class(['dashboard.php'], $currentPage) ?>" href="dashboard.php">
-                <span class="nav-icon">📊</span> Übersicht
+                Übersicht
             </a>
             <a class="<?= nav_class(['bookings.php', 'booking_detail.php'], $currentPage) ?>" href="bookings.php">
-                <span class="nav-icon">📅</span> Buchungen
+                Buchungen
                 <?php if ($openBookings > 0): ?>
                     <span class="nav-badge"><?= $openBookings ?></span>
                 <?php endif; ?>
             </a>
             <a class="<?= nav_class(['invoices.php'], $currentPage) ?>" href="invoices.php">
-                <span class="nav-icon">🧾</span> Rechnungen
+                Rechnungen
             </a>
             <a class="<?= nav_class(['boxes.php', 'box_layouts.php'], $currentPage) ?>" href="boxes.php">
-                <span class="nav-icon">📦</span> Boxen
+                Boxen
                 <?php if ($unassignedBookings > 0): ?>
                     <span class="nav-badge"><?= $unassignedBookings ?></span>
                 <?php endif; ?>
             </a>
             <a class="<?= nav_class(['waitlist.php'], $currentPage) ?>" href="waitlist.php">
-                <span class="nav-icon">⏳</span> Warteliste
+                Warteliste
                 <?php if ($waitingEntries > 0): ?>
                     <span class="nav-badge"><?= $waitingEntries ?></span>
                 <?php endif; ?>
             </a>
             <a class="<?= nav_class(['layouts.php', 'layout_form.php'], $currentPage) ?>" href="layouts.php">
-                <span class="nav-icon">🖼️</span> Layouts
+                Layouts
             </a>
             <a class="<?= nav_class(['extras.php', 'extra_form.php'], $currentPage) ?>" href="extras.php">
-                <span class="nav-icon">✨</span> Extras
+                Extras
             </a>
             <a class="<?= nav_class(['coupons.php', 'coupon_form.php'], $currentPage) ?>" href="coupons.php">
-                <span class="nav-icon">🎟️</span> Gutscheine
+                Gutscheine
             </a>
             <a class="<?= nav_class(['testimonials.php', 'testimonial_form.php'], $currentPage) ?>" href="testimonials.php">
-                <span class="nav-icon">⭐</span> Bewertungen
+                Bewertungen
             </a>
             <a class="<?= nav_class(['settings.php'], $currentPage) ?>" href="settings.php">
-                <span class="nav-icon">⚙️</span> Einstellungen
+                Einstellungen
             </a>
         </nav>
         <div class="sidebar-footer">
