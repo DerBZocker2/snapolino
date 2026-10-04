@@ -612,6 +612,20 @@ function is_date_blocked(string $eventDate): bool
     return in_array($eventDate, fetch_blocked_dates(), true);
 }
 
+// Wie viele Tage im Voraus ein Wunschtermin mindestens gebucht werden muss
+// (Panel unter Einstellungen, Standard 3) - unabhaengig davon, ob der Tag
+// selbst noch frei waere. Verhindert zu kurzfristige Anfragen, auf die sich
+// Versand/Vorbereitung nicht mehr einrichten liessen.
+function booking_min_lead_days(): int
+{
+    return max(0, (int) get_setting('booking_min_lead_days', '3'));
+}
+
+function booking_min_lead_date(): DateTimeImmutable
+{
+    return (new DateTimeImmutable('today'))->modify('+' . booking_min_lead_days() . ' days');
+}
+
 // ---------- Warteliste ----------
 
 // Wird aufgerufen, nachdem eine Buchung eine bestimmte Belegung nicht mehr
@@ -750,6 +764,23 @@ function booking_extra_selections(int $bookingId): array
     return $result;
 }
 
+// [extra_id => Gesamtbetrag in Cent] fuer eine Auswahl (Menge * Preis) -
+// Basis sowohl fuer calc_booking_total() als auch fuer Rabattaktionen, die
+// nur einzelne Extras betreffen (siehe promotion_discount_for_selection()).
+function extra_selection_amounts(array $extraSelections): array
+{
+    $amounts = [];
+    foreach ($extraSelections as $extraId => $quantity) {
+        $stmt = db()->prepare('SELECT price_cents FROM extras WHERE id = ? AND is_active = 1');
+        $stmt->execute([(int) $extraId]);
+        $price = $stmt->fetchColumn();
+        if ($price !== false) {
+            $amounts[(int) $extraId] = (int) $price * max(1, (int) $quantity);
+        }
+    }
+    return $amounts;
+}
+
 // Gesamtpreis: Basispreis + Aufpreis der gewuenschten Layouts + gewaehlte
 // Extras (Menge * Preis, Extra-Preise duerfen negativ sein). Wird beim
 // finalen Absenden serverseitig neu berechnet, nie der Client-Wert
@@ -765,14 +796,7 @@ function calc_booking_total(array $layoutIds, array $extraSelections): int
         $total += (int) $stmt->fetchColumn();
     }
 
-    foreach ($extraSelections as $extraId => $quantity) {
-        $stmt = db()->prepare('SELECT price_cents FROM extras WHERE id = ? AND is_active = 1');
-        $stmt->execute([(int) $extraId]);
-        $price = $stmt->fetchColumn();
-        if ($price !== false) {
-            $total += (int) $price * max(1, (int) $quantity);
-        }
-    }
+    $total += array_sum(extra_selection_amounts($extraSelections));
 
     return max(0, $total);
 }
@@ -816,9 +840,26 @@ function booking_invoice_items(int $bookingId): array
         }
     }
 
-    $stmt = db()->prepare('SELECT coupon_code, discount_cents, returning_discount_cents FROM bookings WHERE id = ?');
+    $stmt = db()->prepare(
+        'SELECT coupon_code, discount_cents, returning_discount_cents, applied_promotions_json FROM bookings WHERE id = ?'
+    );
     $stmt->execute([$bookingId]);
     $couponRow = $stmt->fetch();
+
+    $appliedPromotions = $couponRow && $couponRow['applied_promotions_json']
+        ? json_decode((string) $couponRow['applied_promotions_json'], true)
+        : [];
+    foreach ((array) $appliedPromotions as $applied) {
+        $amount = (int) ($applied['discount_cents'] ?? 0);
+        if ($amount > 0) {
+            $items[] = [
+                'name' => 'Rabattaktion: ' . (string) ($applied['name'] ?? ''),
+                'unit_amount_cents' => -$amount,
+                'quantity' => 1,
+            ];
+        }
+    }
+
     if ($couponRow && (int) $couponRow['discount_cents'] > 0) {
         $items[] = [
             'name' => 'Rabatt' . ($couponRow['coupon_code'] ? ' (' . $couponRow['coupon_code'] . ')' : ''),
@@ -923,13 +964,97 @@ function coupon_discount_cents(array $coupon, int $subtotalCents): int
     return max(0, min($discount, $subtotalCents));
 }
 
+// ---------- Rabattaktionen (automatisch, ohne Code) ----------
+
+// Aktuell gueltige Rabattaktionen (aktiv, innerhalb valid_from/valid_until) -
+// im Gegensatz zu Gutscheinen immer automatisch angewendet, nie per Code.
+function fetch_active_promotions(): array
+{
+    return db()->query(
+        "SELECT * FROM promotions WHERE is_active = 1
+         AND (valid_from IS NULL OR valid_from <= CURDATE())
+         AND (valid_until IS NULL OR valid_until >= CURDATE())
+         ORDER BY created_at DESC"
+    )->fetchAll();
+}
+
+function fetch_all_promotions(): array
+{
+    return db()->query('SELECT * FROM promotions ORDER BY created_at DESC')->fetchAll();
+}
+
+function fetch_promotion_extra_ids(int $promotionId): array
+{
+    $stmt = db()->prepare('SELECT extra_id FROM promotion_extras WHERE promotion_id = ?');
+    $stmt->execute([$promotionId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+// Rabattbetrag einer einzelnen Aktion fuer eine konkrete Auswahl: bei
+// scope "all" auf Basispreis + alle Extras, bei scope "extras" nur auf die
+// dieser Aktion zugeordneten Extras (siehe promotion_extras). $extraAmounts:
+// [extra_id => Gesamtbetrag in Cent], siehe extra_selection_amounts().
+function promotion_discount_for_selection(array $promotion, int $basePriceCents, array $extraAmounts): int
+{
+    if ($promotion['scope'] === 'all') {
+        $eligible = $basePriceCents + array_sum($extraAmounts);
+    } else {
+        $eligible = 0;
+        foreach (fetch_promotion_extra_ids((int) $promotion['id']) as $extraId) {
+            $eligible += $extraAmounts[$extraId] ?? 0;
+        }
+    }
+    $eligible = max(0, $eligible);
+
+    if ($promotion['discount_type'] === 'percent') {
+        $discount = (int) round($eligible * ((int) $promotion['discount_value'] / 100));
+    } else {
+        $discount = (int) $promotion['discount_value'];
+    }
+    return max(0, min($discount, $eligible));
+}
+
+// Alle aktuell greifenden Rabattaktionen fuer eine Auswahl, samt Betrag -
+// eine Buchung kann z.B. gleichzeitig eine "alles"-Aktion und eine
+// extra-spezifische Aktion kombinieren.
+function applicable_promotions_for_selection(int $basePriceCents, array $extraAmounts): array
+{
+    $applied = [];
+    foreach (fetch_active_promotions() as $promotion) {
+        $amount = promotion_discount_for_selection($promotion, $basePriceCents, $extraAmounts);
+        if ($amount > 0) {
+            $applied[] = ['promotion' => $promotion, 'discount_cents' => $amount];
+        }
+    }
+    return $applied;
+}
+
+// Baut aus dem Rueckgabewert von calc_booking_pricing() die JSON-Zeichenkette
+// fuer bookings.applied_promotions_json (null, wenn keine Aktion gegriffen
+// hat) - gemeinsame Stelle, damit alle Schreibstellen (buchen.php,
+// booking_detail.php, payments.php) dasselbe Format erzeugen.
+function applied_promotions_json(array $pricing): ?string
+{
+    if (empty($pricing['promotions'])) {
+        return null;
+    }
+    $encoded = array_map(static fn (array $applied): array => [
+        'name' => $applied['promotion']['name'],
+        'discount_cents' => $applied['discount_cents'],
+    ], $pricing['promotions']);
+    return json_encode($encoded);
+}
+
 // Rechnet Zwischensumme, Rabatt und Endsumme fuer eine Buchung aus - Basis
 // fuer sowohl das Einloesen im Assistenten als auch das finale Abschicken
-// (Schritt 5), damit beide exakt denselben Betrag ermitteln. $customerEmail
-// (falls angegeben) prueft zusaetzlich auf einen automatischen
-// Stammkundenrabatt (siehe is_returning_customer()) - kombinierbar mit
-// einem Gutschein, wird aber auf den bereits um den Gutschein reduzierten
-// Betrag berechnet, nicht auf den vollen Zwischenbetrag.
+// (Schritt 5), damit beide exakt denselben Betrag ermitteln. Rabattaktionen
+// werden dabei immer automatisch beruecksichtigt (kein Code noetig), auf dem
+// vollen Zwischenbetrag (nicht nacheinander reduziert, da sie je nach Scope
+// unterschiedliche Teilbetraege betreffen koennen). $customerEmail (falls
+// angegeben) prueft zusaetzlich auf einen automatischen Stammkundenrabatt
+// (siehe is_returning_customer()) - kombinierbar mit einem Gutschein, wird
+// aber auf den bereits um den Gutschein reduzierten Betrag berechnet, nicht
+// auf den vollen Zwischenbetrag.
 function calc_booking_pricing(
     array $layoutIds,
     array $extraSelections,
@@ -938,6 +1063,11 @@ function calc_booking_pricing(
     ?int $excludeBookingId = null
 ): array {
     $subtotal = calc_booking_total($layoutIds, $extraSelections);
+
+    $extraAmounts = extra_selection_amounts($extraSelections);
+    $appliedPromotions = applicable_promotions_for_selection(base_price_cents(), $extraAmounts);
+    $promotionDiscount = array_sum(array_column($appliedPromotions, 'discount_cents'));
+
     $coupon = $couponCode ? find_active_coupon($couponCode) : null;
     $couponDiscount = $coupon ? coupon_discount_cents($coupon, $subtotal) : 0;
 
@@ -946,13 +1076,15 @@ function calc_booking_pricing(
         $returningDiscount = (int) round(max(0, $subtotal - $couponDiscount) * (returning_customer_discount_percent() / 100));
     }
 
-    $totalDiscount = min($couponDiscount + $returningDiscount, $subtotal);
+    $totalDiscount = min($promotionDiscount + $couponDiscount + $returningDiscount, $subtotal);
 
     return [
         'subtotal' => $subtotal,
         'coupon' => $coupon,
         'discount_cents' => $couponDiscount,
         'returning_discount_cents' => $returningDiscount,
+        'promotions' => $appliedPromotions,
+        'promotion_discount_cents' => $promotionDiscount,
         'total' => max(0, $subtotal - $totalDiscount),
     ];
 }

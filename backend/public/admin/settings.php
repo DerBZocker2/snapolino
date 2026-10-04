@@ -20,6 +20,7 @@ $reviewRequestDaysAfterEvent = (string) review_request_days_after_event();
 $googleReviewUrl = google_review_url();
 $returningCustomerDiscountPercent = (string) returning_customer_discount_percent();
 $designEditDeadlineDays = (string) design_edit_deadline_days();
+$bookingMinLeadDays = (string) booking_min_lead_days();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -39,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $googleReviewUrl = trim((string) ($_POST['google_review_url'] ?? ''));
     $returningCustomerDiscountPercent = trim((string) ($_POST['returning_customer_discount_percent'] ?? ''));
     $designEditDeadlineDays = trim((string) ($_POST['design_edit_deadline_days'] ?? ''));
+    $bookingMinLeadDays = trim((string) ($_POST['booking_min_lead_days'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -70,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!ctype_digit($designEditDeadlineDays)) {
         $errors[] = 'Bearbeitungsfrist für Design/Extras muss eine ganze Zahl >= 0 sein.';
     }
+    if (!ctype_digit($bookingMinLeadDays)) {
+        $errors[] = 'Mindestvorlauf für Buchungen muss eine ganze Zahl >= 0 sein.';
+    }
 
     if (!$errors) {
         set_setting('base_price_cents', (string) (int) round(((float) $priceEuro) * 100));
@@ -87,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('google_review_url', $googleReviewUrl);
         set_setting('returning_customer_discount_percent', (string) (int) $returningCustomerDiscountPercent);
         set_setting('design_edit_deadline_days', (string) (int) $designEditDeadlineDays);
+        set_setting('booking_min_lead_days', (string) (int) $bookingMinLeadDays);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -196,6 +202,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             änderbar.</p>
         <label>Frist in Tagen
             <input type="number" min="0" name="design_edit_deadline_days" value="<?= htmlspecialchars($designEditDeadlineDays, ENT_QUOTES) ?>" style="max-width:120px;">
+        </label>
+
+        <h2>Mindestvorlauf für Buchungen</h2>
+        <p class="muted-text">Wie viele Tage im Voraus ein Wunschtermin im Buchungsassistenten frühestens
+            wählbar ist - zu kurzfristige Tage sind im Kalender ausgegraut, auch wenn sie sonst noch frei wären.</p>
+        <label>Vorlauf in Tagen
+            <input type="number" min="0" name="booking_min_lead_days" value="<?= htmlspecialchars($bookingMinLeadDays, ENT_QUOTES) ?>" style="max-width:120px;">
         </label>
 
         <button type="submit">Speichern</button>

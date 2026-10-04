@@ -29,9 +29,6 @@ $slotCount     = (int) ($_POST['slot_count'] ?? $layout['slot_count'] ?? 4);
 $canvasWidth   = (int) ($_POST['canvas_width'] ?? $layout['canvas_width'] ?? 1800);
 $canvasHeight  = (int) ($_POST['canvas_height'] ?? $layout['canvas_height'] ?? 1200);
 $isDefault     = isset($_POST['is_default']) ? true : (bool) ($layout['is_default'] ?? false);
-$surchargeEuro = isset($_POST['surcharge_euro'])
-    ? (string) $_POST['surcharge_euro']
-    : ($layout ? number_format($layout['surcharge_cents'] / 100, 2, '.', '') : '0.00');
 
 $postedSlots = $_POST['slots'] ?? null;
 if (is_array($postedSlots)) {
@@ -76,10 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resize'])) {
     if ($slotCount < 1 || $slotCount !== count($slotRows)) {
         $errors[] = 'Anzahl Slots stimmt nicht mit den Koordinatenzeilen überein. Bitte "Anzahl aktualisieren" nutzen.';
     }
-    if (!is_numeric($surchargeEuro) || (float) $surchargeEuro < 0) {
-        $errors[] = 'Aufpreis muss eine Zahl >= 0 sein.';
-    }
-
     $frameFile = $layout['frame_file'] ?? null;
     $uploadedFile = $_FILES['frame'] ?? null;
 
@@ -123,8 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resize'])) {
     }
 
     if (!$errors) {
-        $surchargeCents = (int) round(((float) $surchargeEuro) * 100);
-
         db()->beginTransaction();
 
         if ($isDefault) {
@@ -134,15 +125,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resize'])) {
         if ($layoutId > 0) {
             $stmt = db()->prepare(
                 'UPDATE layouts SET name = ?, category = ?, slot_count = ?, canvas_width = ?, canvas_height = ?,
-                 frame_file = ?, is_default = ?, surcharge_cents = ? WHERE id = ?'
+                 frame_file = ?, is_default = ? WHERE id = ?'
             );
-            $stmt->execute([$name, $category ?: null, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $surchargeCents, $layoutId]);
+            $stmt->execute([$name, $category ?: null, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $layoutId]);
         } else {
             $stmt = db()->prepare(
-                'INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$name, $category ?: null, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0, $surchargeCents]);
+            $stmt->execute([$name, $category ?: null, $slotCount, $canvasWidth, $canvasHeight, $frameFile, $isDefault ? 1 : 0]);
             $layoutId = (int) db()->lastInsertId();
         }
 
@@ -201,14 +192,14 @@ if (!$slotRows) {
             <label>Leinwandhöhe (px)
                 <input type="number" name="canvas_height" min="1" required value="<?= $canvasHeight ?>">
             </label>
-            <label>Aufpreis (EUR)
-                <input type="text" name="surcharge_euro" required value="<?= htmlspecialchars($surchargeEuro, ENT_QUOTES) ?>">
-            </label>
         </div>
+
+        <p class="muted-text">Alle Layouts sind für den Kunden kostenlos - Aufpreise gibt es nicht mehr.
+            Soll etwas zusätzlich kosten, bitte stattdessen ein <a href="extras.php">Extra</a> dafür anlegen.</p>
 
         <label class="checkbox">
             <input type="checkbox" name="is_default" <?= $isDefault ? 'checked' : '' ?>>
-            Dies ist das kostenlose Standard-Layout (immer inklusive)
+            Dies ist das Standard-Layout (immer inklusive)
         </label>
 
         <label>Rahmen-PNG <?= $layoutId > 0 ? '(leer lassen = bisherige Datei behalten)' : '' ?>

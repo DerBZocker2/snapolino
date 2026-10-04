@@ -155,6 +155,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- discount_cents (Gutschein) - siehe is_returning_customer() in
     -- includes/functions.php.
     returning_discount_cents INT UNSIGNED NOT NULL DEFAULT 0,
+    -- Automatisch angewendete Rabattaktionen (Migration 0029, kein Code
+    -- noetig) - applied_promotions_json friert Name+Betrag jeder zum
+    -- Buchungszeitpunkt gewaehrten Aktion ein, siehe
+    -- fetch_active_promotions() in includes/functions.php.
+    promotion_discount_cents INT UNSIGNED NOT NULL DEFAULT 0,
+    applied_promotions_json TEXT NULL,
     event_date             DATE NOT NULL,
     box_id                 INT UNSIGNED NULL,
     status                 VARCHAR(20) NOT NULL DEFAULT 'angefragt',
@@ -284,6 +290,32 @@ CREATE TABLE IF NOT EXISTS extras (
     updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Rabattaktionen (Migration 0029): anders als Gutscheine kein Code noetig,
+-- sondern automatisch angewendet, solange aktiv und im Gueltigkeitszeitraum -
+-- entweder auf die gesamte Buchung (scope "all") oder nur auf bestimmte
+-- Extras (scope "extras", siehe promotion_extras). Siehe
+-- fetch_active_promotions()/promotion_discount_for_selection() in
+-- includes/functions.php.
+CREATE TABLE IF NOT EXISTS promotions (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name           VARCHAR(100) NOT NULL,
+    discount_type  ENUM('percent', 'fixed') NOT NULL,
+    discount_value INT UNSIGNED NOT NULL,
+    scope          ENUM('all', 'extras') NOT NULL DEFAULT 'all',
+    valid_from     DATE NULL,
+    valid_until    DATE NULL,
+    is_active      TINYINT(1) NOT NULL DEFAULT 1,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS promotion_extras (
+    promotion_id INT UNSIGNED NOT NULL,
+    extra_id     INT UNSIGNED NOT NULL,
+    PRIMARY KEY (promotion_id, extra_id),
+    FOREIGN KEY (promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
+    FOREIGN KEY (extra_id) REFERENCES extras(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Kundenbewertungen fuer die Startseite (Migration 0025), im Panel unter
 -- Bewertungen verwaltbar - bewusst ohne Seed-Daten, index.php zeigt den
 -- Abschnitt nur bei mindestens einer aktiven Bewertung.
@@ -358,7 +390,10 @@ INSERT IGNORE INTO settings (name, value) VALUES
     -- Bis zu wie vielen Tagen VOR DEM EVENTDATUM eine bereits bestaetigte
     -- Buchung fuer den Kunden noch aenderbar bleibt, siehe
     -- booking_customer_editable() in includes/customer_auth.php.
-    ('design_edit_deadline_days', '7');
+    ('design_edit_deadline_days', '7'),
+    -- Mindestvorlauf in Tagen, ab dem ein Wunschtermin im Buchungsassistenten
+    -- ueberhaupt waehlbar ist, siehe booking_min_lead_days() in functions.php.
+    ('booking_min_lead_days', '3');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES
@@ -448,10 +483,10 @@ WHERE layouts.name IN ('Hochzeit Rustikal', 'Geburtstag Kids', 'Gartenparty', 'B
 
 -- Zusatzformate mit anderer Fotoanzahl statt der Standard-4er-Collage -
 -- jeweils eigene Slot-Geometrie.
-INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default, surcharge_cents) VALUES
-    ('1 Bild (Vollformat)', 'Format', 1, 1800, 1200, 'preset_format_1bild_v2.png', 0, 300),
-    ('2 Bilder nebeneinander', 'Format', 2, 1800, 1200, 'preset_format_2bilder_v2.png', 0, 300),
-    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder_v2.png', 0, 0);
+INSERT INTO layouts (name, category, slot_count, canvas_width, canvas_height, frame_file, is_default) VALUES
+    ('1 Bild (Vollformat)', 'Format', 1, 1800, 1200, 'preset_format_1bild_v3.png', 0),
+    ('2 Bilder nebeneinander', 'Format', 2, 1800, 1200, 'preset_format_2bilder_v3.png', 0),
+    ('3 Bilder nebeneinander', 'Format', 3, 1800, 1200, 'preset_format_3bilder_v3.png', 0);
 
 INSERT INTO layout_slots (layout_id, slot_index, x, y, width, height)
 SELECT id, 0, 60, 60, 1680, 940 FROM layouts WHERE name = '1 Bild (Vollformat)';

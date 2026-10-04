@@ -109,7 +109,6 @@ $box = $stmt->fetch();
                 <th>Name</th>
                 <th>Bilder</th>
                 <th>Leinwand</th>
-                <th>Aufpreis</th>
             </tr>
             </thead>
             <tbody>
@@ -125,11 +124,10 @@ $box = $stmt->fetch();
                     </td>
                     <td><?= (int) $layout['slot_count'] ?></td>
                     <td><?= (int) $layout['canvas_width'] ?>&times;<?= (int) $layout['canvas_height'] ?> px</td>
-                    <td><?= money_from_cents((int) $layout['surcharge_cents']) ?></td>
                 </tr>
             <?php endforeach; ?>
             <?php if (!$layouts): ?>
-                <tr><td colspan="5">Noch keine Layouts angelegt. Siehe <a href="layouts.php">Layouts</a>.</td></tr>
+                <tr><td colspan="4">Noch keine Layouts angelegt. Siehe <a href="layouts.php">Layouts</a>.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>

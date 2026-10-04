@@ -144,8 +144,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     var percentField = document.getElementById('discount-percent-field');
     var fixedField = document.getElementById('discount-fixed-field');
     function sync() {
-        percentField.hidden = select.value !== 'percent';
-        fixedField.hidden = select.value !== 'fixed';
+        // display:none per Inline-Style statt [hidden]-Attribut - letzteres
+        // wird vom generischen "label { display: block }"-Regel in
+        // style.css ueberschrieben (Autoren-Herkunft schlaegt User-Agent-
+        // Stylesheet unabhaengig von Spezifitaet).
+        percentField.style.display = select.value === 'percent' ? '' : 'none';
+        fixedField.style.display = select.value === 'fixed' ? '' : 'none';
     }
     select.addEventListener('change', sync);
     sync();

@@ -954,14 +954,45 @@ button:hover { background: var(--accent-dark); }
 
 /* ---------- Zusammenfassung (Schritt 5) ---------- */
 
+.summary-layout {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 28px;
+    align-items: start;
+}
+@media (max-width: 760px) {
+    .summary-layout { grid-template-columns: 1fr; }
+}
+.summary-layout .summary-sidebar { position: sticky; top: 20px; }
+.summary-layout .summary-sidebar > .panel-box {
+    border-top: 4px solid var(--accent2);
+    box-shadow: 0 10px 28px rgba(108, 92, 231, 0.12);
+}
+
+.summary-date-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f2edfa;
+    color: var(--accent2-dark);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin: 4px 0 18px;
+}
+
 .summary-card {
     background: #faf8ff;
     border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
     border-radius: 10px;
     padding: 14px 16px;
     margin-bottom: 14px;
     font-size: 14px;
+    transition: box-shadow 0.15s ease;
 }
+.summary-card:hover { box-shadow: 0 4px 14px rgba(108, 92, 231, 0.1); }
 
 .summary-card-head {
     display: flex;
@@ -981,6 +1012,7 @@ button:hover { background: var(--accent-dark); }
     padding: 4px 10px;
     border-radius: 20px;
     text-decoration: none;
+    transition: background 0.15s ease;
 }
 .summary-card-head a:hover { background: #e7ddf7; }
 
@@ -992,12 +1024,13 @@ button:hover { background: var(--accent-dark); }
 }
 .summary-card-thumb:last-child { margin-bottom: 0; }
 .summary-card-thumb img {
-    width: 64px;
-    height: 43px;
+    width: 68px;
+    height: 46px;
     object-fit: contain;
     background: #f3f0fa;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border);
+    box-shadow: 0 2px 6px rgba(44, 36, 64, 0.08);
     flex-shrink: 0;
 }
 
@@ -1022,6 +1055,18 @@ button:hover { background: var(--accent-dark); }
     border-radius: 50%;
     background: var(--accent2);
 }
+.timeline li.timeline-event {
+    border-left-color: var(--accent);
+    font-weight: 700;
+}
+.timeline li.timeline-event::before {
+    width: 11px;
+    height: 11px;
+    left: -6.5px;
+    top: 8.5px;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255, 111, 89, 0.2);
+}
 
 .price-box {
     border: 2px solid var(--accent2);
@@ -1042,23 +1087,16 @@ button:hover { background: var(--accent-dark); }
 
 .price-row.total {
     border-top: 1px solid var(--border);
-    margin-top: 6px;
-    padding-top: 12px;
-    font-size: 20px;
+    margin-top: 8px;
+    padding: 12px 10px;
+    margin-left: -10px;
+    margin-right: -10px;
+    border-radius: 0 0 8px 8px;
+    background: #f2edfa;
+    font-size: 21px;
     font-weight: 700;
     color: var(--text);
 }
-
-.summary-layout {
-    display: grid;
-    grid-template-columns: 1.3fr 1fr;
-    gap: 24px;
-    align-items: start;
-}
-@media (max-width: 760px) {
-    .summary-layout { grid-template-columns: 1fr; }
-}
-.summary-layout .summary-sidebar { position: sticky; top: 20px; }
 
 .button-secondary {
     display: inline-block;
@@ -1085,8 +1123,15 @@ button:hover { background: var(--accent-dark); }
     color: #fff;
     cursor: pointer;
     margin-top: 8px;
+    box-shadow: 0 6px 16px rgba(255, 111, 89, 0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
-.btn-gradient:hover { opacity: 0.92; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.btn-gradient:hover {
+    opacity: 0.95;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(255, 111, 89, 0.38);
+}
 
 .coupon-form { margin: 16px 0; }
 .coupon-row {
@@ -1095,6 +1140,38 @@ button:hover { background: var(--accent-dark); }
 }
 .coupon-row input[type=text] { margin-top: 0; }
 .coupon-row .button-secondary { flex-shrink: 0; white-space: nowrap; }
+
+/* ---------- Rabattaktionen: auffaelliges Banner + Extra-Badge ---------- */
+
+.promo-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    justify-content: center;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 18px;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(255, 111, 89, 0.25);
+}
+
+.promo-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
 
 /* ---------- Startseite: Party-Deko & FAQ-Akkordeon ---------- */
 

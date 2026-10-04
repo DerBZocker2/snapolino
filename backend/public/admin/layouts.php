@@ -19,7 +19,6 @@ $layouts = db()->query('SELECT * FROM layouts WHERE is_custom = 0 ORDER BY is_de
             <th>Name</th>
             <th>Bilder</th>
             <th>Leinwand</th>
-            <th>Aufpreis</th>
             <th>Rahmen-Datei</th>
             <th></th>
         </tr>
@@ -33,7 +32,6 @@ $layouts = db()->query('SELECT * FROM layouts WHERE is_custom = 0 ORDER BY is_de
                 <td><?= htmlspecialchars($layout['name'], ENT_QUOTES) ?></td>
                 <td><?= (int) $layout['slot_count'] ?></td>
                 <td><?= (int) $layout['canvas_width'] ?>&times;<?= (int) $layout['canvas_height'] ?> px</td>
-                <td><?= money_from_cents((int) $layout['surcharge_cents']) ?></td>
                 <td><code><?= htmlspecialchars($layout['frame_file'], ENT_QUOTES) ?></code></td>
                 <td class="actions">
                     <div class="actions-row">
@@ -48,7 +46,7 @@ $layouts = db()->query('SELECT * FROM layouts WHERE is_custom = 0 ORDER BY is_de
             </tr>
         <?php endforeach; ?>
         <?php if (!$layouts): ?>
-            <tr><td colspan="7">Noch keine Layouts angelegt.</td></tr>
+            <tr><td colspan="6">Noch keine Layouts angelegt.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>

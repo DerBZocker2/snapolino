@@ -76,6 +76,30 @@ foreach ($layouts as $layout) {
 $extraLayouts = array_values(array_filter($layouts, static fn (array $l): bool => !$l['is_default']));
 $activeExtras = fetch_active_extras();
 
+// Automatisch angewendete Rabattaktionen (kein Code noetig, siehe
+// "Rabattaktionen" in CLAUDE.md) - fuer das auffaellige Banner sowie Badges
+// an betroffenen Extras. $promotionsScopeAllNames/$promotedExtraIds fassen
+// das einmal zusammen, damit jeder Schritt das wiederverwenden kann, ohne
+// erneut durch alle aktiven Aktionen zu iterieren.
+$activePromotions = fetch_active_promotions();
+$promotionsScopeAll = array_values(array_filter($activePromotions, static fn (array $p): bool => $p['scope'] === 'all'));
+$promotedExtraIds = [];
+foreach ($activePromotions as $promotion) {
+    if ($promotion['scope'] === 'extras') {
+        foreach (fetch_promotion_extra_ids((int) $promotion['id']) as $extraId) {
+            $promotedExtraIds[$extraId] = true;
+        }
+    }
+}
+
+function promotion_badge_text(array $promotion): string
+{
+    $value = $promotion['discount_type'] === 'percent'
+        ? (int) $promotion['discount_value'] . ' %'
+        : money_from_cents((int) $promotion['discount_value']);
+    return $value . ' Rabatt: ' . $promotion['name'];
+}
+
 // Maximal 3 Zusatzformate pro Buchung waehlbar (das Standardlayout kommt
 // immer automatisch dazu) - clientseitig deaktiviert JS weitere
 // Checkboxen, hier serverseitig zusaetzlich als Schutz vor manuellem POST.
@@ -106,6 +130,8 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Bitte zuerst einen Termin wählen.';
     } elseif ($eventDateObj < new DateTimeImmutable('today')) {
         $errors[] = 'Das Eventdatum darf nicht in der Vergangenheit liegen.';
+    } elseif ($eventDateObj < booking_min_lead_date()) {
+        $errors[] = 'Der Termin muss mindestens ' . booking_min_lead_days() . ' Tage im Voraus gebucht werden.';
     } elseif (is_date_blocked($eventDate)) {
         $errors[] = 'Dieser Termin ist leider inzwischen vergeben. Bitte ein anderes Datum wählen.';
     }
@@ -257,8 +283,18 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($couponCode !== '' && !$pricing['coupon']) {
             $errors[] = 'Dieser Gutscheincode ist ungültig oder abgelaufen.';
         } else {
-            db()->prepare('UPDATE bookings SET coupon_code = ?, discount_cents = ?, returning_discount_cents = ?, total_price_cents = ? WHERE id = ?')
-                ->execute([$couponCode !== '' ? $couponCode : null, $pricing['discount_cents'], $pricing['returning_discount_cents'], $pricing['total'], $booking['id']]);
+            db()->prepare(
+                'UPDATE bookings SET coupon_code = ?, discount_cents = ?, returning_discount_cents = ?,
+                 promotion_discount_cents = ?, applied_promotions_json = ?, total_price_cents = ? WHERE id = ?'
+            )->execute([
+                $couponCode !== '' ? $couponCode : null,
+                $pricing['discount_cents'],
+                $pricing['returning_discount_cents'],
+                $pricing['promotion_discount_cents'],
+                applied_promotions_json($pricing),
+                $pricing['total'],
+                $booking['id'],
+            ]);
         }
     } else {
         $phone = trim((string) ($_POST['customer_phone'] ?? ''));
@@ -293,7 +329,8 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = db()->prepare(
                 'UPDATE bookings SET customer_phone = ?, customer_street = ?, customer_zip = ?, customer_city = ?,
                  customer_company = ?, invoice_to_company = ?, message = ?, discount_cents = ?,
-                 returning_discount_cents = ?, total_price_cents = ?, wants_quote = ?, agb_accepted_at = ? WHERE id = ?'
+                 returning_discount_cents = ?, promotion_discount_cents = ?, applied_promotions_json = ?,
+                 total_price_cents = ?, wants_quote = ?, agb_accepted_at = ? WHERE id = ?'
             );
             $stmt->execute([
                 $phone !== '' ? $phone : null,
@@ -305,6 +342,8 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message !== '' ? $message : null,
                 $pricing['discount_cents'],
                 $pricing['returning_discount_cents'],
+                $pricing['promotion_discount_cents'],
+                applied_promotions_json($pricing),
                 $pricing['total'],
                 $wantsQuote ? 1 : 0,
                 // Zeitstempel als Nachweis der Zustimmung, nicht ueberschreiben,
@@ -397,10 +436,19 @@ require __DIR__ . '/_site_header.php';
             <p class="error"><?= htmlspecialchars($err, ENT_QUOTES) ?></p>
         <?php endforeach; ?>
 
+        <?php if ($promotionsScopeAll): ?>
+            <div class="promo-banner">
+                <?php foreach ($promotionsScopeAll as $promotion): ?>
+                    <span>🎉 <?= htmlspecialchars(promotion_badge_text($promotion), ENT_QUOTES) ?><?php if ($promotion['valid_until']): ?> &mdash; nur bis <?= htmlspecialchars((new DateTimeImmutable($promotion['valid_until']))->format('d.m.Y'), ENT_QUOTES) ?><?php endif; ?></span>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
         <?php if ($step === 1): ?>
             <div class="panel-box" style="max-width:520px;margin:0 auto;">
                 <h3>📅 Wähle deinen Wunschtermin</h3>
-                <p class="muted">Bereits vergebene Tage sind ausgegraut - such dir einfach einen freien Tag aus.</p>
+                <p class="muted">Bereits vergebene Tage sind ausgegraut - such dir einfach einen freien Tag aus.
+                    Aus Vorbereitungsgründen buchbar ab mindestens <?= (int) booking_min_lead_days() ?> Tagen im Voraus.</p>
                 <div id="calendar"></div>
                 <p id="selected-date-label" class="muted">Tippe auf einen freien Tag, um fortzufahren.</p>
                 <p class="muted">Dein Wunschtermin ist schon vergeben? Tippe ihn trotzdem an oder
@@ -533,7 +581,7 @@ require __DIR__ . '/_site_header.php';
                         <?php endif; ?>
 
                         <?php if ($extraLayouts): ?>
-                            <p class="muted" style="margin-top:0;">Bis zu <?= MAX_EXTRA_LAYOUTS ?> Zusatzformate wählbar - alle kostenlos, außer den 1- und 2-Bilder-Formaten.</p>
+                            <p class="muted" style="margin-top:0;">Bis zu <?= MAX_EXTRA_LAYOUTS ?> Zusatzformate wählbar - alle kostenlos.</p>
                             <div class="design-gallery">
                                 <?php foreach ($extraLayouts as $layout): ?>
                                     <label class="design-card" data-cat="<?= htmlspecialchars((string) ($layout['category'] ?? ''), ENT_QUOTES) ?>">
@@ -1099,6 +1147,9 @@ require __DIR__ . '/_site_header.php';
                                 <span class="extra-icon"><?= htmlspecialchars((string) $extra['icon'], ENT_QUOTES) ?></span>
                                 <div>
                                     <strong><?= htmlspecialchars($extra['name'], ENT_QUOTES) ?></strong>
+                                    <?php if (isset($promotedExtraIds[(int) $extra['id']])): ?>
+                                        <span class="promo-tag">Aktion</span>
+                                    <?php endif; ?>
                                     <?php if ($extra['description']): ?>
                                         <div class="muted"><?= htmlspecialchars($extra['description'], ENT_QUOTES) ?></div>
                                     <?php endif; ?>
@@ -1264,7 +1315,7 @@ require __DIR__ . '/_site_header.php';
                 <div class="summary-sidebar">
                     <div class="panel-box">
                         <h3>🎯 Fast geschafft! Hier deine Übersicht</h3>
-                        <p class="muted">📅 <?= htmlspecialchars(german_weekday($event) . ', ' . $event->format('d.m.Y'), ENT_QUOTES) ?></p>
+                        <div class="summary-date-banner">📅 <?= htmlspecialchars(german_weekday($event) . ', ' . $event->format('d.m.Y'), ENT_QUOTES) ?></div>
 
                         <div class="summary-card">
                             <div class="summary-card-head">
@@ -1293,6 +1344,9 @@ require __DIR__ . '/_site_header.php';
                                 <?php foreach ($chosenExtraRows as $extraRow): ?>
                                     <?php $qty = $chosenExtras[$extraRow['id']]; ?>
                                     <div>✓ <?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?>
+                                        <?php if (isset($promotedExtraIds[(int) $extraRow['id']])): ?>
+                                            <span class="promo-tag">Aktion</span>
+                                        <?php endif; ?>
                                         <span class="muted-text">(<?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?>)</span>
                                     </div>
                                 <?php endforeach; ?>
@@ -1305,7 +1359,7 @@ require __DIR__ . '/_site_header.php';
                             <div class="summary-card-head"><span>🚚 Versand-Zeitplan (voraussichtlich)</span></div>
                             <ul class="timeline">
                                 <li><strong>Versand an dich</strong> &mdash; ca. <?= htmlspecialchars($shipOut->format('d.m.Y'), ENT_QUOTES) ?></li>
-                                <li><strong>Dein Event</strong> &mdash; <?= htmlspecialchars($event->format('d.m.Y'), ENT_QUOTES) ?></li>
+                                <li class="timeline-event"><strong>Dein Event</strong> &mdash; <?= htmlspecialchars($event->format('d.m.Y'), ENT_QUOTES) ?></li>
                                 <li><strong>Rücksendung</strong> &mdash; ca. <?= htmlspecialchars($shipBack->format('d.m.Y'), ENT_QUOTES) ?></li>
                             </ul>
                         </div>
@@ -1338,6 +1392,9 @@ require __DIR__ . '/_site_header.php';
                                 <?php $qty = $chosenExtras[$extraRow['id']]; ?>
                                 <div class="price-row"><span><?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?></span>
                                     <span><?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?></span></div>
+                            <?php endforeach; ?>
+                            <?php foreach ($pricing['promotions'] as $applied): ?>
+                                <div class="price-row" style="color:#1f9d55;"><span>Rabattaktion: <?= htmlspecialchars($applied['promotion']['name'], ENT_QUOTES) ?></span><span>&minus;<?= money_from_cents($applied['discount_cents']) ?></span></div>
                             <?php endforeach; ?>
                             <?php if ($discount > 0): ?>
                                 <div class="price-row" style="color:#1f9d55;"><span>Rabatt<?= $booking['coupon_code'] ? ' (' . htmlspecialchars($booking['coupon_code'], ENT_QUOTES) . ')' : '' ?></span><span>&minus;<?= money_from_cents($discount) ?></span></div>
@@ -1442,6 +1499,7 @@ require __DIR__ . '/_site_header.php';
 
 <?php if ($step === 1 && !$success): ?>
 <script>
+var MIN_BOOKING_LEAD_DAYS = <?= (int) booking_min_lead_days() ?>;
 (function () {
     var calendarEl = document.getElementById('calendar');
     var selectedLabel = document.getElementById('selected-date-label');
@@ -1450,6 +1508,8 @@ require __DIR__ . '/_site_header.php';
     var monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
     var today = new Date();
     today.setHours(0, 0, 0, 0);
+    var minDate = new Date(today);
+    minDate.setDate(minDate.getDate() + MIN_BOOKING_LEAD_DAYS);
     var viewYear = today.getFullYear();
     var viewMonth = today.getMonth();
     var blockedDates = {};
@@ -1478,12 +1538,18 @@ require __DIR__ . '/_site_header.php';
             var iso = toIso(viewYear, viewMonth, day);
             var dateObj = new Date(viewYear, viewMonth, day);
             var isPast = dateObj < today;
+            var isTooSoon = !isPast && dateObj < minDate;
             var isBlocked = !!blockedDates[iso];
             var classes = ['cal-day'];
-            if (isPast || isBlocked) classes.push('cal-disabled');
+            if (isPast || isTooSoon || isBlocked) classes.push('cal-disabled');
             if (isBlocked && !isPast) classes.push('cal-blocked');
-            html += '<div class="' + classes.join(' ') + '" data-date="' + iso + '" title="'
-                + (isBlocked && !isPast ? 'Bereits vergeben - auf Warteliste eintragen' : '') + '">' + day + '</div>';
+            var title = '';
+            if (isBlocked && !isPast) {
+                title = 'Bereits vergeben - auf Warteliste eintragen';
+            } else if (isTooSoon) {
+                title = 'Zu kurzfristig - mindestens ' + MIN_BOOKING_LEAD_DAYS + ' Tage im Voraus buchbar';
+            }
+            html += '<div class="' + classes.join(' ') + '" data-date="' + iso + '" title="' + title + '">' + day + '</div>';
         }
 
         calendarEl.innerHTML = html;

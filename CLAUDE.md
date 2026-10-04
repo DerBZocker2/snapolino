@@ -108,8 +108,9 @@ statt die Box designlos daliegen zu lassen.
 
 Standard sind 4 Bilder als Collage. Andere Layouts (bis zu 3 zusaetzliche
 pro Buchung waehlbar) nur, wenn der Kunde sie zur Buchung dazugewaehlt
-hat - kostenlos, ausser den 1-Bild- und 2-Bilder-Formaten (`surcharge_cents`
-auf den Layouts, siehe Buchungssystem unten).
+hat - alle kostenlos (siehe Buchungssystem unten, `layouts.surcharge_cents`
+existiert zwar noch in der DB, laesst sich im Admin-Panel aber nicht mehr
+setzen).
 
 Schlaegt ein Druckauftrag fehl (Drucker aus, Papier/Farbband leer,
 Papierstau...), haengt sich der `OutputWorker` an einem Popup auf
@@ -278,7 +279,16 @@ automatisch verfallende Reservierung (frueher `RESERVATION_HOLD_DAYS`
 Tage, Status `reserviert`) dafuer nicht lohnt. Der Kalender blockiert auf
 `angefragt`/`bestätigt`, inkl. `BOOKING_BUFFER_DAYS` Tage Puffer vor/nach
 dem Event für Versand - eine abgebrochene Anfrage bleibt also bis zum
-manuellen Ablehnen/Stornieren im Panel blockiert (kein Cronjob).
+manuellen Ablehnen/Stornieren im Panel blockiert (kein Cronjob). Zusaetzlich
+muss ein Wunschtermin mindestens `booking_min_lead_days()` Tage in der
+Zukunft liegen (Einstellung `booking_min_lead_days`, Panel unter
+Einstellungen, Standard 3) - unabhaengig davon, ob der Tag sonst frei waere.
+Der JS-Kalender in Schritt 1 markiert zu kurzfristige Tage genauso als
+`cal-disabled` wie bereits vergangene (per `MIN_BOOKING_LEAD_DAYS`,
+inline aus `booking_min_lead_days()` gerendert), `buchen.php` Schritt 2
+prueft es serverseitig zusaetzlich nochmal (`booking_min_lead_date()` in
+`functions.php`), damit ein manuell abgeschicktes POST die Sperre nicht
+umgehen kann.
 Im Panel unter **Buchungen** ablehnen/stornieren. Eine Box zuordnen (und
 damit gleichzeitig bestätigen) passiert unter **Boxen** per Drag & Drop:
 Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe
@@ -368,10 +378,15 @@ Stammkunden, ohne extra in der Buchungsliste danach suchen zu muessen.
 Design-Schritt: fertige Vorlage aus der Galerie (nach Kategorie
 filterbar, inkl. Formate mit 1/2/3 statt 4 Fotos, bis zu 3 Zusatzformate
 gleichzeitig ankreuzbar - clientseitig deaktiviert das JS weitere
-Checkboxen, serverseitig kappt `buchen.php` zusaetzlich auf 3). Alle
-Layouts sind kostenlos, ausser den 1-Bild- und 2-Bilder-Formaten (`layouts.surcharge_cents`,
-weiterhin pro Layout im Panel unter Layouts editierbar - die Migration
-`0010_free_designs_and_single_print.sql` setzt nur den Ausgangswert).
+Checkboxen, serverseitig kappt `buchen.php` zusaetzlich auf 3). **Alle
+Layouts sind kostenlos** - die 1-Bild- und 2-Bilder-Formate hatten bis
+Migration `0028_free_layouts_and_plain_format_presets.sql` noch einen
+Aufpreis (`layouts.surcharge_cents`), der ist seitdem auf 0 zurueckgesetzt
+und im Admin-Formular (`layout_form.php`) laesst sich kein Aufpreis mehr
+eintragen - will der Admin fuer etwas einen Aufpreis verlangen, gehoert das
+stattdessen als **Extra** angelegt (siehe "Extras" oben/unten). Die Spalte
+`surcharge_cents` existiert in der DB weiterhin (Pricing-Code behandelt sie
+generisch als "immer 0"), nur die Moeglichkeit sie zu setzen wurde entfernt.
 Online-Designer
 (Canvas-Editor für Farbe/Muster mit per Maus verschieb- und am
 Eck-Ziehpunkt größenveränderbaren Fotoflächen, dazu beliebig viele frei
@@ -393,23 +408,35 @@ so auch auf der BEREIT-Seite der Box wieder. Admin legt neue
 Layout-Vorlagen (auch mit anderer Fotoanzahl) im Panel per Drag-Editor an
 (`layout_form.php`) statt Pixel-Koordinaten von Hand einzutippen.
 
-Die 22 mitgelieferten Preset-Rahmen (`storage/frames/preset_*_v2.png`) werden
+Die 22 mitgelieferten Preset-Rahmen (`storage/frames/preset_*.png`, die
+meisten `_v2`, die drei Format-Rahmen inzwischen `_v3`, siehe unten) werden
 per `backend/tools/generate_presets.py` (PIL, kein Laufzeit-Bestandteil)
 erzeugt: vier unterschiedliche Foto-Anordnungen (`grid`/`hero`/`strip`/`stack`
 in `ARRANGEMENTS`, je mit eigenem, ausserhalb aller Fotoflaechen liegendem
 Beschriftungsband) statt eines einzigen geteilten 2x2-Rasters, dazu passend
 zum Anlass Text (verschiedene Google-Fonts, siehe `tools/fonts/`) und
 gezeichnete Icons (Herz, Stern, Schneeflocke, Ringe, Sonne, Blatt, Konfetti)
-bei einem Teil der Designs. Jedes Fotofeld wird als scharfkantiges Rechteck
-an die Slot-Koordinaten gesetzt (`compose_collage()` in main.py, unveraendert)
-und danach von der Rahmen-PNG mit einem abgerundeten, ausgeschnittenen
-Fenster ueberdeckt (`punch_window()`) - die Rundung entsteht also rein durch
-den Rahmen, main.py muss nichts davon wissen. Aendert sich ein Preset-Design,
-bekommt die Datei ein neues Versions-Suffix (aktuell `_v2`) statt den Namen
-wiederzuverwenden - sonst wuerde eine bereits synchronisierte Box die neue
-Grafik nie herunterladen, weil `cloudsync.py` eine lokal bereits vorhandene
-Datei desselben Namens als aktuell ansieht, unabhaengig vom tatsaechlichen
-Inhalt.
+bei einem Teil der Designs. Die drei schlichten Format-Layouts (1/2/3 Bilder,
+`arr` beginnend mit `format_`) haben bewusst **kein** `decorate` mehr (bis
+Migration `0028_free_layouts_and_plain_format_presets.sql` hatten sie noch
+ein Herz-Icon/"Snapolino"-Schriftzug bzw. eine Filmstreifen-Perforation,
+siehe Git-Historie von `generate_presets.py`) - reiner Fotoanzahl-Zuschnitt
+ohne eigenes Design soll auch wirklich ohne jede Verzierung aussehen. Jedes
+Fotofeld wird als scharfkantiges Rechteck an die Slot-Koordinaten gesetzt
+(`compose_collage()` in main.py, unveraendert) und danach von der Rahmen-PNG
+mit einem abgerundeten, ausgeschnittenen Fenster ueberdeckt
+(`punch_window()`) - die Rundung entsteht also rein durch den Rahmen,
+main.py muss nichts davon wissen. Aendert sich ein Preset-Design, bekommt
+die Datei ein neues Versions-Suffix statt den Namen wiederzuverwenden -
+sonst wuerde eine bereits synchronisierte Box die neue Grafik nie
+herunterladen, weil `cloudsync.py` eine lokal bereits vorhandene Datei
+desselben Namens als aktuell ansieht, unabhaengig vom tatsaechlichen
+Inhalt. Der Suffix ist dafuer kein globaler Codewert, sondern ein optionaler
+`"suffix"`-Schluessel je Eintrag in `DESIGNS` (Default `_v2` in
+`generate_all()`) - so lassen sich einzelne Designs (wie die drei
+Format-Layouts, aktuell `_v3`) unabhaengig von den anderen 19 neu
+versionieren, ohne deren unveraenderte `_v2`-Dateien unnoetig erneut zu
+erzeugen/umzubenennen.
 
 Schritt 5 (Zusammenfassung): zweispaltiges Layout, links strukturierte
 Rechnungsadresse (Strasse/PLZ/Ort, optional Firma) - waehrend der Eingabe
@@ -421,7 +448,15 @@ rechts eine sticky Buchungsuebersicht mit Vorschaubild je gewaehltem
 Layout (holt die Zeilen bewusst per `fetch_layout_with_slots()` statt aus
 der schon geladenen Layout-Liste, da diese eigene Designs ausschliesst -
 sonst waere ein per Online-Designer/Upload erstelltes Design in der
-Uebersicht unsichtbar gewesen) und Gutscheincode-Einloesung. Gutscheine (Prozent oder
+Uebersicht unsichtbar gewesen) und Gutscheincode-Einloesung. Die
+rechte Spalte (`.summary-sidebar`) hat einen farbigen oberen Rahmen plus
+staerkeren Schatten, das Eventdatum steht in einer eigenen Pille
+(`.summary-date-banner`), die `.summary-card`-Kacheln (Design/Extras/
+Versand-Zeitplan) haben einen schmalen linken Akzentrahmen, der Versand-
+Zeitplan hebt den Event-Tag selbst farblich hervor (`.timeline-event`,
+groesserer Punkt) und die Gesamtpreis-Zeile in der Preisuebersicht hat einen
+eigenen hervorgehobenen Hintergrund statt nur fetter Schrift - alles in
+`assets/site.css` unter "Zusammenfassung (Schritt 5)". Gutscheine (Prozent oder
 Festbetrag, optional Ablaufdatum/Kontingent) werden im Panel unter
 **Gutscheine** angelegt; `redemption_count` zaehlt erst hoch, wenn die
 Buchung wirklich bestaetigt wird (bezahlt oder Admin bestaetigt eine
@@ -617,6 +652,50 @@ eigenen E-Mail-Adresse wird nicht belohnt. Im Panel unter **Gutscheine**
 sind die automatisch generierten Codes standardmaessig ausgeblendet (koennen
 schnell zahlreich werden), ueber "Alle anzeigen" trotzdem einsehbar, mit
 Link zur jeweiligen Buchung.
+
+## Rabattaktionen
+Anders als Gutscheine (eigener Code, muss aktiv vom Kunden eingegeben
+werden) sind Rabattaktionen **automatisch** angewendet, solange sie aktiv
+und innerhalb ihres Gueltigkeitszeitraums sind (`valid_from`/`valid_until`,
+beide optional - leer = sofort/unbegrenzt) - kein Code noetig. Im Panel
+unter **Rabattaktionen** (`admin/promotions.php`/`promotion_form.php`,
+eigener Sidebar-Punkt neben Gutscheine) legt der Admin sie an: Name
+(erscheint auch als Rechnungszeile), Rabatt-Typ (Prozent oder Festbetrag,
+analog zu Gutscheinen) und **Geltungsbereich** - entweder **"Alles"**
+(Basispreis + alle Extras zusammen) oder **"Nur bestimmte Extras"** (eine
+Checkliste aller Extras, `promotion_extras`-Zuordnungstabelle; mehrere
+Extras gleichzeitig moeglich, auch mehrere unabhaengige Aktionen koennen
+gleichzeitig aktiv sein und kombinieren sich). `fetch_active_promotions()`/
+`promotion_discount_for_selection()`/`applicable_promotions_for_selection()`
+in `includes/functions.php` ermitteln pro Buchung, welche Aktionen gerade
+greifen und wieviel Rabatt sie bringen; `calc_booking_pricing()` bindet das
+Ergebnis zusaetzlich zu Gutschein/Stammkundenrabatt ein (jede Rabattart auf
+ihrer eigenen Bemessungsgrundlage, nicht sequenziell voneinander abgezogen -
+eine "Alles"-Aktion sieht also denselben Zwischenbetrag wie eine
+extra-spezifische Aktion, nicht den bereits von ihr reduzierten). Der zum
+Buchungszeitpunkt tatsaechlich gewaehrte Betrag wird wie bei Gutscheinen
+eingefroren (`bookings.promotion_discount_cents`/`applied_promotions_json`,
+letzteres eine JSON-Liste aus Name+Betrag je angewendeter Aktion fuer
+`booking_invoice_items()` - eine spaeter geaenderte/abgelaufene Aktion
+veraendert so nie rueckwirkend eine bereits gestellte Rechnung). Geschrieben
+wird das an denselben Stellen wie die anderen Rabattarten: Buchungsassistent
+Schritt 5 (Erstsubmit und Gutschein-Einloesen), nachtraegliche
+Admin-Bearbeitung in `booking_detail.php` (sowohl der sofortige
+"kostenlos uebernehmen"-Pfad als auch, via `applied_promotions_json()`
+eingefroren in `pending_changes_json`, die daraus resultierende
+Zusatzzahlung, die `mark_addon_charge_paid()` in `includes/payments.php`
+erst nach Zahlungseingang tatsaechlich uebernimmt).
+
+Im Buchungsassistenten **auffaellig markiert**, nicht versteckt: ein
+farbiges Banner (`.promo-banner` in `site.css`) oben auf jeder Seite zeigt
+alle aktuell aktiven "Alles"-Aktionen samt Name und (falls gesetzt)
+Ablaufdatum; betroffene Extras bekommen in Schritt 4 und in der
+Schritt-5-Uebersicht zusaetzlich ein kleines "Aktion"-Badge (`.promo-tag`)
+direkt am Namen; die Preisuebersicht in Schritt 5 listet jede gegriffene
+Aktion als eigene gruene Rabattzeile ("Rabattaktion: <Name>"). Im
+Admin-Dashboard zaehlt eine KPI-Kachel "Rabattaktionen gewährt" die Summe
+aller bei bestaetigten Buchungen gewaehrten Rabattaktionsbetraege zusammen
+(analog zur bestehenden "Stammkundenrabatt gewährt"-Kachel).
 
 ## Warteliste
 Fuer bereits ausgebuchte Termine gibt es unter `/warteliste.php` eine

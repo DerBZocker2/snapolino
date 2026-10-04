@@ -134,6 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'total_price_cents' => $pricing['total'],
                         'discount_cents' => $pricing['discount_cents'],
                         'returning_discount_cents' => $pricing['returning_discount_cents'],
+                        'promotion_discount_cents' => $pricing['promotion_discount_cents'],
+                        'applied_promotions_json' => applied_promotions_json($pricing),
                     ]);
                     db()->prepare(
                         'INSERT INTO booking_addon_charges (booking_id, description, amount_cents, pending_changes_json) VALUES (?, ?, ?, ?)'
@@ -159,8 +161,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } else {
                     db()->beginTransaction();
-                    db()->prepare('UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ?, returning_discount_cents = ? WHERE id = ?')
-                        ->execute([$newEventDate, $pricing['total'], $pricing['discount_cents'], $pricing['returning_discount_cents'], $bookingId]);
+                    db()->prepare(
+                        'UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ?,
+                         returning_discount_cents = ?, promotion_discount_cents = ?, applied_promotions_json = ? WHERE id = ?'
+                    )->execute([
+                        $newEventDate,
+                        $pricing['total'],
+                        $pricing['discount_cents'],
+                        $pricing['returning_discount_cents'],
+                        $pricing['promotion_discount_cents'],
+                        applied_promotions_json($pricing),
+                        $bookingId,
+                    ]);
 
                     db()->prepare('DELETE FROM booking_layouts WHERE booking_id = ?')->execute([$bookingId]);
                     $ins = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
@@ -330,6 +342,15 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
         <?php endif; ?>
         <?php if ((int) $booking['returning_discount_cents'] > 0): ?>
             <tr><th>Stammkundenrabatt</th><td>&minus;<?= money_from_cents((int) $booking['returning_discount_cents']) ?></td></tr>
+        <?php endif; ?>
+        <?php if ((int) $booking['promotion_discount_cents'] > 0): ?>
+            <?php $appliedPromotions = $booking['applied_promotions_json'] ? json_decode((string) $booking['applied_promotions_json'], true) : []; ?>
+            <tr><th>Rabattaktion(en)</th><td>
+                <?php foreach ((array) $appliedPromotions as $applied): ?>
+                    <?= htmlspecialchars((string) ($applied['name'] ?? ''), ENT_QUOTES) ?>
+                    (&minus;<?= money_from_cents((int) ($applied['discount_cents'] ?? 0)) ?>)<br>
+                <?php endforeach; ?>
+            </td></tr>
         <?php endif; ?>
         <tr><th>Gesamtpreis</th><td>
             <?= $booking['total_price_cents'] !== null ? '<strong>' . money_from_cents((int) $booking['total_price_cents']) . '</strong>' : '— (Buchung noch nicht abgeschlossen)' ?>

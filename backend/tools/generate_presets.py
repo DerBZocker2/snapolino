@@ -244,14 +244,6 @@ def rainbow_arc(draw, cx, cy_bottom, r_out, band=16,
         r -= band + 2
 
 
-def sprocket_band(draw, y_center, band_color, hole_color, w=1800, hole_r=14, gap=54):
-    draw.rectangle([0, y_center - 45, w, y_center + 45], fill=band_color)
-    x = gap / 2
-    while x < w:
-        draw.ellipse([x - hole_r, y_center - hole_r, x + hole_r, y_center + hole_r], fill=hole_color)
-        x += gap
-
-
 # ---------------------------------------------------------- Anordnungen ---
 # Rechtecke (x, y, w, h) je Fotoslot auf der 1800x1200-Leinwand. Jede
 # Anordnung reserviert bewusst ein eigenes Beschriftungsband (BAND) ausserhalb
@@ -416,24 +408,6 @@ def d_weihnachten_elegant(img):
                   icon_fn=lambda d, x, y, r: snowflake(d, x, y, r, GOLD, width=3), icon_r=22, gap=18)
 
 
-def d_format_1bild(img):
-    cx, cy = band_center("format_1")
-    icon_text_row(ImageDraw.Draw(img), cx, cy, "Snapolino", font(PACIFICO, 60), CORAL,
-                  icon_fn=lambda d, x, y, r: heart(d, x, y, r, CORAL), icon_r=18, gap=16)
-
-
-def d_format_2bilder(img):
-    d = ImageDraw.Draw(img)
-    d.line([982, 100, 982, 1100], fill=(255, 111, 89, 110), width=3)
-    heart(d, 982, 600, 34, CORAL)
-
-
-def d_format_3bilder(img):
-    d = ImageDraw.Draw(img)
-    sprocket_band(d, 45, (20, 18, 22, 255), (250, 246, 240, 255))
-    sprocket_band(d, 1155, (20, 18, 22, 255), (250, 246, 240, 255))
-
-
 DESIGNS = [
     # key, DB-Name, Anordnung, Hintergrund, mat_color, decorate, radius, mat_width, shadow
     dict(key="standard", name="Standard 4er-Collage", arr="grid",
@@ -493,15 +467,21 @@ DESIGNS = [
     dict(key="neutral_weiss", name="Modern Weiss", arr="grid",
          bg=lambda: solid((250, 250, 250)),
          mat=(30, 30, 30, 255), mat_width=5, decorate=None),
+    # Bewusst ohne decorate (kein Text/Icon/Verzierung) - diese drei sind
+    # reiner Fotoanzahl-Zuschnitt ohne eigenes Design, siehe "Ablauf" in
+    # CLAUDE.md. Eigener "suffix", da nur diese drei PNGs sich gegenueber
+    # der vorherigen Version (mit Herz-Icon/Text/Filmstreifen-Perforation)
+    # geaendert haben - ein neuer Dateiname zwingt bereits synchronisierte
+    # Boxen zum erneuten Download (siehe generate_all()).
     dict(key="format_1bild", name="1 Bild (Vollformat)", arr="format_1",
          bg=lambda: solid((255, 250, 245)),
-         mat=(255, 255, 255, 255), radius=20, mat_width=18, decorate=d_format_1bild),
+         mat=(255, 255, 255, 255), radius=20, mat_width=18, decorate=None, suffix="_v3"),
     dict(key="format_2bilder", name="2 Bilder nebeneinander", arr="format_2",
          bg=lambda: solid((255, 250, 245)),
-         mat=(255, 255, 255, 255), radius=24, mat_width=16, decorate=d_format_2bilder),
+         mat=(255, 255, 255, 255), radius=24, mat_width=16, decorate=None, suffix="_v3"),
     dict(key="format_3bilder", name="3 Bilder nebeneinander", arr="format_3",
          bg=lambda: solid((30, 28, 32)),
-         mat=(255, 255, 255, 255), radius=10, mat_width=8, shadow=False, decorate=d_format_3bilder),
+         mat=(255, 255, 255, 255), radius=10, mat_width=8, shadow=False, decorate=None, suffix="_v3"),
 ]
 
 
@@ -516,7 +496,7 @@ def generate_all():
             mat_width=d.get("mat_width", 14),
             shadow=d.get("shadow", True),
         )
-        path = os.path.join(OUT_DIR, f"preset_{d['key']}_v2.png")
+        path = os.path.join(OUT_DIR, f"preset_{d['key']}{d.get('suffix', '_v2')}.png")
         frame.save(path)
         print("geschrieben:", path)
 
