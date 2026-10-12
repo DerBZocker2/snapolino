@@ -278,11 +278,8 @@ require __DIR__ . '/_site_header.php';
         </details>
     </div>
 
-    <?php
-    $germanMonths = [1 => 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-    ?>
     <p class="muted" style="margin-top:24px;font-size:13px;">
-        Stand: <?= $germanMonths[(int) date('n')] . ' ' . date('Y') ?> · Alle Angaben ohne Gewähr
+        <?= htmlspecialchars(legal_updated_label(), ENT_QUOTES) ?> · Alle Angaben ohne Gewähr
     </p>
 </section>
 

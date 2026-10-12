@@ -28,6 +28,15 @@ function legal_value(string $value, string $placeholder): string
         ? htmlspecialchars($value, ENT_QUOTES)
         : '<span class="legal-missing">[' . htmlspecialchars($placeholder, ENT_QUOTES) . ']</span>';
 }
+
+// "Stand: <Monat> <Jahr>"-Fusszeile fuer Impressum/Datenschutz/AGB/FAQ -
+// aus dem aktuellen Datum gebildet statt hartkodiert, damit sie nicht
+// veraltet.
+function legal_updated_label(): string
+{
+    $germanMonths = [1 => 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    return 'Stand: ' . $germanMonths[(int) date('n')] . ' ' . date('Y');
+}
 ?>
 <!doctype html>
 <html lang="de">

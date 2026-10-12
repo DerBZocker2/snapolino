@@ -13,7 +13,8 @@ $addressLines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r
 ?>
 
 <section class="section legal-page">
-    <h2>🏢 Impressum</h2>
+    <h2>Impressum</h2>
+    <p class="legal-updated"><?= htmlspecialchars(legal_updated_label(), ENT_QUOTES) ?></p>
 
     <div class="panel-box">
         <h3>Angaben gemäß § 5 DDG</h3>
@@ -47,7 +48,7 @@ $addressLines = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r
             Verbraucherschlichtungsstelle teilzunehmen.
         </p>
 
-        <h3>Haftungsausschluss</h3>
+        <p class="legal-group-label">Haftungsausschluss</p>
 
         <h3>Haftung für Inhalte</h3>
         <p>

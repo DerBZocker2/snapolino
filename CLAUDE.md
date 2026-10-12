@@ -529,12 +529,23 @@ es dann von Hand im Stripe-Dashboard nachholen.
 `_site_header.php`/`_site_footer.php`) ziehen Name/Anschrift/Kontakt aus
 denselben Settings wie die Rechnung; fehlende Angaben werden sichtbar als
 "[... bitte ergaenzen]" markiert statt sie stillschweigend wegzulassen.
-Schritt 5 verlangt zusaetzlich eine Checkbox "AGB und Datenschutzerklaerung
-akzeptiert", deren Zeitpunkt in `bookings.agb_accepted_at` als Nachweis
-gespeichert wird (im Panel unter Buchungsdetails sichtbar). Das
-Admin-Panel wird auf keiner oeffentlichen Seite verlinkt (kein
-"Admin-Login" mehr auf Startseite/Buchungsseite) - Zugriff nur ueber die
-direkte URL `admin/login.php`.
+Bewusst **nuechtern statt verspielt** dargestellt (`.legal-page` in
+`site.css`) - anders als der Rest der oeffentlichen Seite: kein Emoji in
+den Ueberschriften, linksbuendiger statt zentrierter Titel, dynamische
+"Stand: <Monat> <Jahr>"-Zeile (`legal_updated_label()` in
+`_site_header.php`, auch von `faq.php` genutzt) direkt darunter statt
+eines hartkodierten Datums. Die AGB (15 Abschnitte) haben zusaetzlich ein
+Inhaltsverzeichnis (`.legal-toc`, zweispaltig) mit Sprungmarken
+(`id="s1"` usw.) zu jedem Abschnitt. Mehrere zusammengehoerige
+Unterabschnitte (z.B. "Haftung fuer Inhalte"/"...fuer Links"/
+"Urheberrecht" im Impressum unter dem gemeinsamen Oberbegriff
+"Haftungsausschluss") bekommen dafuer ein eigenes `.legal-group-label`
+statt einer leeren `<h3>` ohne eigenen Textabsatz. Schritt 5 verlangt
+zusaetzlich eine Checkbox "AGB und Datenschutzerklaerung akzeptiert",
+deren Zeitpunkt in `bookings.agb_accepted_at` als Nachweis gespeichert
+wird (im Panel unter Buchungsdetails sichtbar). Das Admin-Panel wird auf
+keiner oeffentlichen Seite verlinkt (kein "Admin-Login" mehr auf
+Startseite/Buchungsseite) - Zugriff nur ueber die direkte URL `/admin`.
 
 Die **AGB** (`agb.php`) regeln zusaetzlich zu den Standardklauseln: eine nach
 Zeitpunkt vor dem Eventdatum gestaffelte Stornogebuehr (10 %/30 %/60 %/80 %

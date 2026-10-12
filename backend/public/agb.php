@@ -11,10 +11,32 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
 ?>
 
 <section class="section legal-page">
-    <h2>📜 Allgemeine Geschäftsbedingungen</h2>
+    <h2>Allgemeine Geschäftsbedingungen</h2>
+    <p class="legal-updated"><?= htmlspecialchars(legal_updated_label(), ENT_QUOTES) ?></p>
+
+    <nav class="legal-toc" aria-label="Inhaltsverzeichnis">
+        <p class="legal-toc-title">Inhaltsverzeichnis</p>
+        <ol>
+            <li><a href="#s1">Geltungsbereich</a></li>
+            <li><a href="#s2">Leistungsbeschreibung</a></li>
+            <li><a href="#s3">Vertragsschluss</a></li>
+            <li><a href="#s4">Preise und Zahlung</a></li>
+            <li><a href="#s5">Versand, Nutzungszeitraum und Rückgabe</a></li>
+            <li><a href="#s6">Pflichten des Mieters, Haftung bei Schäden</a></li>
+            <li><a href="#s7">Eigentum an Verbrauchsmaterial, USB-Stick und Collage</a></li>
+            <li><a href="#s8">Stornierung durch den Mieter</a></li>
+            <li><a href="#s9">Rücktritt durch Snapolino</a></li>
+            <li><a href="#s10">Online-Galerie (optionales Extra)</a></li>
+            <li><a href="#s11">Haftungsbeschränkung</a></li>
+            <li><a href="#s12">Widerrufsrecht</a></li>
+            <li><a href="#s13">Datenschutz</a></li>
+            <li><a href="#s14">Gerichtsstand</a></li>
+            <li><a href="#s15">Schlussbestimmungen</a></li>
+        </ol>
+    </nav>
 
     <div class="panel-box">
-        <h3>1. 📍 Geltungsbereich</h3>
+        <h3 id="s1">1. Geltungsbereich</h3>
         <p>Diese Allgemeinen Geschäftsbedingungen gelten für alle Verträge über die Miete einer
             Fotobox zwischen
             <?= legal_value($businessName, 'Name/Firma bitte im Panel unter Einstellungen ergänzen') ?>
@@ -22,13 +44,13 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             "Snapolino") und dem Kunden (nachfolgend "Mieter"), die über unseren
             Online-Buchungsassistenten unter /buchen.php geschlossen werden.</p>
 
-        <h3>2. 📦 Leistungsbeschreibung</h3>
+        <h3 id="s2">2. Leistungsbeschreibung</h3>
         <p>Snapolino vermietet eine Selbstbedienungs-Fotobox samt Zubehör (Rahmen/Layouts gemäß
             gewählter Buchung, ggf. Fotodrucker inkl. Verbrauchsmaterial) für den vom Mieter
             angegebenen Zeitraum. Die Fotobox wird dem Mieter rechtzeitig vor dem Event zugesandt
             und ist vom Mieter eigenständig aufzubauen und zu bedienen; eine Anleitung liegt bei.</p>
 
-        <h3>3. ✍️ Vertragsschluss</h3>
+        <h3 id="s3">3. Vertragsschluss</h3>
         <p>Der Mieter wählt im Buchungsassistenten einen freien Termin, hinterlegt seine Kontakt-
             und Rechnungsdaten sowie das gewünschte Design und optionale Extras. Mit dem Absenden
             der Anfrage wird der Termin für andere Buchungen gesperrt, bis wir sie bearbeitet
@@ -38,14 +60,14 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             stattdessen "nur ein schriftliches Angebot", entsteht durch die Anfrage allein noch
             kein Vertrag.</p>
 
-        <h3>4. 💳 Preise und Zahlung</h3>
+        <h3 id="s4">4. Preise und Zahlung</h3>
         <p>Es gelten die zum Zeitpunkt der Buchung im Buchungsassistenten angezeigten Preise
             (Grundpreis zzgl. gewählter Zusatzformate und Extras, abzüglich eines eventuell
             eingelösten Gutscheins). Die Zahlung erfolgt online über unseren Zahlungsdienstleister
             Stripe (Kreditkarte, Klarna u.a.). Nach erfolgreicher Zahlung erhält der Mieter eine
             Bestätigung nebst Rechnung per E-Mail.</p>
 
-        <h3>5. 🚚 Versand, Nutzungszeitraum und Rückgabe</h3>
+        <h3 id="s5">5. Versand, Nutzungszeitraum und Rückgabe</h3>
         <p>Die Fotobox wird rechtzeitig vor dem Eventdatum an den Mieter versandt. Bei Erhalt hat
             der Mieter das Paket sowie die Fotobox unverzüglich auf äußere und innere
             Transportschäden zu überprüfen und diese uns umgehend in Textform (z.B. per E-Mail an
@@ -61,7 +83,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             entstanden oder wesentlich niedriger als die Pauschale ist - in diesem Fall entfällt
             die Entschädigung insoweit.</p>
 
-        <h3>6. 🤝 Pflichten des Mieters, Haftung bei Schäden</h3>
+        <h3 id="s6">6. Pflichten des Mieters, Haftung bei Schäden</h3>
         <p>Der Mieter verpflichtet sich, die Fotobox und das Zubehör pfleglich zu behandeln, sie
             ausschließlich bestimmungsgemäß und entsprechend der beiliegenden Anleitung/
             Sicherheitshinweise zu nutzen, sie so aufzustellen, dass sie keine Notausgänge oder
@@ -75,7 +97,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             bestimmungsgemäße Verwendung entstehen - hierfür haftet der Mieter im Rahmen der
             gesetzlichen Bestimmungen unbeschränkt.</p>
 
-        <h3>7. 🖨️ Eigentum an Verbrauchsmaterial, USB-Stick und Collage</h3>
+        <h3 id="s7">7. Eigentum an Verbrauchsmaterial, USB-Stick und Collage</h3>
         <p>Fotobox und Zubehör bleiben Eigentum von Snapolino; das gilt auch für nicht
             verbrauchtes Druckmaterial (Farbband und Fotopapier). Nicht verbrauchtes
             Druckmaterial ist zusammen mit der Fotobox zurückzusenden, einschließlich
@@ -92,7 +114,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             Speicher der Fotobox und werden dort nicht automatisch nach der Rückgabe gelöscht;
             der Mieter erklärt sich mit dieser Form der Zwischenspeicherung einverstanden.</p>
 
-        <h3>8. ❌ Stornierung durch den Mieter</h3>
+        <h3 id="s8">8. Stornierung durch den Mieter</h3>
         <p>Solange eine Anfrage noch nicht bestätigt bzw. bezahlt ist und damit noch kein Vertrag
             zustande gekommen ist (siehe Ziffer 3), kann der Mieter jederzeit kostenfrei davon
             zurücktreten. Für bereits bestätigte bzw. bezahlte Buchungen berechnen wir im Falle
@@ -109,13 +131,13 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             Entschädigung insoweit. Eine Stornierung ist per E-Mail an unsere oben im Impressum
             genannte Adresse zu erklären.</p>
 
-        <h3>9. 🔁 Rücktritt durch Snapolino</h3>
+        <h3 id="s9">9. Rücktritt durch Snapolino</h3>
         <p>Sollte die gebuchte Fotobox aus von Snapolino nicht zu vertretenden Gründen (z.B.
             technischer Totalschaden bei einer vorherigen Nutzung, Verlust auf dem Rückversand)
             nicht rechtzeitig zur Verfügung stehen, informiert Snapolino den Mieter unverzüglich
             und erstattet bereits geleistete Zahlungen vollständig.</p>
 
-        <h3>10. 🌐 Online-Galerie (optionales Extra)</h3>
+        <h3 id="s10">10. Online-Galerie (optionales Extra)</h3>
         <p>Hat der Mieter das Extra "Online-Galerie" gebucht, lädt die Fotobox die während der
             Veranstaltung entstandenen Einzelbilder und Collagen automatisch hoch, sobald sie nach
             dem Event wieder mit dem Internet verbunden ist. Der Mieter erhält per E-Mail einen
@@ -134,7 +156,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             Hinweise zur Datenverarbeitung finden sich in der
             <a href="/datenschutz">Datenschutzerklärung</a>.</p>
 
-        <h3>11. ⚖️ Haftungsbeschränkung</h3>
+        <h3 id="s11">11. Haftungsbeschränkung</h3>
         <p>Snapolino haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie nach den
             Vorschriften des Produkthaftungsgesetzes und für Schäden aus der Verletzung des
             Lebens, des Körpers oder der Gesundheit. Für leicht fahrlässig verursachte Schäden
@@ -142,7 +164,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             (Kardinalpflichten) und der Höhe nach begrenzt auf den vertragstypisch vorhersehbaren
             Schaden. Im Übrigen ist die Haftung für leichte Fahrlässigkeit ausgeschlossen.</p>
 
-        <h3>12. 🚫 Widerrufsrecht</h3>
+        <h3 id="s12">12. Widerrufsrecht</h3>
         <p>Da es sich bei der Miete der Fotobox um eine Dienstleistung im Zusammenhang mit einer
             Freizeitbetätigung handelt, für deren Erbringung ein spezifischer Termin vorgesehen ist
             (dein gewähltes Eventdatum), besteht für über unseren Online-Buchungsassistenten
@@ -150,17 +172,17 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             Unabhängig davon kann der Mieter im Rahmen der in Ziffer 8 genannten Fristen und
             Bedingungen von der Buchung zurücktreten.</p>
 
-        <h3>13. 🔒 Datenschutz</h3>
+        <h3 id="s13">13. Datenschutz</h3>
         <p>Informationen zur Verarbeitung personenbezogener Daten findest du in unserer
             <a href="/datenschutz">Datenschutzerklärung</a>.</p>
 
-        <h3>14. ⚙️ Gerichtsstand</h3>
+        <h3 id="s14">14. Gerichtsstand</h3>
         <p>Ist der Mieter Kaufmann im Sinne des Handelsgesetzbuches, ist unser Geschäftssitz
             Gerichtsstand; wir sind jedoch berechtigt, den Mieter auch an seinem Wohnsitzgericht zu
             verklagen. Hinweise zur außergerichtlichen Streitbeilegung findest du in unserem
             <a href="/impressum">Impressum</a>.</p>
 
-        <h3>15. 📄 Schlussbestimmungen</h3>
+        <h3 id="s15">15. Schlussbestimmungen</h3>
         <p>Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des
             UN-Kaufrechts. Ist der Mieter Verbraucher, gilt dies nur insoweit, als dadurch der
             durch zwingende Bestimmungen des Staates seines gewöhnlichen Aufenthaltsorts gewährte
