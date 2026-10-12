@@ -50,10 +50,10 @@ function legal_value(string $value, string $placeholder): string
     </button>
     <nav id="site-nav">
         <a href="/"<?= nav_link_class('home', $activeNav) ?>>Start</a>
-        <a href="/faq.php"<?= nav_link_class('faq', $activeNav) ?>>FAQ</a>
-        <a href="/konto.php"<?= nav_link_class('konto', $activeNav) ?>>Mein Konto</a>
+        <a href="/faq"<?= nav_link_class('faq', $activeNav) ?>>FAQ</a>
+        <a href="/konto"<?= nav_link_class('konto', $activeNav) ?>>Mein Konto</a>
         <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES) ?>">Kontakt</a>
-        <a href="/buchen.php"<?= nav_link_class('buchen', $activeNav, 'nav-cta') ?>>Jetzt buchen</a>
+        <a href="/buchen"<?= nav_link_class('buchen', $activeNav, 'nav-cta') ?>>Jetzt buchen</a>
     </nav>
 </header>
 <script>

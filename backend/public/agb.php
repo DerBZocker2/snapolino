@@ -132,7 +132,7 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             dafür verantwortlich, dass alle abgebildeten Personen mit der Bereitstellung in der
             Galerie einverstanden sind, und für die Weitergabe des Gäste-Links an Dritte. Weitere
             Hinweise zur Datenverarbeitung finden sich in der
-            <a href="/datenschutz.php">Datenschutzerklärung</a>.</p>
+            <a href="/datenschutz">Datenschutzerklärung</a>.</p>
 
         <h3>11. ⚖️ Haftungsbeschränkung</h3>
         <p>Snapolino haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie nach den
@@ -152,13 +152,13 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
 
         <h3>13. 🔒 Datenschutz</h3>
         <p>Informationen zur Verarbeitung personenbezogener Daten findest du in unserer
-            <a href="/datenschutz.php">Datenschutzerklärung</a>.</p>
+            <a href="/datenschutz">Datenschutzerklärung</a>.</p>
 
         <h3>14. ⚙️ Gerichtsstand</h3>
         <p>Ist der Mieter Kaufmann im Sinne des Handelsgesetzbuches, ist unser Geschäftssitz
             Gerichtsstand; wir sind jedoch berechtigt, den Mieter auch an seinem Wohnsitzgericht zu
             verklagen. Hinweise zur außergerichtlichen Streitbeilegung findest du in unserem
-            <a href="/impressum.php">Impressum</a>.</p>
+            <a href="/impressum">Impressum</a>.</p>
 
         <h3>15. 📄 Schlussbestimmungen</h3>
         <p>Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des

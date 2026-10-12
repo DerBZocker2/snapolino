@@ -315,7 +315,7 @@ $daysLeft = $deletionDate ? (int) (new DateTimeImmutable('today'))->diff($deleti
         <div class="empty">
             <p>Die Fotos dieser Veranstaltung wurden am
                 <strong><?= htmlspecialchars((new DateTimeImmutable($deletedAt))->format('d.m.Y'), ENT_QUOTES) ?></strong>
-                gemäß unserer <a href="/datenschutz.php" style="color:#fff;">Datenschutzerklärung</a> automatisch gelöscht.</p>
+                gemäß unserer <a href="/datenschutz" style="color:#fff;">Datenschutzerklärung</a> automatisch gelöscht.</p>
         </div>
     <?php else: ?>
         <h1>Fotogalerie von <?= htmlspecialchars($booking['customer_name'], ENT_QUOTES) ?></h1>

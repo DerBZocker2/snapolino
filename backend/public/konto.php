@@ -76,7 +76,7 @@ $pendingEmail = (string) ($_SESSION['pending_login_email'] ?? '');
         <?php if (!$bookings): ?>
             <div class="panel-box">
                 <p class="muted">Noch keine Buchung unter dieser E-Mail-Adresse gefunden.</p>
-                <a class="button" href="buchen.php" style="margin-top:12px;display:inline-block;">Jetzt buchen</a>
+                <a class="button" href="buchen" style="margin-top:12px;display:inline-block;">Jetzt buchen</a>
             </div>
         <?php else: ?>
             <?php foreach ($bookings as $booking): ?>
@@ -98,9 +98,9 @@ $pendingEmail = (string) ($_SESSION['pending_login_email'] ?? '');
                     </div>
                     <div style="margin-top:10px;">
                         <?php if ($editable): ?>
-                            <a class="button-secondary" href="buchen.php?step=3&token=<?= urlencode((string) $booking['edit_token']) ?>">Bearbeiten</a>
+                            <a class="button-secondary" href="buchen?step=3&token=<?= urlencode((string) $booking['edit_token']) ?>">Bearbeiten</a>
                         <?php else: ?>
-                            <a class="button-secondary" href="buchen.php?step=5&token=<?= urlencode((string) $booking['edit_token']) ?>">Ansehen</a>
+                            <a class="button-secondary" href="buchen?step=5&token=<?= urlencode((string) $booking['edit_token']) ?>">Ansehen</a>
                         <?php endif; ?>
                     </div>
                     <?php if ($booking['status'] === 'bestaetigt'): ?>

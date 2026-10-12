@@ -27,7 +27,7 @@ $entries = db()->query('SELECT * FROM waitlist_entries ORDER BY event_date ASC, 
 ?>
 
 <section class="panel">
-    <p class="muted-text">Interessenten für bereits ausgebuchte Termine (siehe <code>/warteliste.php</code>). Wird ein
+    <p class="muted-text">Interessenten für bereits ausgebuchte Termine (siehe <code>/warteliste</code>). Wird ein
         Termin durch Ablehnen/Stornieren einer Buchung wieder frei, bekommen alle noch nicht benachrichtigten
         Einträge dieses Tages automatisch eine Mail.</p>
 

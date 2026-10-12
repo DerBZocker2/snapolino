@@ -208,6 +208,36 @@ naechsten Kunden vorzubereiten).
 PHP 8 + MySQL auf snapolino.de, liegt in `backend/` (siehe `backend/README.md`
 für Deployment). Docroot ist `backend/public`, alles andere
 (`includes/`, `sql/`, `storage/`, `bin/`) ist nicht über HTTP erreichbar.
+
+**Saubere URLs ohne `.php`-Endung**: `backend/public/.htaccess` (Apache
+`mod_rewrite`, muss auf dem Server aktiviert sein - `AllowOverride All` fuer
+den Docroot) loest `/faq`, `/buchen`, `/admin/bookings` usw. intern auf die
+passende `<name>.php`-Datei auf (Adresszeile bleibt dabei unveraendert) und
+leitet umgekehrt einen direkten Aufruf einer `.php`-URL per 301 auf ihre
+saubere Form um - alte Lesezeichen/Links bleiben dadurch gueltig. Technische
+Endpunkte, zu denen nie ein Mensch per Klick navigiert, sondern nur der
+Python-Box-Client (`api.php`, `frame.php`), JS-Fetch-Aufrufe
+(`gallery_photo.php`, `upload_photo.php`, `booking_availability.php`,
+`layout_preview.php`) oder der Stripe-Webhook (`stripe_webhook.php`) sind
+davon bewusst ausgenommen, damit sich an ihren URLs nichts aendert. `/admin`
+(ohne Slash) wird zunaechst auf `/admin/` umgeleitet (damit relative Links
+im Panel korrekt dagegen aufgeloest werden) und zeigt dann - genau wie jede
+andere Admin-Unterseite auch clean erreichbar ist (`/admin/bookings`,
+`/admin/login`, ...) - `admin/dashboard.php`; ohne Login greift dort wie
+gewohnt `require_login()` und leitet auf `/admin/login` weiter. Die interne
+Weiterleitungsregel braucht in `.htaccess` das `END`-Flag statt `L` - in
+Apaches Pro-Verzeichnis-Kontext (`.htaccess`) startet `L` die Regelpruefung
+sonst von vorn mit der neuen URL und wuerde dadurch sofort wieder die
+.php-zu-clean-Umleitungsregel treffen (Endlosschleife). Interne relative
+Links/Formulare im Code (`href="coupons.php"`, `header('Location:
+bookings.php')` usw.) muessen dafuer **nicht** einzeln angepasst werden -
+sie werden vom Browser gegen die aktuelle (bereits saubere) URL aufgeloest
+und laufen transparent durch dieselben beiden Regeln; nur die absoluten,
+sitebreiten Links (Navigation/Footer in `_site_header.php`/`_site_footer.php`,
+sowie alle von PHP aus der Konfiguration zusammengesetzten URLs wie die
+Stripe-Erfolgs-/Abbruch-Links, die Mail-Links zu Konto/Buchung/Galerie in
+`mailer.php`/`functions.php`) wurden direkt auf die saubere Form umgestellt.
+
 Panel (`backend/public/admin/`, Login-geschützt) zum Anlegen von Layouts
 (Rahmen-PNG, Leinwandgröße, Slot-Koordinaten per Hand) und Zuordnung zu
 Boxen. Jede Box bekommt beim Anlegen automatisch das Standard-Layout

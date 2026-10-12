@@ -367,8 +367,8 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $baseUrl = rtrim((string) backend_config()['base_url'], '/');
-            $successUrl = $baseUrl . '/buchen.php?danke=1&paid=1';
-            $cancelUrl = $baseUrl . '/buchen.php?step=5&token=' . urlencode($token);
+            $successUrl = $baseUrl . '/buchen?danke=1&paid=1';
+            $cancelUrl = $baseUrl . '/buchen?step=5&token=' . urlencode($token);
 
             $session = create_stripe_checkout_session($booking, booking_stripe_line_items((int) $booking['id']), $successUrl, $cancelUrl);
 
@@ -1300,8 +1300,8 @@ require __DIR__ . '/_site_header.php';
                         </label>
                         <label class="checkbox">
                             <input type="checkbox" name="agb_accepted" id="agb-checkbox" required <?= $booking['agb_accepted_at'] ? 'checked' : '' ?>>
-                            Ich habe die <a href="/agb.php" target="_blank" rel="noopener">AGB</a> und die
-                            <a href="/datenschutz.php" target="_blank" rel="noopener">Datenschutzerklärung</a>
+                            Ich habe die <a href="/agb" target="_blank" rel="noopener">AGB</a> und die
+                            <a href="/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a>
                             gelesen und akzeptiere sie. *
                         </label>
 

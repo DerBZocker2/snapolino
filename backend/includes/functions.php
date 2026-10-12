@@ -485,13 +485,13 @@ function ensure_gallery_guest_token(int $bookingId): string
 function gallery_url(string $galleryToken): string
 {
     $cfg = backend_config();
-    return rtrim($cfg['base_url'], '/') . '/galerie.php?token=' . rawurlencode($galleryToken);
+    return rtrim($cfg['base_url'], '/') . '/galerie?token=' . rawurlencode($galleryToken);
 }
 
 function gallery_guest_url(string $guestToken): string
 {
     $cfg = backend_config();
-    return rtrim($cfg['base_url'], '/') . '/galerie.php?token=' . rawurlencode($guestToken);
+    return rtrim($cfg['base_url'], '/') . '/galerie?token=' . rawurlencode($guestToken);
 }
 
 // Tage NACH DEM EVENTDATUM, nach denen bin/purge_expired_galleries.php die

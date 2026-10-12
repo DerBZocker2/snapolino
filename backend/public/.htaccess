@@ -1,0 +1,38 @@
+# Snapolino - saubere URLs ohne ".php"-Endung.
+#
+# api.php, frame.php, gallery_photo.php, upload_photo.php,
+# stripe_webhook.php, booking_availability.php und layout_preview.php sind
+# reine technische Endpunkte (Box-Client, JS-Fetch-Aufrufe, Stripe-Webhook),
+# zu denen nie ein Mensch per Klick/Adresszeile navigiert - bleiben deshalb
+# bewusst von den Regeln unten ausgenommen, damit sich an ihren URLs (die
+# z.B. im Python-Box-Client oder in der Stripe-Webhook-Konfiguration
+# hinterlegt sind) nichts aendert.
+
+RewriteEngine On
+
+# /admin (ohne Slash) zuerst auf /admin/ (mit Slash) umleiten, damit alle
+# relativen Links innerhalb des Admin-Panels (dashboard.php, bookings.php,
+# ...) korrekt gegen "/admin/" statt gegen "/" aufgeloest werden.
+RewriteRule ^admin$ /admin/ [R=301,L]
+RewriteRule ^admin/$ admin/dashboard.php [END]
+
+# /index.php (bzw. /index) zeigt als Startseite nur noch "/".
+RewriteCond %{REQUEST_URI} ^/index(\.php)?$
+RewriteRule ^ / [R=301,L]
+
+# Alte *.php-Aufrufe (ausser den technischen Endpunkten oben) werden auf
+# ihre saubere Form ohne Endung umgeleitet - alte Links/Lesezeichen
+# funktionieren dadurch weiterhin, die Adresszeile zeigt aber ab jetzt
+# immer die gewuenschte Form ganz ohne ".php".
+RewriteCond %{REQUEST_URI} !^/(api|frame|gallery_photo|upload_photo|stripe_webhook|booking_availability|layout_preview)\.php$
+RewriteCond %{REQUEST_URI} ^/(.+)\.php$
+RewriteRule ^ /%1 [R=301,L]
+
+# Interne Aufloesung: eine saubere URL ohne Endung wird intern (ohne
+# sichtbare Weiterleitung, die Adresszeile bleibt unveraendert) auf die
+# passende ".php"-Datei abgebildet - gilt gleichermassen fuer die
+# oeffentlichen Seiten wie fuer das Admin-Panel.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+)$ $1.php [END]

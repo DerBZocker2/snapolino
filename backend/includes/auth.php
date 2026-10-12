@@ -26,7 +26,7 @@ function current_admin_id(): ?int
 function require_login(): void
 {
     if (current_admin_id() === null) {
-        header('Location: login.php');
+        header('Location: /admin/login');
         exit;
     }
 }

@@ -163,7 +163,7 @@ function send_booking_confirmation_email(array $booking): bool
             . ($hostedInvoiceUrl !== '' ? email_button($hostedInvoiceUrl, 'Rechnung ansehen') : '')
             . email_p('Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.')
             . email_p('Bis <strong>' . design_edit_deadline_days() . ' Tage vor deinem Event</strong> kannst du '
-                . 'Design und Extras in deinem <a href="' . email_e(rtrim((string) backend_config()['base_url'], '/')) . '/konto.php">Konto</a> '
+                . 'Design und Extras in deinem <a href="' . email_e(rtrim((string) backend_config()['base_url'], '/')) . '/konto">Konto</a> '
                 . 'noch anpassen.')
             . email_p('Deine <strong>Design-PIN: ' . email_e($booking['customer_pin']) . '</strong> - damit lässt '
                 . 'sich direkt an der Fotobox einstellen, welche eurer Designs während der Feier verfügbar sein '
@@ -180,7 +180,7 @@ function send_booking_confirmation_email(array $booking): bool
             . $invoiceNote
             . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
             . "Bis " . design_edit_deadline_days() . " Tage vor deinem Event kannst du Design und Extras in deinem "
-            . "Konto noch anpassen: " . rtrim((string) backend_config()['base_url'], '/') . "/konto.php\n\n"
+            . "Konto noch anpassen: " . rtrim((string) backend_config()['base_url'], '/') . "/konto\n\n"
             . "Deine Design-PIN: " . $booking['customer_pin'] . " - damit lässt sich direkt an der Fotobox "
             . "einstellen, welche eurer Designs während der Feier verfügbar sein sollen (über den Logo-Knopf "
             . "oben links, \"Eigene Designs verwalten\").\n\n"
@@ -591,7 +591,7 @@ function send_waitlist_slot_free_email(array $entry): bool
         $eventDate = (new DateTimeImmutable($entry['event_date']))->format('d.m.Y');
         $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
         $cfg = backend_config();
-        $bookingUrl = rtrim($cfg['base_url'], '/') . '/buchen.php?step=2&date=' . rawurlencode($entry['event_date']);
+        $bookingUrl = rtrim($cfg['base_url'], '/') . '/buchen?step=2&date=' . rawurlencode($entry['event_date']);
 
         $mail->Subject = 'Dein Wunschtermin ist wieder frei – Snapolino';
         $mail->isHTML(true);

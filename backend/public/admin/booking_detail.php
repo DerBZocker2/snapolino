@@ -148,8 +148,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $addonChargeId,
                         $description,
                         $delta,
-                        $baseUrl . '/zahlung_erfolgreich.php',
-                        $baseUrl . '/admin/booking_detail.php?id=' . $bookingId
+                        $baseUrl . '/zahlung_erfolgreich',
+                        $baseUrl . '/admin/booking_detail?id=' . $bookingId
                     );
 
                     if ($session && !empty($session['url']) && !empty($session['id'])) {
