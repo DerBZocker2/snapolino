@@ -210,8 +210,8 @@ für Deployment). Docroot ist `backend/public`, alles andere
 (`includes/`, `sql/`, `storage/`, `bin/`) ist nicht über HTTP erreichbar.
 
 **Saubere URLs ohne `.php`-Endung**: `backend/public/.htaccess` (Apache
-`mod_rewrite`, muss auf dem Server aktiviert sein - `AllowOverride All` fuer
-den Docroot) loest `/faq`, `/buchen`, `/admin/bookings` usw. intern auf die
+`mod_rewrite`, muss auf dem Server aktiviert sein - `AllowOverride FileInfo`
+fuer den Docroot, siehe `backend/deploy/apache-snapolino.de.conf`) loest `/faq`, `/buchen`, `/admin/bookings` usw. intern auf die
 passende `<name>.php`-Datei auf (Adresszeile bleibt dabei unveraendert) und
 leitet umgekehrt einen direkten Aufruf einer `.php`-URL per 301 auf ihre
 saubere Form um - alte Lesezeichen/Links bleiben dadurch gueltig. Technische

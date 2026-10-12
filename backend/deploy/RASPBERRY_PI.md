@@ -263,6 +263,14 @@ Danach je nach Art der Aenderung noch pruefen:
   live genutzte Datei). Manuell mit der Datei unter
   `/etc/apache2/sites-available/snapolino.de.conf` abgleichen und danach
   `sudo apachectl configtest && sudo systemctl reload apache2`.
+- **Neue Datei `backend/public/.htaccess`** (saubere URLs ohne
+  `.php`-Endung, siehe CLAUDE.md "Cloud-Backend"): braucht `mod_rewrite`
+  und `AllowOverride FileInfo` statt `None` fuer den Docroot - einmalig:
+  ```bash
+  sudo a2enmod rewrite
+  sudo nano /etc/apache2/sites-available/snapolino.de.conf   # AllowOverride None -> FileInfo
+  sudo apachectl configtest && sudo systemctl reload apache2
+  ```
 
 Reine Aenderungen an `.php`-Dateien unter `backend/public/` wirken sofort,
 ohne dass Apache neu gestartet werden muss.
