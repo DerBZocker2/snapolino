@@ -577,6 +577,7 @@ mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/mi
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0027_booking_min_lead_days.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0028_free_layouts_and_plain_format_presets.sql
 mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0029_promotions.sql
+mysql --default-character-set=utf8mb4 -u snapolino -p snapolino < backend/sql/migrations/0030_waitlist_min_lead_days.sql
 ```
 
 Migration 0003 ergaenzt `bookings` um `edit_token`, `total_price_cents` und

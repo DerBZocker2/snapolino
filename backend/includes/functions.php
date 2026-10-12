@@ -628,6 +628,21 @@ function booking_min_lead_date(): DateTimeImmutable
 
 // ---------- Warteliste ----------
 
+// Wie viele Tage im Voraus ein Wartelisten-Wunschtermin mindestens liegen
+// muss (Panel unter Einstellungen, Standard 2) - eigene, kuerzere Frist als
+// booking_min_lead_days() fuer die eigentliche Buchung: Interessenten fuer
+// sehr kurzfristige Termine koennen laut Kunde trotzdem noch beruecksichtigt
+// werden, waehrend eine echte Buchung mehr Vorbereitungszeit braucht.
+function waitlist_min_lead_days(): int
+{
+    return max(0, (int) get_setting('waitlist_min_lead_days', '2'));
+}
+
+function waitlist_min_lead_date(): DateTimeImmutable
+{
+    return (new DateTimeImmutable('today'))->modify('+' . waitlist_min_lead_days() . ' days');
+}
+
 // Wird aufgerufen, nachdem eine Buchung eine bestimmte Belegung nicht mehr
 // blockiert (Admin lehnt eine Anfrage ab oder storniert, siehe
 // admin/bookings.php und payments.php::cancel_booking()). Prueft jeden Tag

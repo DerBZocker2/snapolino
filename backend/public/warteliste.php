@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Bitte einen Wunschtermin angeben.';
     } elseif ($eventDateObj < new DateTimeImmutable('today')) {
         $errors[] = 'Das Datum darf nicht in der Vergangenheit liegen.';
+    } elseif ($eventDateObj < waitlist_min_lead_date()) {
+        $errors[] = 'Der Wunschtermin muss mindestens ' . waitlist_min_lead_days() . ' Tage im Voraus liegen.';
     }
     if ($customerName === '') {
         $errors[] = 'Bitte deinen Namen angeben.';
@@ -104,8 +106,9 @@ require __DIR__ . '/_site_header.php';
                 <?= csrf_field() ?>
                 <input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off">
                 <label>Wunschtermin
-                    <input type="date" name="event_date" required min="<?= (new DateTimeImmutable('today'))->format('Y-m-d') ?>"
+                    <input type="date" name="event_date" required min="<?= waitlist_min_lead_date()->format('Y-m-d') ?>"
                         value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
+                    <span class="muted">Mindestens <?= waitlist_min_lead_days() ?> Tage im Voraus.</span>
                 </label>
                 <label>Name
                     <input type="text" name="customer_name" required value="<?= htmlspecialchars($customerName, ENT_QUOTES) ?>">

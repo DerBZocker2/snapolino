@@ -728,13 +728,22 @@ aller bei bestaetigten Buchungen gewaehrten Rabattaktionsbetraege zusammen
 (analog zur bestehenden "Stammkundenrabatt gewährt"-Kachel).
 
 ## Warteliste
-Fuer bereits ausgebuchte Termine gibt es unter `/warteliste.php` eine
+Fuer bereits ausgebuchte Termine gibt es unter `/warteliste` eine
 oeffentliche Warteliste: Interessenten tragen Wunschtermin, Name, E-Mail
 (optional Telefon/Nachricht) ein (`waitlist_entries`, Migration 0020) - das
 ist noch keine Buchung. Erreichbar ueber einen Hinweis in `buchen.php`
 Schritt 1 sowie per Klick auf einen ausgegrauten, aber noch nicht
 vergangenen Tag im Buchungskalender dort (`cal-blocked`-Klasse in der
-Kalender-JS, statt den Tag komplett inert zu lassen). Lehnt ein Admin eine
+Kalender-JS, statt den Tag komplett inert zu lassen). Der Wunschtermin muss
+dabei mindestens `waitlist_min_lead_days()` Tage in der Zukunft liegen
+(Einstellung `waitlist_min_lead_days`, Panel unter Einstellungen, Standard
+2) - eine **eigene, von `booking_min_lead_days()` unabhaengige** Frist:
+Interessenten fuer sehr kurzfristige Termine koennen auf der Warteliste
+trotzdem noch beruecksichtigt werden, waehrend eine echte Buchung mehr
+Vorbereitungszeit braucht. Vorher hatte `warteliste.php` serverseitig nur
+eine Pruefung gegen die Vergangenheit, keinen Mindestvorlauf - dadurch liess
+sich dort z.B. auch der heutige Tag eintragen, waehrend der Buchungsassistent
+ihn (bei `booking_min_lead_days > 0`) schon laengst blockierte. Lehnt ein Admin eine
 Anfrage ab oder storniert eine Buchung (`admin/bookings.php`,
 `payments.php::cancel_booking()`), prueft `notify_waitlist_for_freed_range()`
 (`includes/functions.php`) jeden Tag im dadurch vormals blockierten

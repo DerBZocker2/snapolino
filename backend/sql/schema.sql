@@ -393,7 +393,11 @@ INSERT IGNORE INTO settings (name, value) VALUES
     ('design_edit_deadline_days', '7'),
     -- Mindestvorlauf in Tagen, ab dem ein Wunschtermin im Buchungsassistenten
     -- ueberhaupt waehlbar ist, siehe booking_min_lead_days() in functions.php.
-    ('booking_min_lead_days', '3');
+    ('booking_min_lead_days', '3'),
+    -- Mindestvorlauf in Tagen fuer die oeffentliche Warteliste (warteliste.php),
+    -- eigene (meist kuerzere) Frist als booking_min_lead_days oben, siehe
+    -- waitlist_min_lead_days() in functions.php.
+    ('waitlist_min_lead_days', '2');
 
 -- Beispiel-Extras zum Start, im Panel unter "Extras" frei anpassbar/loeschbar.
 INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort_order) VALUES
