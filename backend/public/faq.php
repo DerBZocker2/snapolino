@@ -10,6 +10,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 $pageTitle = 'Häufige Fragen';
+$pageDescription = 'Antworten zu Ablauf, Kosten, Technik und Design rund um die Snapolino-Fotobox.';
 $activeNav = 'faq';
 
 try {

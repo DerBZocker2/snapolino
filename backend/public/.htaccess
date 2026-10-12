@@ -8,6 +8,12 @@
 # z.B. im Python-Box-Client oder in der Stripe-Webhook-Konfiguration
 # hinterlegt sind) nichts aendert.
 
+# Eigene, markenkonsistente 404-Seite statt der unmarkierten Apache-
+# Standardfehlerseite (404.php, siehe dort) - "/404" wird durch die
+# generische Auflösungsregel weiter unten automatisch intern auf
+# 404.php abgebildet, keine eigene Rewrite-Regel dafuer noetig.
+ErrorDocument 404 /404
+
 RewriteEngine On
 
 # /admin (ohne Slash) zuerst auf /admin/ (mit Slash) umleiten, damit alle

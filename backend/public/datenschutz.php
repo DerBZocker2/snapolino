@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $pageTitle = 'Datenschutzerklärung';
+$pageDescription = 'Wie Snapolino personenbezogene Daten bei Buchung, Zahlung und Nutzung der Fotobox verarbeitet.';
 require __DIR__ . '/_site_header.php';
 
 $businessName = (string) get_setting('business_name', '');

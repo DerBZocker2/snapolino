@@ -15,7 +15,9 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/mailer.php';
 
 $pageTitle = 'Warteliste';
+$pageDescription = 'Dein Wunschtermin für die Fotobox ist schon vergeben? Trag dich auf die Warteliste ein - wir melden uns automatisch, sobald er wieder frei wird.';
 $errors = [];
+$fieldErrors = [];
 $success = false;
 $eventDate = trim((string) ($_GET['date'] ?? $_POST['event_date'] ?? ''));
 $customerName = '';
@@ -40,16 +42,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $eventDateObj = DateTimeImmutable::createFromFormat('Y-m-d', $eventDate) ?: null;
     if (!$eventDateObj) {
         $errors[] = 'Bitte einen Wunschtermin angeben.';
+        $fieldErrors['event_date'] = 'Bitte einen Wunschtermin angeben.';
     } elseif ($eventDateObj < new DateTimeImmutable('today')) {
         $errors[] = 'Das Datum darf nicht in der Vergangenheit liegen.';
+        $fieldErrors['event_date'] = 'Darf nicht in der Vergangenheit liegen.';
     } elseif ($eventDateObj < waitlist_min_lead_date()) {
         $errors[] = 'Der Wunschtermin muss mindestens ' . waitlist_min_lead_days() . ' Tage im Voraus liegen.';
+        $fieldErrors['event_date'] = 'Mindestens ' . waitlist_min_lead_days() . ' Tage im Voraus.';
     }
     if ($customerName === '') {
         $errors[] = 'Bitte deinen Namen angeben.';
+        $fieldErrors['customer_name'] = 'Bitte deinen Namen angeben.';
     }
     if ($customerEmail === '' || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Bitte eine gültige E-Mail-Adresse angeben.';
+        $fieldErrors['customer_email'] = 'Bitte eine gültige E-Mail-Adresse angeben.';
     }
 
     if (!$errors) {
@@ -107,14 +114,22 @@ require __DIR__ . '/_site_header.php';
                 <input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off">
                 <label>Wunschtermin
                     <input type="date" name="event_date" required min="<?= waitlist_min_lead_date()->format('Y-m-d') ?>"
+                        class="<?= field_error_class($fieldErrors, 'event_date') ?>"
                         value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
+                    <?= field_error_html($fieldErrors, 'event_date') ?>
                     <span class="muted">Mindestens <?= waitlist_min_lead_days() ?> Tage im Voraus.</span>
                 </label>
                 <label>Name
-                    <input type="text" name="customer_name" required value="<?= htmlspecialchars($customerName, ENT_QUOTES) ?>">
+                    <input type="text" name="customer_name" required autocomplete="name"
+                        class="<?= field_error_class($fieldErrors, 'customer_name') ?>"
+                        value="<?= htmlspecialchars($customerName, ENT_QUOTES) ?>">
+                    <?= field_error_html($fieldErrors, 'customer_name') ?>
                 </label>
                 <label>E-Mail
-                    <input type="email" name="customer_email" required value="<?= htmlspecialchars($customerEmail, ENT_QUOTES) ?>">
+                    <input type="email" name="customer_email" required autocomplete="email"
+                        class="<?= field_error_class($fieldErrors, 'customer_email') ?>"
+                        value="<?= htmlspecialchars($customerEmail, ENT_QUOTES) ?>">
+                    <?= field_error_html($fieldErrors, 'customer_email') ?>
                 </label>
                 <label>Telefon (optional)
                     <input type="text" name="customer_phone" value="<?= htmlspecialchars($customerPhone, ENT_QUOTES) ?>">

@@ -91,6 +91,7 @@ $daysLeft = $deletionDate ? (int) (new DateTimeImmutable('today'))->diff($deleti
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Fotogalerie &ndash; Snapolino</title>
+    <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/x-icon" href="<?= asset_url('assets/favicon.ico', __DIR__ . '/assets/favicon.ico') ?>">
     <style>
         :root {

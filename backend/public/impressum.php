@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $pageTitle = 'Impressum';
+$pageDescription = 'Impressum und Anbieterkennzeichnung der Snapolino Fotobox-Vermietung.';
 require __DIR__ . '/_site_header.php';
 
 $businessName = (string) get_setting('business_name', '');

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 $pageTitle = 'Snapolino Fotobox – Design-Optionen';
+$pageDescription = 'Fotobox mieten mit Sofortdruck: individuelle Rahmen-Designs, einfache Online-Buchung, Versand deutschlandweit. Perfekt für Hochzeit, Geburtstag und Firmenfeier.';
 $activeNav = 'home';
 
 try {
@@ -48,9 +49,11 @@ require __DIR__ . '/_site_header.php';
         </p>
     <?php endif; ?>
     <a class="button" href="buchen.php">Jetzt buchen</a>
-    <p class="muted" style="margin-top:16px;font-size:13px;">
-        Keine Zahlungsdaten für die Reservierung nötig · Sichere Zahlung über Stripe · Made in Deutschland
-    </p>
+    <div class="trust-bar" style="margin-top:20px;">
+        <span>🔒 Keine Zahlungsdaten für die Reservierung nötig</span>
+        <span>💳 Sichere Zahlung über Stripe</span>
+        <span>🇩🇪 Made in Deutschland</span>
+    </div>
 </section>
 
 <div class="hero-visuals">

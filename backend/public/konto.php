@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/customer_auth.php';
 
 $pageTitle = 'Mein Konto';
 $activeNav = 'konto';
+$pageNoindex = true;
 require __DIR__ . '/_site_header.php';
 
 start_session();

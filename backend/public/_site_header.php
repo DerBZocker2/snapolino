@@ -11,6 +11,13 @@ require_once __DIR__ . '/../includes/functions.php';
 
 $pageTitle = $pageTitle ?? 'Snapolino';
 $activeNav = $activeNav ?? '';
+// Fuer <meta name="description">/Open Graph - jede Seite kann vor dem
+// require eine eigene, konkrete Beschreibung setzen; ohne eigene Angabe
+// greift eine generische Fallback-Beschreibung statt ganz zu fehlen.
+$pageDescription = $pageDescription ?? 'Fotobox-Vermietung mit Sofortdruck für Hochzeiten, Geburtstage und Firmenfeiern - online buchen, Design wählen, Spaß garantiert.';
+// Fuer Seiten mit persoenlichen/zugangsbeschraenkten Inhalten (Konto-Login,
+// Galerie-Links) - sollen nicht in Suchmaschinen landen.
+$pageNoindex = $pageNoindex ?? false;
 $contactEmail = (string) get_setting('business_email', 'info@snapolino.de') ?: 'info@snapolino.de';
 
 function nav_link_class(string $target, string $active, string $extra = ''): string
@@ -37,6 +44,23 @@ function legal_updated_label(): string
     $germanMonths = [1 => 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
     return 'Stand: ' . $germanMonths[(int) date('n')] . ' ' . date('Y');
 }
+
+// Fuer Formulare mit Inline-Feldfehlern (buchen.php Schritt 2,
+// warteliste.php): $fieldErrors ordnet Validierungsfehler dem jeweiligen
+// Feldnamen zu, statt nur eine generische Liste oben auf der Seite zu
+// zeigen - direktes Feedback am betroffenen Feld ist fuer die meisten
+// Nutzer schneller erfassbar.
+function field_error_class(array $fieldErrors, string $name): string
+{
+    return isset($fieldErrors[$name]) ? ' input-error' : '';
+}
+
+function field_error_html(array $fieldErrors, string $name): string
+{
+    return isset($fieldErrors[$name])
+        ? '<span class="field-error">' . htmlspecialchars($fieldErrors[$name], ENT_QUOTES) . '</span>'
+        : '';
+}
 ?>
 <!doctype html>
 <html lang="de">
@@ -44,6 +68,13 @@ function legal_updated_label(): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?> &ndash; Snapolino</title>
+    <meta name="description" content="<?= htmlspecialchars($pageDescription, ENT_QUOTES) ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Snapolino">
+    <meta property="og:title" content="<?= htmlspecialchars($pageTitle, ENT_QUOTES) ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($pageDescription, ENT_QUOTES) ?>">
+    <meta property="og:locale" content="de_DE">
+    <?php if ($pageNoindex): ?><meta name="robots" content="noindex, nofollow"><?php endif; ?>
     <link rel="icon" type="image/x-icon" href="<?= asset_url('assets/favicon.ico', __DIR__ . '/assets/favicon.ico') ?>">
     <link rel="apple-touch-icon" href="<?= asset_url('assets/apple-touch-icon.png', __DIR__ . '/assets/apple-touch-icon.png') ?>">
     <link rel="stylesheet" href="<?= asset_url('assets/site.css', __DIR__ . '/assets/site.css') ?>">

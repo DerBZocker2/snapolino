@@ -15,7 +15,12 @@ require_once __DIR__ . '/../includes/stripe.php';
 start_session();
 
 $pageTitle = 'Fotobox buchen';
+$pageDescription = 'Fotobox online buchen: Termin wählen, Design aussuchen, fertig. Keine Zahlungsdaten für die Anfrage nötig, sichere Zahlung über Stripe.';
 $errors = [];
+// Ordnet einzelne Validierungsfehler (Schritt 2) dem jeweiligen Feldnamen
+// zu, fuer direktes Inline-Feedback am Feld - siehe field_error_html() in
+// _site_header.php (von dort auch in warteliste.php genutzt).
+$fieldErrors = [];
 $success = isset($_GET['danke']);
 $step = $success ? 0 : max(1, min(5, (int) ($_GET['step'] ?? 1)));
 
@@ -42,7 +47,13 @@ function stepper_html(int $current): string
             $html .= '<div class="step-line ' . ($num < $current ? 'done' : '') . '"></div>';
         }
     }
-    return $html . '</div>';
+    $html .= '</div>';
+    // Nur auf kleinen Screens sichtbar (siehe .step-current-label in
+    // site.css) - dort sind die Step-Labels selbst ausgeblendet, damit der
+    // Stepper nicht umbricht.
+    $html .= '<p class="step-current-label">Schritt ' . $current . ' von 5 &middot; '
+        . htmlspecialchars($steps[$current], ENT_QUOTES) . '</p>';
+    return $html;
 }
 
 $token = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
@@ -119,11 +130,21 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim((string) ($_POST['email'] ?? ''));
     $eventDate = trim((string) ($_POST['event_date'] ?? ''));
 
-    if ($firstName === '' || $lastName === '') {
-        $errors[] = 'Bitte Vor- und Nachnamen angeben.';
+    // $fieldErrors ordnet zusaetzlich zur allgemeinen $errors-Liste jedes
+    // Validierungsproblem genau dem betroffenen Formularfeld zu (siehe
+    // field_error() unten) - direktes Feedback am Feld statt nur einer
+    // Liste oben auf der Seite.
+    if ($firstName === '') {
+        $errors[] = 'Bitte deinen Vornamen angeben.';
+        $fieldErrors['first_name'] = 'Bitte Vornamen angeben.';
+    }
+    if ($lastName === '') {
+        $errors[] = 'Bitte deinen Nachnamen angeben.';
+        $fieldErrors['last_name'] = 'Bitte Nachnamen angeben.';
     }
     if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Bitte eine gültige E-Mail-Adresse angeben.';
+        $fieldErrors['email'] = 'Bitte eine gültige E-Mail-Adresse angeben.';
     }
     $eventDateObj = DateTimeImmutable::createFromFormat('Y-m-d', $eventDate) ?: null;
     if (!$eventDateObj) {
@@ -457,7 +478,16 @@ require __DIR__ . '/_site_header.php';
             </div>
 
         <?php elseif ($step === 2): ?>
-            <?php $eventDate = (string) ($_GET['date'] ?? $_POST['event_date'] ?? ''); ?>
+            <?php
+            $eventDate = (string) ($_GET['date'] ?? $_POST['event_date'] ?? '');
+            // Bei einem Validierungsfehler bleiben die bereits eingegebenen
+            // Werte erhalten, statt das Formular leer neu zu laden - vorher
+            // musste man nach einem Tippfehler in der E-Mail-Adresse alle
+            // drei Felder erneut ausfuellen.
+            $firstName = (string) ($firstName ?? '');
+            $lastName = (string) ($lastName ?? '');
+            $email = (string) ($email ?? '');
+            ?>
             <div class="date-banner">
                 📅 <?= htmlspecialchars((new DateTimeImmutable($eventDate))->format('d.m.Y'), ENT_QUOTES) ?>
                 <a href="buchen.php?step=1">Ändern</a>
@@ -474,10 +504,25 @@ require __DIR__ . '/_site_header.php';
                     <input type="hidden" name="event_date" value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
                     <input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off">
                     <div class="grid2">
-                        <label>Vorname *<input type="text" name="first_name" required></label>
-                        <label>Nachname *<input type="text" name="last_name" required></label>
+                        <label>Vorname *
+                            <input type="text" name="first_name" required autocomplete="given-name"
+                                class="<?= field_error_class($fieldErrors, 'first_name') ?>"
+                                value="<?= htmlspecialchars($firstName, ENT_QUOTES) ?>">
+                            <?= field_error_html($fieldErrors, 'first_name') ?>
+                        </label>
+                        <label>Nachname *
+                            <input type="text" name="last_name" required autocomplete="family-name"
+                                class="<?= field_error_class($fieldErrors, 'last_name') ?>"
+                                value="<?= htmlspecialchars($lastName, ENT_QUOTES) ?>">
+                            <?= field_error_html($fieldErrors, 'last_name') ?>
+                        </label>
                     </div>
-                    <label>E-Mail-Adresse *<input type="email" name="email" required></label>
+                    <label>E-Mail-Adresse *
+                        <input type="email" name="email" required autocomplete="email"
+                            class="<?= field_error_class($fieldErrors, 'email') ?>"
+                            value="<?= htmlspecialchars($email, ENT_QUOTES) ?>">
+                        <?= field_error_html($fieldErrors, 'email') ?>
+                    </label>
                     <button type="submit">Jetzt anfragen</button>
                     <p class="muted" style="text-align:center;">Keine Zahlungsdaten nötig. Wir senden dir eine E-Mail mit allen Details.</p>
                 </form>

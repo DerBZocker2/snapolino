@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $pageTitle = 'AGB';
+$pageDescription = 'Allgemeine Geschäftsbedingungen für die Miete der Snapolino-Fotobox.';
 require __DIR__ . '/_site_header.php';
 
 $businessName = (string) get_setting('business_name', '');

@@ -738,6 +738,63 @@ Admin-Dashboard zaehlt eine KPI-Kachel "Rabattaktionen gewährt" die Summe
 aller bei bestaetigten Buchungen gewaehrten Rabattaktionsbetraege zusammen
 (analog zur bestehenden "Stammkundenrabatt gewährt"-Kachel).
 
+## Oeffentliche Seite: Bedienbarkeit und professioneller Auftritt
+Mehrere konkrete Verbesserungen fuer einen fluessigeren Buchungsablauf und
+einen einheitlicheren, professionelleren Gesamtauftritt:
+
+- **Inline-Feldfehler** statt nur einer generischen Fehlerliste oben auf
+  der Seite: `buchen.php` Schritt 2 (Name/E-Mail) und `warteliste.php`
+  (Termin/Name/E-Mail) markieren das konkret betroffene Feld rot
+  (`.input-error`) und zeigen die Fehlermeldung direkt darunter
+  (`.field-error`) - zusaetzlich zur bestehenden Liste, nicht als Ersatz.
+  `field_error_class()`/`field_error_html()` (`_site_header.php`, ueber
+  `$fieldErrors[<Feldname>] = <Meldung>` befuellt) sind dafuer die
+  gemeinsame Stelle fuer beide Formulare. Bereits eingegebene Werte bleiben
+  nach einem fehlgeschlagenen Submit erhalten (vorher musste man in
+  `buchen.php` Schritt 2 nach einem Fehler alle drei Felder neu ausfuellen).
+- **Stepper auf kleinen Screens**: Der bereits vorhandene Schritt-Indikator
+  (`stepper_html()` in `buchen.php`) brach unter ~600px unschoen in
+  mehrere Zeilen um. Unter dieser Breite werden die Schritt-Beschriftungen
+  ausgeblendet (nur noch Kreise + Verbindungslinien in einer Zeile) und
+  stattdessen ein kompakter Text "Schritt X von 5 - <Label>"
+  (`.step-current-label`) darunter angezeigt.
+- **Mobiles Navigationsmenue reparatur**: Das eingeklappte Menue
+  (`#site-nav` unter ~760px) liess bisher trotz `max-height: 0` einen
+  sichtbaren, 24px hohen dunklen Balken stehen - eine Box mit
+  `box-sizing: border-box` kann nie kleiner als ihr eigenes Padding
+  werden, das Padding gehoerte deshalb nur in den `.open`-Zustand, nicht
+  in die Basisregel.
+- **Einheitliche Formularfelder**: `input[type=date]`, `input[type=number]`,
+  `input[type=tel]`, `input[type=password]` und `<select>` hatten bisher
+  gar keine eigene Gestaltung (nur `text`/`email`/`textarea` waren erfasst)
+  und sahen dadurch je nach Browser uneinheitlich/nicht zur Seite passend
+  aus - jetzt alle in derselben Regel. Dazu ein durchgaengiger, gut
+  sichtbarer `:focus-visible`-Rahmen fuer Felder/Buttons/Links, der vorher
+  auf der oeffentlichen Seite komplett fehlte (nur der browsereigene,
+  je nach Browser unterschiedliche Fokus-Rahmen).
+- **`.button`-Klasse global statt nur im Hero-Bereich**: war bisher als
+  `.hero .button` an den grossen Startseiten-Knopf gebunden - ausserhalb
+  des Hero (z.B. "Zur Startseite" auf `warteliste.php`, "Jetzt buchen" auf
+  `konto.php` bei leerer Buchungsliste) erschien der Knopf dadurch komplett
+  unformatiert als nackter Link. Die Basis-Optik ist jetzt eine
+  eigenstaendige `.button`-Regel, die Puls-Animation des grossen
+  Hero-CTAs bleibt bewusst weiterhin nur `.hero .button` vorbehalten.
+- **Eigene 404-Seite** (`404.php`, ueber `ErrorDocument 404 /404` in
+  `.htaccess`) statt der unmarkierten Apache-Standardfehlerseite - mit
+  Links zur Startseite, zur Buchung und zu den FAQ.
+- **`<meta name="description">`/Open-Graph-Tags**: `_site_header.php`
+  rendert sie aus optionalem `$pageDescription` (mit generischem Fallback,
+  falls eine Seite keinen eigenen setzt) - vorher komplett gefehlt.
+  Seiten mit persoenlichem/zugangsbeschraenktem Inhalt (`konto.php`,
+  `galerie.php`) setzen zusaetzlich `$pageNoindex = true` fuer
+  `<meta name="robots" content="noindex, nofollow">`, damit sie nicht in
+  Suchmaschinen landen.
+- **Vertrauenssignale auf der Startseite**: Die bereits vorhandene, aber
+  bis dahin ungenutzte `.trust-bar`-Komponente (abgerundete Pille) zeigt
+  jetzt tatsaechlich "Keine Zahlungsdaten fuer die Reservierung noetig /
+  Sichere Zahlung ueber Stripe / Made in Deutschland" unter dem
+  Haupt-Call-to-Action, statt nur als kleiner grauer Text.
+
 ## Warteliste
 Fuer bereits ausgebuchte Termine gibt es unter `/warteliste` eine
 oeffentliche Warteliste: Interessenten tragen Wunschtermin, Name, E-Mail
