@@ -30,6 +30,18 @@ RewriteRule ^ / [R=301,L]
 # ihre saubere Form ohne Endung umgeleitet - alte Links/Lesezeichen
 # funktionieren dadurch weiterhin, die Adresszeile zeigt aber ab jetzt
 # immer die gewuenschte Form ganz ohne ".php".
+#
+# Nur fuer GET/HEAD, NIE fuer POST: ein Formular, das auf seiner sauberen
+# URL angezeigt wird (z.B. /admin/login), hat ein relatives
+# action="login.php" - das loest der Browser gegen genau diese .php-Datei
+# auf. Ein 301 auf einen POST wird von Browsern traditionell in ein GET
+# ohne Formulardaten umgewandelt - das Admin-Login (und jedes andere
+# Formular mit relativem .php-Ziel) schlug dadurch beim Absenden
+# stillschweigend fehl: man landete zurueck auf dem leeren Formular, ohne
+# dass die eingegebenen Daten den Server je erreicht haetten. POST-
+# Requests an eine bestehende .php-Datei werden deshalb ganz normal direkt
+# ausgeliefert, ohne Umleitung.
+RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$
 RewriteCond %{REQUEST_URI} !^/(api|frame|gallery_photo|upload_photo|stripe_webhook|booking_availability|layout_preview)\.php$
 RewriteCond %{REQUEST_URI} ^/(.+)\.php$
 RewriteRule ^ /%1 [R=301,L]

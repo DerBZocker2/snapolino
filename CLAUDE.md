@@ -214,7 +214,18 @@ für Deployment). Docroot ist `backend/public`, alles andere
 fuer den Docroot, siehe `backend/deploy/apache-snapolino.de.conf`) loest `/faq`, `/buchen`, `/admin/bookings` usw. intern auf die
 passende `<name>.php`-Datei auf (Adresszeile bleibt dabei unveraendert) und
 leitet umgekehrt einen direkten Aufruf einer `.php`-URL per 301 auf ihre
-saubere Form um - alte Lesezeichen/Links bleiben dadurch gueltig. Technische
+saubere Form um - alte Lesezeichen/Links bleiben dadurch gueltig, **aber
+nur fuer GET/HEAD, nie fuer POST** (`RewriteCond %{REQUEST_METHOD}
+^(GET|HEAD)$`): Formulare mit relativem `action="xxx.php"` werden beim
+Anzeigen der sauberen URL (z.B. `/admin/login`) gegen genau diese
+`.php`-Datei aufgeloest - ein 301 auf einen POST wandeln Browser
+traditionell in ein GET ohne Formulardaten um, das Admin-Login (und jedes
+andere Formular mit relativem `.php`-Ziel) schlug dadurch beim Absenden
+**lautlos fehl**: man landete zurueck auf dem leeren Formular, ohne dass
+Benutzername/Passwort den Server je erreicht haetten - sah fuer den Admin
+wie falsche Zugangsdaten aus, war aber der Redirect. POST-Requests an eine
+bestehende `.php`-Datei werden deshalb ganz normal direkt ausgeliefert,
+ohne jede Umleitung. Technische
 Endpunkte, zu denen nie ein Mensch per Klick navigiert, sondern nur der
 Python-Box-Client (`api.php`, `frame.php`), JS-Fetch-Aufrufe
 (`gallery_photo.php`, `upload_photo.php`, `booking_availability.php`,
