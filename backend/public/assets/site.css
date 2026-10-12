@@ -1032,7 +1032,7 @@ button:hover { background: var(--accent-dark); }
 }
 
 .sticker-cat-tab.active {
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background: var(--dark);
     color: #fff;
     border-color: transparent;
 }
@@ -1077,7 +1077,7 @@ button:hover { background: var(--accent-dark); }
 .designer-draw-controls button { padding: 6px 10px; font-size: 12px; }
 
 #designer-draw-toggle.active {
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background: var(--dark);
     color: #fff;
 }
 

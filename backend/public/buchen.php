@@ -1167,10 +1167,6 @@ require __DIR__ . '/_site_header.php';
                         }
                     }
 
-                    targetCtx.strokeStyle = accent;
-                    targetCtx.lineWidth = 3 * scale;
-                    targetCtx.strokeRect(10 * scale, 10 * scale, w - 20 * scale, h - 20 * scale);
-
                     targetCtx.textAlign = 'center';
                     targetCtx.textBaseline = 'middle';
                     elements.forEach(function (el) {

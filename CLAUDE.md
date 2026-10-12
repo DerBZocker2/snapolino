@@ -1012,6 +1012,18 @@ ersetzen.
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
 - Keine Umlaute in Code-Kommentaren (Encoding-Probleme bei PyInstaller)
 - Alles Konfigurierbare gehört in `config.py` oder die Cloud, nicht in den Code
+- **Nie von sich aus die Akzentfarbe `--accent`/`#ff6f59` (Orange) in
+  `site.css` fuer neu hinzugefuegte Elemente verwenden**, auch nicht als
+  Teil eines Farbverlaufs mit `--accent2` - z.B. fuer einen "aktiv"-Zustand
+  eines Buttons/Tabs. Stattdessen neutral bleiben (z.B. `var(--dark)` fuer
+  einen dunklen hervorgehobenen Zustand). Betrifft nur unaufgefordert
+  selbst gewaehlte Gestaltung - wenn der Kunde selbst eine Farbe waehlt
+  (z.B. "Akzentfarbe" im Online-Designer, `#designer-accent`), bleibt das
+  natuerlich unberuehrt. Ebenso keine zusaetzlichen Begrenzungslinien/
+  Rahmen um Elemente einfuegen, die nicht ausdruecklich gewuenscht wurden -
+  der Online-Designer zeichnet deshalb z.B. keinen Rahmen mehr um die
+  gesamte Design-Flaeche (frueher ein 3px dicker `accent`-farbener
+  `strokeRect()` um das ganze Canvas).
 
 ## Windows-Setup (Autostart/Kiosk)
 `deploy/windows-kiosk-setup.ps1` (siehe `deploy/KIOSK_SETUP.md`) richtet
