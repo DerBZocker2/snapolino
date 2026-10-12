@@ -1002,9 +1002,6 @@ button:hover { background: var(--accent-dark); }
 .designer-elements-actions button { padding: 6px 10px; font-size: 12px; }
 
 .designer-sticker-picker {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 4px;
     background: #f8f5ff;
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -1012,7 +1009,43 @@ button:hover { background: var(--accent-dark); }
     margin-bottom: 10px;
 }
 
-.designer-sticker-picker button {
+/* Eigene, kleinere Variante der Kategorie-Tabs (siehe .category-tabs/.cat-tab
+   bei der Design-Galerie/FAQ) statt derselben Klassen wiederzuverwenden -
+   die riesige Sticker-Bibliothek (viele hundert Emoji, siehe STICKER_
+   CATEGORIES im Script unten) braucht eine eigene Kategorie-Navigation,
+   ohne versehentlich mit der Design-Kategorie-Filterung zu kollidieren. */
+.sticker-cat-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.sticker-cat-tab {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.sticker-cat-tab.active {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #fff;
+    border-color: transparent;
+}
+
+.designer-sticker-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.designer-sticker-grid button {
     background: transparent;
     border: none;
     box-shadow: none;
@@ -1022,7 +1055,31 @@ button:hover { background: var(--accent-dark); }
     cursor: pointer;
     border-radius: 6px;
 }
-.designer-sticker-picker button:hover { background: #efe8fb; }
+.designer-sticker-grid button:hover { background: #efe8fb; }
+
+.designer-element-thumb {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.designer-draw-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+.designer-draw-controls label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.designer-draw-controls input[type=range] { width: 70px; }
+.designer-draw-controls button { padding: 6px 10px; font-size: 12px; }
+
+#designer-draw-toggle.active {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #fff;
+}
 
 .designer-elements-list {
     display: flex;

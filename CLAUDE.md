@@ -429,11 +429,39 @@ stattdessen als **Extra** angelegt (siehe "Extras" oben/unten). Die Spalte
 `surcharge_cents` existiert in der DB weiterhin (Pricing-Code behandelt sie
 generisch als "immer 0"), nur die Moeglichkeit sie zu setzen wurde entfernt.
 Online-Designer
-(Canvas-Editor für Farbe/Muster mit per Maus verschieb- und am
-Eck-Ziehpunkt größenveränderbaren Fotoflächen, dazu beliebig viele frei
-platzierbare Text- und Sticker/Emoji-Elemente - je Element eigene
-Größe, Text-Elemente zusätzlich eigene Farbe -, auch um eine Vorlage per
-"Anpassen" umzugestalten) oder
+(Canvas-Editor für Farbe/Muster, dazu beliebig viele frei platzierbare
+Text-, Sticker- und Bild-Elemente sowie Freihand-Striche mit dem Stift -
+alles per Maus im Bild platzier-/verschiebbar; auch um eine Vorlage per
+"Anpassen" umzugestalten) in `buchen.php` Schritt 3 bietet:
+- **Fotoflächen**: nicht mehr nur verschieb-/größenveränderbar, sondern
+  auch frei hinzufügbar/entfernbar ("+ Fotofläche", Liste mit
+  Entfernen-Knopf je Fläche in `designer-slots-list`, serverseitig
+  unbegrenzt - `validate_custom_slots()` in `functions.php` kennt keine
+  feste Anzahl) - die Anzahl der Fotos richtet sich direkt danach, statt
+  nur ueber die Wahl eines vorgefertigten Basis-Layouts (1/2/3/4 Bilder)
+  gesteuert werden zu koennen.
+- **Sticker**: grosse, nach Themen kategorisierte Bibliothek
+  (`STICKER_CATEGORIES`, ~200 Unicode-Emoji in sieben Kategorien mit
+  eigener Tab-Navigation `.sticker-cat-tab` statt der Design-Kategorie-
+  Tabs) statt vorher 23 einzelner Emoji in einer flachen Liste. Bewusst
+  Unicode-Emoji statt externer Bild-Icons - kein Asset-/Lizenz-Thema,
+  skaliert verlustfrei wie Text und funktioniert identisch in Vorschau-
+  und Export-Canvas.
+- **Eigene Bilder**: "+ Bild" liest eine Datei per `FileReader` ein (max.
+  8 MB, nur clientseitig geprueft) und fuegt sie als frei verschieb-/
+  skalierbares Element hinzu (Ecken-Ziehpunkt haelt dabei bewusst das
+  Seitenverhaeltnis, damit ein Foto nicht gestaucht wirkt). Braucht keinen
+  eigenen Server-Endpunkt, da alle Elemente (Text/Sticker/Bild/Striche)
+  beim Speichern gemeinsam in das eine finale PNG gerastert werden, das
+  wie bisher per `custom_design_data` gepostet wird.
+- **Stift**: Freihand-Zeichnen per Maus (`strokes[]`, Punktlisten statt in
+  die Vorschau gebrannt, damit sie bei Export in voller Aufloesung scharf
+  bleiben), Farbe/Staerke waehlbar, letzten Strich oder alle loeschen.
+  Solange der Zeichenmodus aktiv ist, sind Verschieben/Groesse-Aendern von
+  Elementen/Fotoflaechen bewusst deaktiviert (ein Mausklick wuerde sonst
+  nicht eindeutig sein) - eigener Umschalt-Knopf dafuer.
+
+oder
 eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
 Flächen automatisch per Connected-Component-Analyse). Beide Wege legen
 bei einer Aenderung ein `is_custom=1`-Layout an, das nur dieser einen
@@ -1034,11 +1062,8 @@ kann sie nicht abfangen).
   Fotos auf der Box selbst (`ausgabe/`-Ordner, USB-Kopien) sowie ein
   umfassendes AVV/DSGVO-Konzept fürs Gesamtsystem fehlen noch
 - Mehrere Boxen im Buchungssystem (aktuell fest auf eine Box ausgelegt)
-- Online-Designer bietet Farbe/Muster, verschieb- und
-  größenveränderbare Fotoflächen sowie beliebig viele frei platzierbare
-  Text- und Sticker/Emoji-Elemente (Position per Maus, Größe je Element
-  per Schieberegler, bei Text zusätzlich Farbe) - kein Logo-/Bild-Upload
-  als Element, keine Rotation der Elemente
+- Online-Designer: Elemente (Text/Sticker/Bild) lassen sich nicht rotieren,
+  nur verschieben/skalieren
 - Stripe-Webhook-Verarbeitung ist synchron (Mailversand laeuft direkt in
   der Webhook-Antwort) - bei SMTP-Ausfaellen haengt das die
   Stripe-Antwortzeit hoch, ohne die Bestaetigung selbst zu verhindern

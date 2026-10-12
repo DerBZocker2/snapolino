@@ -650,7 +650,7 @@ require __DIR__ . '/_site_header.php';
 
                 <!-- Panel 2: Online-Designer -->
                 <div class="design-panel" id="panel-designer" <?= $startPanel === 'designer' ? '' : 'hidden' ?>>
-                    <p class="muted">Wähle Farben und ein Muster, füge beliebig viele Texte und Sticker/Emojis hinzu und ziehe sie direkt im Bild an die gewünschte Stelle. Die Fotoflächen (gestrichelt) lassen sich ebenso per Maus verschieben und in der Größe anpassen.</p>
+                    <p class="muted">Wähle Farben und ein Muster, füge Texte, Sticker, eigene Bilder hinzu oder zeichne frei mit dem Stift - alles direkt im Bild per Maus platzierbar. Auch die Anzahl der Fotoflächen (gestrichelt) bestimmst du selbst: hinzufügen, verschieben, in der Größe anpassen oder wieder entfernen.</p>
                     <div class="designer-layout">
                         <canvas id="designer-canvas" width="600" height="400"></canvas>
                         <div class="designer-controls">
@@ -675,18 +675,52 @@ require __DIR__ . '/_site_header.php';
                                     <option value="stripes">Streifen</option>
                                 </select>
                             </label>
+
                             <div class="designer-elements">
                                 <div class="designer-elements-head">
-                                    <span>Text &amp; Sticker</span>
+                                    <span>Fotoflächen</span>
+                                    <div class="designer-elements-actions">
+                                        <button type="button" id="designer-add-slot" class="button-secondary">+ Fotofläche</button>
+                                        <button type="button" id="designer-reset" class="button-secondary">Zurücksetzen</button>
+                                    </div>
+                                </div>
+                                <p class="muted" style="font-size:12px;margin:0 0 8px;">Wie viele Fotos gemacht werden, richtet sich direkt nach der Anzahl der Fotoflächen hier.</p>
+                                <div id="designer-slots-list" class="designer-elements-list"></div>
+                            </div>
+
+                            <div class="designer-elements">
+                                <div class="designer-elements-head">
+                                    <span>Text, Sticker &amp; Bilder</span>
                                     <div class="designer-elements-actions">
                                         <button type="button" id="designer-add-text" class="button-secondary">+ Text</button>
                                         <button type="button" id="designer-add-sticker" class="button-secondary">+ Sticker</button>
+                                        <button type="button" id="designer-add-image" class="button-secondary">+ Bild</button>
+                                        <input type="file" id="designer-image-input" accept="image/*" hidden>
                                     </div>
                                 </div>
-                                <div id="designer-sticker-picker" class="designer-sticker-picker" hidden></div>
+                                <div id="designer-sticker-picker" class="designer-sticker-picker" hidden>
+                                    <div id="designer-sticker-cats" class="category-tabs"></div>
+                                    <div id="designer-sticker-grid" class="designer-sticker-grid"></div>
+                                </div>
                                 <div id="designer-elements-list" class="designer-elements-list"></div>
                             </div>
-                            <button type="button" id="designer-reset" class="button-secondary">Fotoflächen zurücksetzen</button>
+
+                            <div class="designer-elements">
+                                <div class="designer-elements-head">
+                                    <span>Stift</span>
+                                    <div class="designer-elements-actions">
+                                        <button type="button" id="designer-draw-toggle" class="button-secondary">🖊️ Zeichnen</button>
+                                    </div>
+                                </div>
+                                <div id="designer-draw-controls" class="designer-draw-controls" hidden>
+                                    <label>Farbe <input type="color" id="designer-pen-color" value="#241b3a"></label>
+                                    <label>Stärke <input type="range" id="designer-pen-width" min="2" max="30" value="8"></label>
+                                    <button type="button" id="designer-undo-stroke" class="button-secondary">Letzten Strich löschen</button>
+                                    <button type="button" id="designer-clear-strokes" class="button-secondary">Alle löschen</button>
+                                </div>
+                                <p id="designer-draw-hint" class="muted" style="font-size:12px;margin:8px 0 0;" hidden>Zeichenmodus aktiv - mit der Maus direkt ins Bild malen. Zum Verschieben von Elementen/Fotoflächen zuerst wieder ausschalten.</p>
+                            </div>
+
                             <button type="button" id="designer-save">Design übernehmen</button>
                         </div>
                     </div>
@@ -775,7 +809,65 @@ require __DIR__ . '/_site_header.php';
                 var patternSelect = document.getElementById('designer-pattern');
                 var elementsList = document.getElementById('designer-elements-list');
                 var stickerPicker = document.getElementById('designer-sticker-picker');
-                var STICKERS = ['🎉', '🎊', '🎈', '🥳', '🍾', '🥂', '❤️', '💍', '👰', '🤵', '🎂', '🌟', '✨', '🎶', '🕺', '💃', '📸', '😄', '👍', '🌸', '☀️', '❄️', '🎄'];
+                var stickerCatsEl = document.getElementById('designer-sticker-cats');
+                var stickerGridEl = document.getElementById('designer-sticker-grid');
+                var slotsList = document.getElementById('designer-slots-list');
+
+                // Grosse, nach Themen sortierte Sticker-Bibliothek (mehrere hundert
+                // statt vorher 23 einzelne Emoji) - bewusst als Unicode-Emoji statt
+                // externer Bild-Icons: kein zusaetzlicher Asset-Download/Lizenz-
+                // Thema, skaliert verlustfrei mit elementFont() wie Text, und
+                // funktioniert identisch in Vorschau- wie Export-Canvas.
+                var STICKER_CATEGORIES = {
+                    'Feier': ['🎉','🎊','🎈','🥳','🍾','🥂','🍻','🎆','🎇','🧨','🪅','🎀','🎁','🎵','🎶','🎤','🎧','🪩','📣','🥁','🎺','🎷','🪗','🎸'],
+                    'Liebe': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💕','💞','💓','💗','💖','💘','💝','💍','💐','🌹','😍','🥰','😘','💑','👰','🤵','💒','🕊️'],
+                    'Gesichter': ['😀','😄','😁','😆','😊','😇','🙂','😉','😋','😎','🥳','🤩','😜','🤪','🥹','😭','🥺','😱','🤔','🙄','😴','🤗','🤭','😏','🫶','👏','🙌','🤝','👍','👎','✌️','🤞','🤘','👋'],
+                    'Tiere': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🦄','🐝','🦋','🐌','🐢','🐬','🐳','🦈','🐙','🐴','🐾'],
+                    'Essen & Trinken': ['🍕','🍔','🍟','🌭','🥪','🌮','🌯','🥗','🍣','🍜','🍝','🍗','🍖','🥩','🍰','🎂','🧁','🍪','🍩','🍫','🍬','🍭','🍿','🥤','☕','🍵','🍷','🍸','🍹','🍺','🍾'],
+                    'Natur & Wetter': ['☀️','🌤️','⛅','🌧️','⛈️','❄️','🌨️','🌈','🌙','⭐','✨','🌟','💫','🔥','💧','🌊','🍀','🌸','🌺','🌻','🌼','🌷','🌹','🍂','🍁','🌳','🌵','🌴'],
+                    'Symbole & Objekte': ['💯','✅','❌','❗','❓','💬','💭','💡','⭐','🌟','✨','💥','💫','🔔','🎯','🏆','🥇','🎖️','📸','📷','🎥','🎬','📅','📍','🔑','💎','⏰','🧿'],
+                };
+
+                function buildStickerPicker() {
+                    var cats = Object.keys(STICKER_CATEGORIES);
+                    function showCategory(cat) {
+                        stickerGridEl.innerHTML = '';
+                        STICKER_CATEGORIES[cat].forEach(function (emoji) {
+                            var btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.textContent = emoji;
+                            btn.title = emoji;
+                            btn.addEventListener('click', function () {
+                                var layout = currentLayout();
+                                elements.push({
+                                    type: 'sticker',
+                                    content: emoji,
+                                    size: 120,
+                                    x: layout.canvas_width / 2,
+                                    y: layout.canvas_height / 2,
+                                });
+                                stickerPicker.hidden = true;
+                                renderElementsList();
+                                refreshPreview();
+                            });
+                            stickerGridEl.appendChild(btn);
+                        });
+                    }
+                    cats.forEach(function (cat, idx) {
+                        var tab = document.createElement('button');
+                        tab.type = 'button';
+                        tab.className = 'sticker-cat-tab' + (idx === 0 ? ' active' : '');
+                        tab.textContent = cat;
+                        tab.addEventListener('click', function () {
+                            stickerCatsEl.querySelectorAll('.sticker-cat-tab').forEach(function (t) { t.classList.remove('active'); });
+                            tab.classList.add('active');
+                            showCategory(cat);
+                        });
+                        stickerCatsEl.appendChild(tab);
+                    });
+                    showCategory(cats[0]);
+                }
+                buildStickerPicker();
 
                 function layoutById(id) {
                     for (var i = 0; i < layouts.length; i++) {
@@ -792,6 +884,11 @@ require __DIR__ . '/_site_header.php';
                 // teilen sich dieselbe Leinwandgroesse, siehe schema.sql) - nur ein
                 // explizites Entfernen in der Liste loescht ein Element.
                 var elements = [];
+                // Freihand-Striche des Stift-Werkzeugs, siehe drawDesign() und die
+                // Maus-Handler weiter unten (drawMode).
+                var strokes = [];
+                var drawMode = false;
+                var currentStroke = null;
                 var HANDLE_RADIUS = 8;
                 var MIN_SLOT_SIZE = 60;
                 var ELEMENT_HANDLE_RADIUS = 9;
@@ -800,6 +897,7 @@ require __DIR__ . '/_site_header.php';
                     customSlots = layout.slots.map(function (s) {
                         return { x: s.x, y: s.y, width: s.width, height: s.height };
                     });
+                    renderSlotsList();
                 }
 
                 function elementFont(el, scale) {
@@ -810,11 +908,26 @@ require __DIR__ . '/_site_header.php';
                 }
 
                 function elementBounds(el, scale) {
+                    var cx = el.x * scale, cy = el.y * scale;
+                    if (el.type === 'image') {
+                        var iw = el.width * scale, ih = el.height * scale;
+                        return { cx: cx, cy: cy, left: cx - iw / 2, right: cx + iw / 2, top: cy - ih / 2, bottom: cy + ih / 2 };
+                    }
                     ctx.font = elementFont(el, scale);
                     var w = ctx.measureText(el.content || '').width;
                     var h = el.size * scale * 1.2;
-                    var cx = el.x * scale, cy = el.y * scale;
                     return { cx: cx, cy: cy, left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 };
+                }
+
+                function imageHandleAt(p, scale) {
+                    for (var i = elements.length - 1; i >= 0; i--) {
+                        if (elements[i].type !== 'image') { continue; }
+                        var b = elementBounds(elements[i], scale);
+                        if (Math.hypot(p.x - b.right, p.y - b.bottom) <= ELEMENT_HANDLE_RADIUS + 4) {
+                            return i;
+                        }
+                    }
+                    return -1;
                 }
 
                 function elementAtPoint(p, scale) {
@@ -852,6 +965,12 @@ require __DIR__ . '/_site_header.php';
                                 refreshPreview();
                             });
                             row.appendChild(colorField);
+                        } else if (el.type === 'image') {
+                            var thumb = document.createElement('img');
+                            thumb.className = 'designer-element-thumb';
+                            thumb.src = el.img.src;
+                            thumb.alt = '';
+                            row.appendChild(thumb);
                         } else {
                             var emojiSpan = document.createElement('span');
                             emojiSpan.className = 'designer-element-emoji';
@@ -859,17 +978,37 @@ require __DIR__ . '/_site_header.php';
                             row.appendChild(emojiSpan);
                         }
 
-                        var sizeField = document.createElement('input');
-                        sizeField.type = 'range';
-                        sizeField.min = el.type === 'sticker' ? 40 : 16;
-                        sizeField.max = el.type === 'sticker' ? 300 : 160;
-                        sizeField.value = el.size;
-                        sizeField.title = 'Größe';
-                        sizeField.addEventListener('input', function () {
-                            el.size = parseInt(sizeField.value, 10);
-                            refreshPreview();
-                        });
-                        row.appendChild(sizeField);
+                        if (el.type === 'image') {
+                            // Bilder haben eigenstaendige Breite/Hoehe statt einer
+                            // einzelnen "size" - der Schieberegler skaliert beide
+                            // Seiten gemeinsam im urspruenglichen Seitenverhaeltnis
+                            // (dasselbe Ziehen funktioniert zusaetzlich direkt im
+                            // Canvas am Eckpunkt, siehe imageHandleAt()).
+                            var imgSizeField = document.createElement('input');
+                            imgSizeField.type = 'range';
+                            imgSizeField.min = 30;
+                            imgSizeField.max = Math.max(el.height, 600);
+                            imgSizeField.value = el.height;
+                            imgSizeField.title = 'Größe';
+                            imgSizeField.addEventListener('input', function () {
+                                el.height = parseInt(imgSizeField.value, 10);
+                                el.width = el.height * el.aspect;
+                                refreshPreview();
+                            });
+                            row.appendChild(imgSizeField);
+                        } else {
+                            var sizeField = document.createElement('input');
+                            sizeField.type = 'range';
+                            sizeField.min = el.type === 'sticker' ? 40 : 16;
+                            sizeField.max = el.type === 'sticker' ? 300 : 160;
+                            sizeField.value = el.size;
+                            sizeField.title = 'Größe';
+                            sizeField.addEventListener('input', function () {
+                                el.size = parseInt(sizeField.value, 10);
+                                refreshPreview();
+                            });
+                            row.appendChild(sizeField);
+                        }
 
                         var removeBtn = document.createElement('button');
                         removeBtn.type = 'button';
@@ -886,6 +1025,60 @@ require __DIR__ . '/_site_header.php';
                         elementsList.appendChild(row);
                     });
                 }
+
+                var MIN_PHOTO_SLOTS = 1;
+                var MAX_PHOTO_SLOTS = 8;
+                function renderSlotsList() {
+                    slotsList.innerHTML = '';
+                    customSlots.forEach(function (s, idx) {
+                        var row = document.createElement('div');
+                        row.className = 'designer-element-row';
+
+                        var label = document.createElement('span');
+                        label.textContent = 'Fotofläche ' + (idx + 1);
+                        label.style.flex = '1';
+                        row.appendChild(label);
+
+                        var removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'designer-element-remove';
+                        removeBtn.textContent = '×';
+                        removeBtn.title = 'Fotofläche entfernen';
+                        removeBtn.disabled = customSlots.length <= MIN_PHOTO_SLOTS;
+                        removeBtn.addEventListener('click', function () {
+                            if (customSlots.length <= MIN_PHOTO_SLOTS) { return; }
+                            customSlots.splice(idx, 1);
+                            renderSlotsList();
+                            refreshPreview();
+                        });
+                        row.appendChild(removeBtn);
+
+                        slotsList.appendChild(row);
+                    });
+                }
+
+                document.getElementById('designer-add-slot').addEventListener('click', function () {
+                    if (customSlots.length >= MAX_PHOTO_SLOTS) {
+                        alert('Maximal ' + MAX_PHOTO_SLOTS + ' Fotoflächen möglich.');
+                        return;
+                    }
+                    var layout = currentLayout();
+                    // Neue Flaeche in sinnvoller Groesse, leicht versetzt platziert
+                    // (statt exakt deckungsgleich mit einer vorhandenen), damit sie
+                    // sofort sichtbar und einzeln anfassbar ist - der Kunde zieht
+                    // sie danach ohnehin per Maus an die gewuenschte Stelle.
+                    var w = Math.max(MIN_SLOT_SIZE, Math.round(layout.canvas_width * 0.3));
+                    var h = Math.max(MIN_SLOT_SIZE, Math.round(layout.canvas_height * 0.3));
+                    var offset = customSlots.length * 18;
+                    customSlots.push({
+                        x: Math.min(layout.canvas_width - w, 20 + offset),
+                        y: Math.min(layout.canvas_height - h, 20 + offset),
+                        width: w,
+                        height: h,
+                    });
+                    renderSlotsList();
+                    refreshPreview();
+                });
 
                 document.getElementById('designer-add-text').addEventListener('click', function () {
                     var layout = currentLayout();
@@ -905,24 +1098,45 @@ require __DIR__ . '/_site_header.php';
                     stickerPicker.hidden = !stickerPicker.hidden;
                 });
 
-                STICKERS.forEach(function (emoji) {
-                    var btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.textContent = emoji;
-                    btn.addEventListener('click', function () {
-                        var layout = currentLayout();
-                        elements.push({
-                            type: 'sticker',
-                            content: emoji,
-                            size: 120,
-                            x: layout.canvas_width / 2,
-                            y: layout.canvas_height / 2,
-                        });
-                        stickerPicker.hidden = true;
-                        renderElementsList();
-                        refreshPreview();
-                    });
-                    stickerPicker.appendChild(btn);
+                // Eigenes Bild als frei platzierbares/skalierbares Element - wird
+                // beim Speichern zusammen mit allem anderen in das finale PNG
+                // gerastert (siehe drawDesign()/"Design uebernehmen"), braucht
+                // dafuer keinen eigenen Server-Endpunkt.
+                var MAX_IMAGE_ELEMENT_BYTES = 8 * 1024 * 1024;
+                var imageInput = document.getElementById('designer-image-input');
+                document.getElementById('designer-add-image').addEventListener('click', function () {
+                    imageInput.click();
+                });
+                imageInput.addEventListener('change', function () {
+                    var file = imageInput.files && imageInput.files[0];
+                    imageInput.value = '';
+                    if (!file) { return; }
+                    if (file.size > MAX_IMAGE_ELEMENT_BYTES) {
+                        alert('Das Bild ist zu groß (maximal 8 MB).');
+                        return;
+                    }
+                    var reader = new FileReader();
+                    reader.onload = function () {
+                        var img = new Image();
+                        img.onload = function () {
+                            var layout = currentLayout();
+                            var maxDim = Math.min(layout.canvas_width, layout.canvas_height) * 0.5;
+                            var ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+                            elements.push({
+                                type: 'image',
+                                img: img,
+                                x: layout.canvas_width / 2,
+                                y: layout.canvas_height / 2,
+                                width: img.width * ratio,
+                                height: img.height * ratio,
+                                aspect: img.width / img.height,
+                            });
+                            renderElementsList();
+                            refreshPreview();
+                        };
+                        img.src = reader.result;
+                    };
+                    reader.readAsDataURL(file);
                 });
 
                 function drawDesign(targetCtx, w, h, layout, slots, scale, showOutlines) {
@@ -960,10 +1174,40 @@ require __DIR__ . '/_site_header.php';
                     targetCtx.textAlign = 'center';
                     targetCtx.textBaseline = 'middle';
                     elements.forEach(function (el) {
+                        if (el.type === 'image') {
+                            targetCtx.drawImage(
+                                el.img,
+                                el.x * scale - (el.width * scale) / 2,
+                                el.y * scale - (el.height * scale) / 2,
+                                el.width * scale, el.height * scale
+                            );
+                            return;
+                        }
                         if (!el.content) { return; }
                         targetCtx.fillStyle = el.type === 'sticker' ? '#000000' : el.color;
                         targetCtx.font = elementFont(el, scale);
                         targetCtx.fillText(el.content, el.x * scale, el.y * scale);
+                    });
+
+                    // Freihand-Striche (Stift-Werkzeug) - als Punktlisten statt in
+                    // die Vorschau "eingebrannt" gespeichert, damit sie beim
+                    // finalen Export in voller Aufloesung (scale=1, groessere
+                    // Leinwand als die 600x400-Vorschau) genauso scharf bleiben
+                    // wie Text/Sticker/Bilder.
+                    strokes.forEach(function (stroke) {
+                        if (stroke.points.length < 2) { return; }
+                        targetCtx.save();
+                        targetCtx.strokeStyle = stroke.color;
+                        targetCtx.lineWidth = Math.max(1, stroke.width * scale);
+                        targetCtx.lineCap = 'round';
+                        targetCtx.lineJoin = 'round';
+                        targetCtx.beginPath();
+                        targetCtx.moveTo(stroke.points[0].x * scale, stroke.points[0].y * scale);
+                        for (var pi = 1; pi < stroke.points.length; pi++) {
+                            targetCtx.lineTo(stroke.points[pi].x * scale, stroke.points[pi].y * scale);
+                        }
+                        targetCtx.stroke();
+                        targetCtx.restore();
                     });
 
                     // Foto-Slots ausschneiden (transparent), damit die Kamera-Bilder durchscheinen.
@@ -997,8 +1241,8 @@ require __DIR__ . '/_site_header.php';
                         });
                         targetCtx.restore();
 
-                        // Ziehpunkt an jedem Text-/Sticker-Element - frei im Bild
-                        // verschiebbar statt fest positioniert.
+                        // Ziehpunkt an jedem Text-/Sticker-/Bild-Element - frei im
+                        // Bild verschiebbar statt fest positioniert.
                         targetCtx.save();
                         targetCtx.fillStyle = '#17c3b2';
                         targetCtx.strokeStyle = '#fff';
@@ -1007,6 +1251,25 @@ require __DIR__ . '/_site_header.php';
                             var b = elementBounds(el, scale);
                             targetCtx.beginPath();
                             targetCtx.arc(b.cx, b.cy, ELEMENT_HANDLE_RADIUS, 0, Math.PI * 2);
+                            targetCtx.fill();
+                            targetCtx.stroke();
+                        });
+                        targetCtx.restore();
+
+                        // Zusaetzlicher Ziehpunkt unten rechts an Bild-Elementen zum
+                        // Skalieren (Breite/Hoehe im urspruenglichen Seiten-
+                        // verhaeltnis) - Text/Sticker haben dafuer den Schieberegler
+                        // in der Elementliste, ein Bild braucht wegen der freien
+                        // Seitenverhaeltnisse eine direkte Ecke zum Ziehen.
+                        targetCtx.save();
+                        targetCtx.fillStyle = '#6c5ce7';
+                        targetCtx.strokeStyle = '#fff';
+                        targetCtx.lineWidth = 2;
+                        elements.forEach(function (el) {
+                            if (el.type !== 'image') { return; }
+                            var b = elementBounds(el, scale);
+                            targetCtx.beginPath();
+                            targetCtx.arc(b.right, b.bottom, ELEMENT_HANDLE_RADIUS, 0, Math.PI * 2);
                             targetCtx.fill();
                             targetCtx.stroke();
                         });
@@ -1043,6 +1306,7 @@ require __DIR__ . '/_site_header.php';
                 var drag = null;
                 var resize = null;
                 var elementDrag = null;
+                var imageResize = null;
                 function canvasPoint(ev) {
                     var rect = canvas.getBoundingClientRect();
                     return {
@@ -1075,6 +1339,24 @@ require __DIR__ . '/_site_header.php';
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
 
+                    if (drawMode) {
+                        currentStroke = {
+                            color: penColorInput.value,
+                            width: parseInt(penWidthInput.value, 10) / scale,
+                            points: [{ x: p.x / scale, y: p.y / scale }],
+                        };
+                        strokes.push(currentStroke);
+                        refreshPreview();
+                        return;
+                    }
+
+                    var imgHandleIdx = imageHandleAt(p, scale);
+                    if (imgHandleIdx !== -1) {
+                        var ie = elements[imgHandleIdx];
+                        imageResize = { index: imgHandleIdx, startX: p.x, startY: p.y, origW: ie.width, origH: ie.height };
+                        return;
+                    }
+
                     var elIdx = elementAtPoint(p, scale);
                     if (elIdx !== -1) {
                         var el = elements[elIdx];
@@ -1099,6 +1381,28 @@ require __DIR__ . '/_site_header.php';
                     var layout = currentLayout();
                     var scale = canvas.width / layout.canvas_width;
                     var p = canvasPoint(ev);
+
+                    if (drawMode) {
+                        canvas.style.cursor = 'crosshair';
+                        if (currentStroke) {
+                            currentStroke.points.push({ x: p.x / scale, y: p.y / scale });
+                            refreshPreview();
+                        }
+                        return;
+                    }
+
+                    if (imageResize) {
+                        var ie2 = elements[imageResize.index];
+                        var dwi = (p.x - imageResize.startX) / scale;
+                        // Seitenverhaeltnis bleibt erhalten - Breitenaenderung bestimmt
+                        // die Hoehe mit, statt beide Seiten unabhaengig verzerrbar zu
+                        // machen (ein hochgeladenes Foto soll nicht gestaucht wirken).
+                        var newW = Math.max(20, imageResize.origW + dwi);
+                        ie2.width = newW;
+                        ie2.height = newW / ie2.aspect;
+                        refreshPreview();
+                        return;
+                    }
 
                     if (elementDrag) {
                         var el = elements[elementDrag.index];
@@ -1128,7 +1432,7 @@ require __DIR__ . '/_site_header.php';
                         return;
                     }
 
-                    if (slotAtHandle(p, scale) !== -1) {
+                    if (imageHandleAt(p, scale) !== -1 || slotAtHandle(p, scale) !== -1) {
                         canvas.style.cursor = 'nwse-resize';
                     } else if (elementAtPoint(p, scale) !== -1 || slotAtPoint(p, scale) !== -1) {
                         canvas.style.cursor = 'grab';
@@ -1136,7 +1440,31 @@ require __DIR__ . '/_site_header.php';
                         canvas.style.cursor = 'default';
                     }
                 });
-                document.addEventListener('mouseup', function () { drag = null; resize = null; elementDrag = null; });
+                document.addEventListener('mouseup', function () {
+                    drag = null; resize = null; elementDrag = null; imageResize = null; currentStroke = null;
+                });
+
+                // ---------- Stift (Freihand-Zeichnen) ----------
+                var drawToggleBtn = document.getElementById('designer-draw-toggle');
+                var drawControlsEl = document.getElementById('designer-draw-controls');
+                var drawHintEl = document.getElementById('designer-draw-hint');
+                var penColorInput = document.getElementById('designer-pen-color');
+                var penWidthInput = document.getElementById('designer-pen-width');
+                drawToggleBtn.addEventListener('click', function () {
+                    drawMode = !drawMode;
+                    drawToggleBtn.classList.toggle('active', drawMode);
+                    drawControlsEl.hidden = !drawMode;
+                    drawHintEl.hidden = !drawMode;
+                    canvas.style.cursor = drawMode ? 'crosshair' : 'default';
+                });
+                document.getElementById('designer-undo-stroke').addEventListener('click', function () {
+                    strokes.pop();
+                    refreshPreview();
+                });
+                document.getElementById('designer-clear-strokes').addEventListener('click', function () {
+                    strokes = [];
+                    refreshPreview();
+                });
 
                 document.querySelectorAll('[data-customize]').forEach(function (btn) {
                     btn.addEventListener('click', function (ev) {
