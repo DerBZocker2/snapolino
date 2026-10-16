@@ -72,16 +72,19 @@ $today = new DateTimeImmutable('today');
 ?>
 
 <section class="panel">
-    <div class="inline-form" style="margin-bottom:16px;">
-        <a href="bookings.php" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">
-            Alle (<?= array_sum($statusCounts) ?>)
-        </a>
-        <?php foreach (BOOKING_STATUSES as $status): ?>
-            <a href="bookings.php?status=<?= urlencode($status) ?>"
-               class="button-secondary <?= $statusFilter === $status ? 'active' : '' ?>">
-                <?= htmlspecialchars(booking_status_label($status), ENT_QUOTES) ?> (<?= $statusCounts[$status] ?>)
+    <div class="inline-form" style="margin-bottom:16px;justify-content:space-between;">
+        <div class="inline-form" style="margin-bottom:0;">
+            <a href="bookings.php" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">
+                Alle (<?= array_sum($statusCounts) ?>)
             </a>
-        <?php endforeach; ?>
+            <?php foreach (BOOKING_STATUSES as $status): ?>
+                <a href="bookings.php?status=<?= urlencode($status) ?>"
+                   class="button-secondary <?= $statusFilter === $status ? 'active' : '' ?>">
+                    <?= htmlspecialchars(booking_status_label($status), ENT_QUOTES) ?> (<?= $statusCounts[$status] ?>)
+                </a>
+            <?php endforeach; ?>
+        </div>
+        <a href="booking_new.php">+ Neue Buchung</a>
     </div>
 
     <div class="table-responsive">

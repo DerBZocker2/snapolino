@@ -277,6 +277,16 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 <?php if (isset($_GET['review_mail'])): ?>
     <p class="badge">Bewertungsanfrage verschickt</p>
 <?php endif; ?>
+<?php if (isset($_GET['neu_kostenlos'])): ?>
+    <p class="badge">Buchung angelegt und kostenfrei bestätigt</p>
+<?php endif; ?>
+<?php if (isset($_GET['neu_zahlungslink'])): ?>
+    <p class="badge">Buchung angelegt, Zahlungslink per Mail verschickt</p>
+<?php endif; ?>
+<?php if (isset($_GET['zahlungslink_fehler'])): ?>
+    <p class="error">Buchung wurde angelegt, der Zahlungslink konnte aber nicht erstellt werden (Stripe-Konfiguration
+        prüfen). Bitte Zahlungslink von Hand nachholen oder die Buchung stattdessen kostenfrei bestätigen.</p>
+<?php endif; ?>
 
 <section class="panel">
     <h2>

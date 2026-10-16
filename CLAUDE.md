@@ -330,6 +330,37 @@ inline aus `booking_min_lead_days()` gerendert), `buchen.php` Schritt 2
 prueft es serverseitig zusaetzlich nochmal (`booking_min_lead_date()` in
 `functions.php`), damit ein manuell abgeschicktes POST die Sperre nicht
 umgehen kann.
+
+**Buchung direkt im Panel anlegen** (`admin/booking_new.php`, Knopf
+"+ Neue Buchung" auf `admin/bookings.php`) - fuer telefonische/persoenliche
+Anfragen, unabhaengig vom oeffentlichen Buchungsassistenten und bewusst
+**ohne** dessen Mindestvorlauf (`booking_min_lead_days()`) - der Admin kennt
+den Kontext und soll hier nicht ausgebremst werden (liegt das Datum bereits
+auf einer anderen aktiven Buchung, wird das vor dem Anlegen nur als Hinweis
+angezeigt, nicht blockiert). Zweistufig wie die nachtraegliche Bearbeitung
+in `booking_detail.php`: erst Kontaktdaten/Eventdatum/Layouts/Extras/
+Gutscheincode eingeben, `calc_booking_pricing()` berechnet den Gesamtpreis
+fuer eine Zusammenfassung, und **erst dann** entscheidet der Admin per
+Knopf, wie die Buchung tatsaechlich angelegt wird:
+- **"Zahlungslink per Mail senden"**: Buchung wird mit Status `angefragt`
+  angelegt (wie eine oeffentliche Anfrage), dieselbe
+  `create_stripe_checkout_session()`-Mechanik wie im Buchungsassistenten
+  Schritt 5 erzeugt einen Checkout-Link, der per Mail
+  (`send_booking_payment_link_email()`) verschickt wird -
+  `stripe_webhook.php` bestaetigt die Buchung anhand derselben
+  `booking_id`-Metadata ganz normal, kein Sonderfall noetig. Schlaegt die
+  Stripe-Session fehl (z.B. fehlende Konfiguration), bleibt die Buchung
+  trotzdem bestehen (nur `angefragt`) - der Admin bekommt einen Hinweis
+  statt dass die ganze Eingabe verloren geht.
+- **"Kostenlos bestaetigen"**: ruft direkt `assign_box_and_confirm()` auf
+  (dieselbe Funktion, die sonst nach Zahlungseingang laeuft) - Buchung wird
+  sofort `bestaetigt` und (bei genau einer Box) automatisch zugeordnet,
+  `total_price_cents` wird dabei bewusst auf 0 gesetzt (kein Gutschein-/
+  Stammkunden-/Aktionsrabatt eingefroren) statt des eigentlich berechneten
+  Preises - die Buchung war ja tatsaechlich kostenlos, nicht nur rabattiert.
+  `send_admin_confirmed_booking_email()` informiert den Kunden (inkl.
+  Design-PIN), ohne faelschlich von einer Zahlung zu sprechen.
+
 Im Panel unter **Buchungen** ablehnen/stornieren. Eine Box zuordnen (und
 damit gleichzeitig bestätigen) passiert unter **Boxen** per Drag & Drop:
 Buchungskarte auf eine Box-Karte ziehen (`assign_box.php` ruft dieselbe

@@ -243,6 +243,108 @@ function send_booking_request_email(array $booking): bool
     }
 }
 
+// Verschickt die Bestaetigung fuer eine vom Admin direkt im Panel angelegte
+// Buchung, die er sofort und kostenfrei bestaetigt hat (admin/booking_new.php,
+// "Kostenlos bestaetigen") - die Buchung ist bereits "bestaetigt" und
+// (sofern genau eine Box existiert) einer Box zugeordnet, anders als bei
+// send_booking_confirmation_email() ist aber nie eine Zahlung eingegangen.
+function send_admin_confirmed_booking_email(array $booking): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+
+        $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Buchungsbestätigung – Snapolino (' . $eventDate . ')';
+
+        $mail->isHTML(true);
+        $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
+            . email_p('deine Fotobox ist fest für den <strong>' . email_e($eventDate) . '</strong> für dich '
+                . 'reserviert - eine Zahlung ist dafür nicht nötig.')
+            . email_p('Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.')
+            . email_p('Bis <strong>' . design_edit_deadline_days() . ' Tage vor deinem Event</strong> kannst du '
+                . 'Design und Extras in deinem <a href="' . email_e(rtrim((string) backend_config()['base_url'], '/')) . '/konto">Konto</a> '
+                . 'noch anpassen.')
+            . email_p('Deine <strong>Design-PIN: ' . email_e($booking['customer_pin']) . '</strong> - damit lässt '
+                . 'sich direkt an der Fotobox einstellen, welche eurer Designs während der Feier verfügbar sein '
+                . 'sollen (über den Logo-Knopf oben links, "Eigene Designs verwalten").')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Buchung bestätigt 🎉', $html, 'Deine Fotobox ist fest für dich reserviert - kostenfrei.');
+
+        $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "deine Fotobox ist fest fuer den " . $eventDate . " fuer dich reserviert - eine Zahlung ist dafuer "
+            . "nicht noetig.\n\n"
+            . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
+            . "Bis " . design_edit_deadline_days() . " Tage vor deinem Event kannst du Design und Extras in deinem "
+            . "Konto noch anpassen: " . rtrim((string) backend_config()['base_url'], '/') . "/konto\n\n"
+            . "Deine Design-PIN: " . $booking['customer_pin'] . " - damit lässt sich direkt an der Fotobox "
+            . "einstellen, welche eurer Designs während der Feier verfügbar sein sollen (über den Logo-Knopf "
+            . "oben links, \"Eigene Designs verwalten\").\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Verschickt den Zahlungslink fuer eine vom Admin direkt im Panel angelegte
+// Buchung (admin/booking_new.php, "Zahlungslink senden") - die Buchung
+// selbst bleibt bis zur Zahlung "angefragt", stripe_webhook.php bestaetigt
+// sie wie jede andere ueber dieselbe Checkout-Session-Metadata
+// (booking_id), kein Sonderfall noetig.
+function send_booking_payment_link_email(array $booking, string $paymentUrl): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+
+        $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
+        $total = money_from_cents((int) $booking['total_price_cents']);
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+
+        $mail->Subject = 'Deine Fotobox-Buchung – Zahlung ausstehend (' . $eventDate . ')';
+
+        $mail->isHTML(true);
+        $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
+            . email_p('für deine Fotobox-Buchung am <strong>' . email_e($eventDate) . '</strong> steht noch die '
+                . 'Zahlung über <strong>' . email_e($total) . '</strong> aus.')
+            . email_muted('Dein Termin wird fest reserviert, sobald die Zahlung eingegangen ist.')
+            . email_button($paymentUrl, 'Jetzt bezahlen')
+            . email_p('Du kannst sicher per Kreditkarte, Klarna o.ä. bezahlen.')
+            . email_p('Bei Fragen melde dich gerne bei uns.')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Zahlung ausstehend', $html, 'Buchung vom ' . $eventDate . ' – ' . $total);
+
+        $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "fuer deine Fotobox-Buchung am " . $eventDate . " steht noch die Zahlung ueber " . $total . " aus.\n\n"
+            . "Dein Termin wird fest reserviert, sobald die Zahlung eingegangen ist. Du kannst hier sicher per "
+            . "Kreditkarte, Klarna o.ae. bezahlen:\n" . $paymentUrl . "\n\n"
+            . "Bei Fragen melde dich gerne bei uns.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die Stornobestaetigung, wenn ein Admin eine Buchung storniert
 // (siehe cancel_booking() in payments.php). War die Buchung bereits bezahlt,
 // wurde die Zahlung ueber Stripe zurueckerstattet und $creditNotePdfUrl
