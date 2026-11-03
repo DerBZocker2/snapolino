@@ -167,23 +167,34 @@ function send_stripe_invoice(string $invoiceId): void
 // aufs urspruengliche Zahlungsmittel). $paymentIntentId kommt aus
 // bookings.stripe_payment_intent. Liefert das Refund-Objekt (u.a. 'id')
 // oder null bei einem Fehler - siehe cancel_booking() in payments.php.
-function stripe_refund_payment(string $paymentIntentId): ?array
+// $amountCents: null erstattet den vollen Zahlungsbetrag (Standardverhalten
+// der Stripe-API ohne "amount"), ein Wert erstattet nur diesen Teilbetrag -
+// genutzt von cancel_booking(), um nur den nach Abzug der AGB-Stornogebuehr
+// (booking_cancellation_fee_percent()) verbleibenden Betrag zurueckzubuchen,
+// statt immer die komplette Zahlung zu erstatten.
+function stripe_refund_payment(string $paymentIntentId, ?int $amountCents = null): ?array
 {
-    return stripe_request('POST', 'refunds', ['payment_intent' => $paymentIntentId]);
+    $params = ['payment_intent' => $paymentIntentId];
+    if ($amountCents !== null) {
+        $params['amount'] = $amountCents;
+    }
+    return stripe_request('POST', 'refunds', $params);
 }
 
 // Erstellt eine Stornorechnung (Stripe Credit Note) zur bereits bei Stripe
 // bestehenden Rechnung ($invoiceId, siehe invoice_creation weiter oben) -
-// kreditiert dabei jede Rechnungsposition vollstaendig. Rein die
-// Buchhaltungsunterlage; die eigentliche Rueckbuchung passiert separat
-// ueber stripe_refund_payment(). Liefert das Credit-Note-Objekt (u.a. 'id',
-// 'pdf') oder null bei einem Fehler.
-function stripe_create_credit_note(string $invoiceId): ?array
+// kreditiert dabei bewusst nur $amountCents (den tatsaechlich erstatteten
+// Betrag nach Abzug einer eventuellen AGB-Stornogebuehr, siehe
+// stripe_refund_payment()) als einzelne Sammelposition, nicht mehr pauschal
+// jede Rechnungsposition in voller Hoehe - sonst wiche die Stornorechnung
+// von der tatsaechlichen Rueckerstattung ab. Rein die Buchhaltungsunterlage;
+// die eigentliche Rueckbuchung passiert separat ueber stripe_refund_payment().
+// Liefert das Credit-Note-Objekt (u.a. 'id', 'pdf') oder null bei einem Fehler.
+function stripe_create_credit_note(string $invoiceId, int $amountCents): ?array
 {
     $invoice = fetch_stripe_invoice($invoiceId);
-    $lineItems = $invoice['lines']['data'] ?? [];
-    if (!$invoice || !$lineItems) {
-        error_log('Stripe: Stornorechnung fuer Rechnung ' . $invoiceId . ' nicht moeglich - Rechnung/Positionen nicht gefunden.');
+    if (!$invoice) {
+        error_log('Stripe: Stornorechnung fuer Rechnung ' . $invoiceId . ' nicht moeglich - Rechnung nicht gefunden.');
         return null;
     }
 
@@ -191,12 +202,13 @@ function stripe_create_credit_note(string $invoiceId): ?array
         'invoice' => $invoiceId,
         'reason' => 'order_change',
         'memo' => 'Stornierung der Buchung',
+        'lines' => [[
+            'type' => 'custom_line_item',
+            'description' => 'Rueckerstattung nach Stornierung (abzgl. Stornogebuehr gemaess AGB Ziffer 8)',
+            'quantity' => 1,
+            'unit_amount' => $amountCents,
+        ]],
     ];
-    foreach (array_values($lineItems) as $i => $line) {
-        $params['lines'][$i]['type'] = 'invoice_line_item';
-        $params['lines'][$i]['invoice_line_item'] = $line['id'];
-        $params['lines'][$i]['quantity'] = $line['quantity'] ?? 1;
-    }
 
     return stripe_request('POST', 'credit_notes', $params);
 }

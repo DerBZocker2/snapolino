@@ -509,6 +509,14 @@ alles per Maus im Bild platzier-/verschiebbar; auch um eine Vorlage per
   Elementen/Fotoflaechen bewusst deaktiviert (ein Mausklick wuerde sonst
   nicht eindeutig sein) - eigener Umschalt-Knopf dafuer.
 
+Der Canvas-Editor selbst ist rein Maus-/Touch-gesteuert (kein
+Tastatur-Aequivalent fuer Verschieben/Skalieren/Zeichnen - ein
+grundsaetzlich schwer loesbares Problem bei einem Freihand-Editor). Ein
+kurzer Hinweistext direkt darueber ("Ohne Maus oder mit Screenreader? Waehle
+stattdessen oben eine fertige Vorlage...") macht den barrierefreien
+Alternativweg (fertige Vorlage ohne Editor) sichtbar, statt den Editor
+kommentarlos unbedienbar zu lassen.
+
 oder
 eigenes PNG mit transparenten Fotoflächen hochladen (Server erkennt die
 Flächen automatisch per Connected-Component-Analyse). Beide Wege legen
@@ -599,13 +607,24 @@ unter **Einstellungen** pflegbar - diese speisen nur noch Impressum und
 Datenschutzerklaerung (siehe unten), fuer die Rechnung selbst zaehlt das
 Geschaeftsprofil im Stripe-Dashboard. Storniert ein Admin im Panel unter
 **Buchungen** eine bereits bezahlte Buchung, erstattet `cancel_booking()`
-die Zahlung automatisch vollstaendig ueber Stripe zurueck
-(`stripe_refund_payment()`) und erstellt zur bestehenden Stripe-Rechnung
-eine Stornorechnung (`stripe_create_credit_note()`, ein Stripe Credit
-Note, kreditiert alle Positionen) - der Kunde bekommt dazu eine
-Stornobestaetigung mit Link zur Stornorechnung per Mail
-(`send_booking_cancelled_email()`). Eine ohne Zahlung bestaetigte
-Angebots-Buchung bekommt beim Stornieren nur die Mail. Schlaegt
+die Zahlung ueber Stripe zurueck (`stripe_refund_payment()`) - aber bewusst
+**nicht mehr automatisch voll**: `booking_cancellation_fee_percent()`
+(`includes/functions.php`) berechnet dieselbe nach Vorlaufzeit gestaffelte
+Stornogebuehr wie in den AGB Ziffer 8 (10/30/60/80% des Mietpreises je nach
+Abstand zum Eventdatum, siehe `agb.php` #s8) - vorher erstattete der Code
+immer 100%, unabhaengig von dieser AGB-Klausel, ein Widerspruch zwischen
+Vertragstext und tatsaechlichem Verhalten. `stripe_refund_payment()` und
+`stripe_create_credit_note()` nehmen dafuer beide einen expliziten
+Centbetrag entgegen (Stripe erstattet ohne `amount`-Parameter sonst immer
+den vollen Zahlungsbetrag); die Stornorechnung kreditiert als einzelne
+Sammelposition nur noch den tatsaechlich erstatteten (um die Gebuehr
+reduzierten) Betrag, nicht mehr pauschal alle Rechnungspositionen voll.
+Die Stornobestaetigungsmail (`send_booking_cancelled_email()`) nennt den
+tatsaechlich erstatteten Betrag sowie, falls eine Gebuehr einbehalten
+wurde, deren Hoehe unter Verweis auf die AGB - der Admin-Bestaetigungsdialog
+beim Stornieren-Knopf in `bookings.php` zeigt denselben Prozentsatz vorab
+an. Eine ohne Zahlung bestaetigte Angebots-Buchung bekommt beim Stornieren
+nur die Mail (keine Gebuehr, da nie etwas bezahlt wurde). Schlaegt
 Rueckerstattung/Stornorechnung bei Stripe fehl, wird trotzdem storniert
 (sonst wuerde die Buchung den Kalender weiter blockieren) und die Warnung
 landet im Log sowie als Hinweis in `booking_detail.php` - der Admin muss
@@ -633,6 +652,26 @@ deren Zeitpunkt in `bookings.agb_accepted_at` als Nachweis gespeichert
 wird (im Panel unter Buchungsdetails sichtbar). Das Admin-Panel wird auf
 keiner oeffentlichen Seite verlinkt (kein "Admin-Login" mehr auf
 Startseite/Buchungsseite) - Zugriff nur ueber die direkte URL `/admin`.
+
+Die **Datenschutzerklaerung** (`datenschutz.php`) nennt neben Server-Logs,
+Buchungsdaten, Stripe und Photon auch eigene Absaetze zu **Online-Galerie**
+(Gastfotos, Loeschfrist aus `gallery_retention_days`), **Kundenkonto**
+(Code-Login ohne Passwort), **Empfehlungsprogramm** sowie den
+**automatischen E-Mails** (Erinnerung/Bewertungsanfrage) als jeweils
+eigenem Verarbeitungszweck - vorher fehlten diese vier Absaetze, obwohl der
+Code die jeweiligen Daten laengst verarbeitet. Die Bewertungsanfrage-Mail
+(`send_review_request_email()`) weist zusaetzlich explizit darauf hin, dass
+es eine einmalige, buchungsbezogene Nachricht ist und keine wiederkehrende
+Werbung - das grenzt sie sauberer von § 7 UWG ab.
+
+Da der Betrieb die **Kleinunternehmerregelung** (§ 19 UStG) nutzt, zeigt die
+Preisuebersicht in Schritt 5 (`buchen.php`, unter dem Gesamtpreis)
+zusaetzlich den in **Einstellungen** gepflegten `business_tax_note`-Text
+(z.B. "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet und ausgewiesen.") -
+derselbe Text, den `impressum.php` schon im Abschnitt "Umsatzsteuer" zeigt,
+jetzt zusaetzlich direkt am Preis selbst (Preisangabenverordnung), nicht nur
+versteckt im Impressum. Bleibt die Einstellung leer, erscheint auch keine
+Zeile (kein erfundener Text).
 
 Die **AGB** (`agb.php`) regeln zusaetzlich zu den Standardklauseln: eine nach
 Zeitpunkt vor dem Eventdatum gestaffelte Stornogebuehr (10 %/30 %/60 %/80 %
@@ -886,7 +925,12 @@ einen einheitlicheren, professionelleren Gesamtauftritt:
 Fuer bereits ausgebuchte Termine gibt es unter `/warteliste` eine
 oeffentliche Warteliste: Interessenten tragen Wunschtermin, Name, E-Mail
 (optional Telefon/Nachricht) ein (`waitlist_entries`, Migration 0020) - das
-ist noch keine Buchung. Erreichbar ueber einen Hinweis in `buchen.php`
+ist noch keine Buchung. Unter dem Formular steht ein kurzer Transparenz-
+Hinweis mit Link zur Datenschutzerklaerung (keine Pflicht-Checkbox noetig -
+Rechtsgrundlage ist die vom Nutzer selbst angestossene, vorvertragliche
+Anfrage nach Art. 6 Abs. 1 lit. b DSGVO, anders als die AGB/Datenschutz-
+Checkbox in `buchen.php`, wo tatsaechlich ein Vertrag zustande kommt).
+Erreichbar ueber einen Hinweis in `buchen.php`
 Schritt 1 sowie per Klick auf einen ausgegrauten, aber noch nicht
 vergangenen Tag im Buchungskalender dort (`cal-blocked`-Klasse in der
 Kalender-JS, statt den Tag komplett inert zu lassen). Der Wunschtermin muss
@@ -936,7 +980,11 @@ Feedback-Bitte. Zeitfenster mit festem Nachholpuffer
 eines einzigen Stichtags - holt einen versaeumten Cronjob-Lauf nach, ohne
 eine erst Monate spaeter (wieder-)bestaetigte alte Buchung noch anzuschreiben.
 Ebenfalls mit Status-Anzeige und manuellem Sende-Knopf in den
-Buchungsdetails.
+Buchungsdetails. Die Mail selbst (`send_review_request_email()`) weist
+explizit darauf hin, dass es sich um eine einmalige, buchungsbezogene
+Nachricht handelt und keine weiteren folgen - grenzt sie damit klarer von
+Werbung im Sinne des § 7 UWG ab, auch wenn sie als transaktionsbezogene
+Nachricht ohnehin schon keine gesonderte Einwilligung braucht.
 
 ## Online-Galerie
 
@@ -1060,8 +1108,8 @@ ersetzen.
 - Kommentare und Oberflächentexte auf Deutsch, Bezeichner auf Englisch
 - Keine Umlaute in Code-Kommentaren (Encoding-Probleme bei PyInstaller)
 - Alles Konfigurierbare gehört in `config.py` oder die Cloud, nicht in den Code
-- **Nie von sich aus die Akzentfarbe `--accent`/`#ff6f59` (Orange) in
-  `site.css` fuer neu hinzugefuegte Elemente verwenden**, auch nicht als
+- **Nie von sich aus die Akzentfarbe `--accent` (Rot-Orange, Wert siehe
+  `:root` in `site.css`) fuer neu hinzugefuegte Elemente verwenden**, auch nicht als
   Teil eines Farbverlaufs mit `--accent2` - z.B. fuer einen "aktiv"-Zustand
   eines Buttons/Tabs. Stattdessen neutral bleiben (z.B. `var(--dark)` fuer
   einen dunklen hervorgehobenen Zustand). Betrifft nur unaufgefordert
@@ -1072,6 +1120,22 @@ ersetzen.
   der Online-Designer zeichnet deshalb z.B. keinen Rahmen mehr um die
   gesamte Design-Flaeche (frueher ein 3px dicker `accent`-farbener
   `strokeRect()` um das ganze Canvas).
+- **Farbkontrast (WCAG AA)**: `--accent`/`--accent-dark` in `site.css`
+  wurden bewusst von den urspruenglichen helleren Toenen (`#ff6f59`/
+  `#e8563f`) auf `#c0392b`/`#a52f1f` abgedunkelt - weisser Text auf dem
+  urspruenglichen Orange-Verlauf (`.button`, `button`, `.btn-gradient`,
+  `.promo-banner`, `.cat-tab.active`, Stepper-Kreise u.a.) erreichte am
+  Orange-Ende nur ca. 2,7:1 Kontrast statt der geforderten 4,5:1 (normale
+  Textgroesse). `--muted` wurde ebenso von `#7d7490` auf `#736a94`
+  abgedunkelt (vorher knapp unter 4,5:1 auf dem Seitenhintergrund). Bei
+  neuen Farben/Button-Stilen immer den Kontrast von Text gegen seinen
+  Hintergrund pruefen (mind. 4,5:1 fuer normalen, 3:1 fuer grossen/fetten
+  Text ab 18,66px), nicht nur auf Markenkonsistenz achten.
+- **Icon-only-Buttons** (Lightbox-Schliessen/-Pfeile in `galerie.php`,
+  Kalender-Vor/Zurueck in `buchen.php`, Mobil-Menue in `_site_header.php`)
+  bekommen immer ein `aria-label`, das die Funktion in Worten nennt (z.B.
+  "Vorheriges Foto") - ein blosses Pfeil-/Kreuz-Symbol ohne sichtbaren Text
+  ist fuer Screenreader sonst bedeutungslos.
 
 ## Windows-Setup (Autostart/Kiosk)
 `deploy/windows-kiosk-setup.ps1` (siehe `deploy/KIOSK_SETUP.md`) richtet

@@ -61,6 +61,31 @@ $addressInline = $addressLines ? implode(', ', $addressLines) : '';
             Versanddienstleister
             <?= legal_value('', 'bitte ergänzen, z.B. DHL/Hermes/DPD') ?> weiter (Art. 6 Abs. 1
             lit. b DSGVO).</p>
+        <p><strong>Online-Galerie:</strong> Nach deiner Veranstaltung lädt die Fotobox automatisch
+            die während deines Events entstandenen Fotos in eine Online-Galerie hoch, sobald sie
+            wieder mit dem Internet verbunden ist. Diese Fotos können personenbezogene Daten
+            anderer Personen (deiner Gäste) enthalten. Die Galerie ist nur über einen nicht
+            erratbaren Link erreichbar, kein Suchmaschinen-Indexing; ausführliche Einzelheiten
+            (zwei getrennte Links, Sichtbarkeits-Steuerung, automatische Löschung) findest du in
+            den <a href="/agb">AGB</a> sowie direkt auf der Galerie-Seite. Rechtsgrundlage ist
+            Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) bzw. für die Fotos deiner Gäste
+            Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Bereitstellung der
+            gebuchten Zusatzleistung). Die Fotos werden automatisch
+            <?= (int) get_setting('gallery_retention_days', '30') ?> Tage nach deinem Eventdatum
+            gelöscht.</p>
+        <p><strong>Kundenkonto:</strong> Zum Einsehen und Bearbeiten deiner Buchung bieten wir ein
+            Kundenkonto an, das sich per 6-stelligem Einmalcode an deine E-Mail-Adresse anmeldet -
+            es wird kein Passwort gespeichert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
+        <p><strong>Empfehlungsprogramm:</strong> Nach einer bestätigten Buchung erhältst du einen
+            persönlichen Rabattcode, den du an Dritte weitergeben kannst. Lösen Dritte diesen Code
+            ein, wird dies intern deiner Buchung zugeordnet, um dir die zugesagte Prämie gutzuschreiben
+            (Art. 6 Abs. 1 lit. b DSGVO).</p>
+        <p><strong>Automatische E-Mails:</strong> Im Zusammenhang mit einer bestätigten Buchung
+            verschicken wir automatisiert eine Erinnerung vor deinem Event sowie - einige Tage nach
+            dem Event - eine Bitte um eine freiwillige Bewertung. Beides dient der Durchführung
+            bzw. Nachbereitung des Mietvertrags (Art. 6 Abs. 1 lit. b DSGVO, hilfsweise lit. f,
+            berechtigtes Interesse an Feedback zu einer bereits erbrachten Leistung) und ist keine
+            Werbung für fremde Angebote.</p>
 
         <h3>3. Cookies</h3>
         <p>Diese Website verwendet ausschließlich ein technisch notwendiges Session-Cookie, das

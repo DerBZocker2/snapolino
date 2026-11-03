@@ -585,6 +585,30 @@ function booking_ship_date(string $eventDate): DateTimeImmutable
     return (new DateTimeImmutable($eventDate))->modify('-' . BOOKING_BUFFER_DAYS . ' days');
 }
 
+// Pauschalierte Stornogebuehr nach AGB Ziffer 8, gestaffelt nach Vorlaufzeit
+// vor dem Eventdatum - haelt den Code deckungsgleich mit dem AGB-Text
+// (agb.php #s8). Liefert den Prozentsatz des Mietpreises, den Snapolino bei
+// einer Stornierung durch den Mieter als Entschaedigung einbehaelt; der Rest
+// wird erstattet (siehe cancel_booking() in payments.php). Bereits
+// vergangene Eventdaten zaehlen wie "unter 14 Tage" (hoechste Stufe).
+function booking_cancellation_fee_percent(string $eventDate): int
+{
+    $today = new DateTimeImmutable('today');
+    $event = new DateTimeImmutable($eventDate);
+    $daysUntil = (int) floor(($event->getTimestamp() - $today->getTimestamp()) / 86400);
+
+    if ($daysUntil >= 42) {
+        return 10;
+    }
+    if ($daysUntil >= 28) {
+        return 30;
+    }
+    if ($daysUntil >= 14) {
+        return 60;
+    }
+    return 80;
+}
+
 // Alle Tage, die aktuell blockiert sind (inkl. Puffer): jede echte
 // Buchungsanfrage haelt den Termin dauerhaft, bis ein Admin sie ablehnt
 // oder storniert - es gibt keine unverbindliche, automatisch verfallende

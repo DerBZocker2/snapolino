@@ -351,7 +351,7 @@ function send_booking_payment_link_email(array $booking, string $paymentUrl): bo
 // verlinkt die dazu erstellte Stornorechnung (Stripe Credit Note) - sonst
 // (z.B. eine ohne Zahlung bestaetigte Angebots-Buchung) ist $wasRefunded
 // false und es gibt nichts zurueckzubuchen.
-function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string $creditNotePdfUrl): bool
+function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string $creditNotePdfUrl, int $feeCents = 0): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
@@ -370,12 +370,19 @@ function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string
         $intro = email_p('Hallo ' . email_e($booking['customer_name']) . ',');
 
         if ($wasRefunded) {
-            $total = money_from_cents((int) $booking['total_price_cents']);
+            $total = (int) $booking['total_price_cents'];
+            $refundCents = max(0, $total - $feeCents);
+            $refundLabel = money_from_cents($refundCents);
+            $feeNote = $feeCents > 0
+                ? ' Gemäß unseren AGB (Ziffer 8) behalten wir davon eine Stornogebühr von <strong>'
+                    . email_e(money_from_cents($feeCents)) . '</strong> ein, der Rest wird erstattet.'
+                : '';
             $html = $intro
                 . email_p('vielen Dank für deine Nachricht - deine Buchung für den <strong>' . email_e($eventDate)
                     . '</strong> wurde storniert.')
-                . email_p('Deine Zahlung über <strong>' . email_e($total) . '</strong> wird dir über Stripe auf dein '
-                    . 'ursprüngliches Zahlungsmittel zurückerstattet (je nach Zahlungsmittel kann das ein paar Tage dauern).')
+                . email_p('Dir werden <strong>' . email_e($refundLabel) . '</strong> über Stripe auf dein '
+                    . 'ursprüngliches Zahlungsmittel zurückerstattet (je nach Zahlungsmittel kann das ein paar Tage dauern).'
+                    . $feeNote)
                 . ($creditNotePdfUrl ? email_button($creditNotePdfUrl, 'Stornorechnung ansehen') : '')
                 . email_p('Bei Fragen melde dich gerne bei uns.')
                 . email_signoff($fromName);
@@ -383,9 +390,14 @@ function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string
             $creditNoteNote = $creditNotePdfUrl
                 ? "Die Stornorechnung dazu findest du hier:\n" . $creditNotePdfUrl . "\n\n"
                 : '';
+            $feeNotePlain = $feeCents > 0
+                ? "Gemaess unseren AGB (Ziffer 8) behalten wir davon eine Stornogebuehr von "
+                    . money_from_cents($feeCents) . " ein, der Rest wird erstattet.\n\n"
+                : '';
             $plainBody = "vielen Dank für deine Nachricht - deine Buchung für den " . $eventDate . " wurde storniert.\n\n"
-                . "Deine Zahlung über " . $total . " wird dir über Stripe auf dein urspruengliches "
+                . "Dir werden " . $refundLabel . " über Stripe auf dein urspruengliches "
                 . "Zahlungsmittel zurueckerstattet (je nach Zahlungsmittel kann das ein paar Tage dauern).\n\n"
+                . $feeNotePlain
                 . $creditNoteNote;
         } else {
             $html = $intro
@@ -618,6 +630,8 @@ function send_review_request_email(array $booking): bool
                 ? email_p('Wir würden uns riesig über eine kurze Google-Bewertung freuen - das hilft uns sehr und '
                     . 'dauert nur eine Minute.') . email_button($reviewUrl, 'Jetzt bewerten')
                 : email_p('Wir würden uns riesig über euer Feedback freuen - meldet euch gerne einfach bei uns.'))
+            . email_muted('Diese einmalige Nachricht bezieht sich auf eure Buchung - wir verschicken keine '
+                . 'weiteren Bewertungsanfragen oder Werbung.')
             . email_signoff($fromName);
         $mail->Body = render_email_html($mail, 'Wie war\'s? 💬', $html, 'Wir freuen uns über dein Feedback.');
 
@@ -627,6 +641,8 @@ function send_review_request_email(array $booking): bool
                 ? "Wir wuerden uns riesig ueber eine kurze Google-Bewertung freuen - das hilft uns sehr und dauert "
                     . "nur eine Minute:\n\n" . $reviewUrl . "\n\n"
                 : "Wir wuerden uns riesig ueber euer Feedback freuen - meldet euch gerne einfach bei uns.\n\n")
+            . "Diese einmalige Nachricht bezieht sich auf eure Buchung - wir verschicken keine weiteren "
+            . "Bewertungsanfragen oder Werbung.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();

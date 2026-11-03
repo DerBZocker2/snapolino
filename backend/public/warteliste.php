@@ -137,6 +137,9 @@ require __DIR__ . '/_site_header.php';
                 <label>Nachricht (optional)
                     <textarea name="note" rows="3"><?= htmlspecialchars($note, ENT_QUOTES) ?></textarea>
                 </label>
+                <p class="muted" style="font-size:12px;">Mit dem Absenden stimmst du zu, dass wir deine Angaben zur
+                    Bearbeitung deiner Wartelisten-Anfrage verwenden - mehr dazu in unserer
+                    <a href="/datenschutz">Datenschutzerklärung</a>.</p>
                 <button type="submit" class="btn-gradient">Auf die Warteliste</button>
             </form>
         </div>

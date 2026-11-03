@@ -164,7 +164,15 @@ $today = new DateTimeImmutable('today');
                             <?php if (!$booking['box_id']): ?>
                                 <a href="boxes.php" title="Auf der Boxen-Seite per Drag &amp; Drop zuordnen">→ Box zuordnen</a>
                             <?php endif; ?>
-                            <form method="post" action="bookings.php" onsubmit="return confirm('Buchung wirklich stornieren?');">
+                            <?php
+                                $cancelConfirm = 'Buchung wirklich stornieren?';
+                                if ($booking['paid_at'] !== null && (int) $booking['total_price_cents'] > 0) {
+                                    $feePercent = booking_cancellation_fee_percent((string) $booking['event_date']);
+                                    $cancelConfirm = 'Buchung wirklich stornieren? Gemäß AGB wird dabei eine Stornogebühr von '
+                                        . $feePercent . '% einbehalten, der Rest automatisch über Stripe erstattet.';
+                                }
+                            ?>
+                            <form method="post" action="bookings.php" onsubmit="return confirm('<?= htmlspecialchars(addslashes($cancelConfirm), ENT_QUOTES) ?>');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
                                 <input type="hidden" name="action" value="cancel">

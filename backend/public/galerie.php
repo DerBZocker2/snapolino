@@ -383,10 +383,10 @@ $daysLeft = $deletionDate ? (int) (new DateTimeImmutable('today'))->diff($deleti
 </main>
 
 <div class="lightbox" id="lightbox">
-    <button class="lightbox-close" id="lb-close">&times;</button>
-    <button class="lightbox-nav prev" id="lb-prev">&#8249;</button>
+    <button class="lightbox-close" id="lb-close" aria-label="Schließen">&times;</button>
+    <button class="lightbox-nav prev" id="lb-prev" aria-label="Voriges Foto">&#8249;</button>
     <img id="lb-img" src="" alt="Foto in voller Größe">
-    <button class="lightbox-nav next" id="lb-next">&#8250;</button>
+    <button class="lightbox-nav next" id="lb-next" aria-label="Nächstes Foto">&#8250;</button>
     <div class="lightbox-bar">
         <a id="lb-download" href="#">Herunterladen</a>
         <button class="secondary" id="lb-close2">Schließen</button>

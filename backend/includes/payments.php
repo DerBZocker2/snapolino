@@ -92,9 +92,22 @@ function cancel_booking(int $bookingId): void
 
     $wasRefunded = false;
     $creditNotePdfUrl = null;
+    // Gestaffelte Stornogebuehr nach AGB Ziffer 8 (booking_cancellation_fee_percent()) -
+    // nur der danach verbleibende Betrag wird tatsaechlich erstattet, nicht
+    // automatisch die volle Zahlung (sonst widerspraeche die Erstattung den
+    // in den AGB angekuendigten Konditionen).
+    $feePercent = booking_cancellation_fee_percent((string) $booking['event_date']);
+    $refundCents = null;
+    $feeCents = 0;
 
     if ($booking['paid_at'] !== null && !empty($booking['stripe_payment_intent'])) {
-        $refund = stripe_refund_payment((string) $booking['stripe_payment_intent']);
+        $totalCents = (int) ($booking['total_price_cents'] ?? 0);
+        if ($totalCents > 0) {
+            $feeCents = (int) round($totalCents * $feePercent / 100);
+            $refundCents = $totalCents - $feeCents;
+        }
+
+        $refund = stripe_refund_payment((string) $booking['stripe_payment_intent'], $refundCents);
         if ($refund) {
             $wasRefunded = true;
             db()->prepare('UPDATE bookings SET stripe_refund_id = ? WHERE id = ?')
@@ -103,8 +116,8 @@ function cancel_booking(int $bookingId): void
             error_log('Stornierung Buchung #' . $bookingId . ': Rueckerstattung fehlgeschlagen, bitte manuell im Stripe-Dashboard pruefen/ausloesen.');
         }
 
-        if (!empty($booking['stripe_invoice_id'])) {
-            $creditNote = stripe_create_credit_note((string) $booking['stripe_invoice_id']);
+        if (!empty($booking['stripe_invoice_id']) && $refundCents !== null) {
+            $creditNote = stripe_create_credit_note((string) $booking['stripe_invoice_id'], $refundCents);
             if ($creditNote) {
                 $creditNotePdfUrl = $creditNote['pdf'] ?? null;
                 db()->prepare('UPDATE bookings SET stripe_credit_note_id = ?, stripe_credit_note_pdf_url = ? WHERE id = ?')
@@ -112,13 +125,15 @@ function cancel_booking(int $bookingId): void
             } else {
                 error_log('Stornierung Buchung #' . $bookingId . ': Stornorechnung (Credit Note) fehlgeschlagen, bitte manuell im Stripe-Dashboard erstellen.');
             }
+        } elseif (!empty($booking['stripe_invoice_id'])) {
+            error_log('Stornierung Buchung #' . $bookingId . ': total_price_cents unbekannt, Stornorechnung uebersprungen - bitte manuell im Stripe-Dashboard pruefen.');
         }
     }
 
     db()->prepare("UPDATE bookings SET status = 'storniert', cancelled_at = NOW() WHERE id = ?")->execute([$bookingId]);
 
     try {
-        send_booking_cancelled_email($booking, $wasRefunded, $creditNotePdfUrl);
+        send_booking_cancelled_email($booking, $wasRefunded, $creditNotePdfUrl, $feeCents);
     } catch (Throwable $e) {
         error_log('Stornobestaetigung fehlgeschlagen fuer Buchung #' . $bookingId . ': ' . $e->getMessage());
     }

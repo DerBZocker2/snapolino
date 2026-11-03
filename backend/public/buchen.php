@@ -651,6 +651,7 @@ require __DIR__ . '/_site_header.php';
                 <!-- Panel 2: Online-Designer -->
                 <div class="design-panel" id="panel-designer" <?= $startPanel === 'designer' ? '' : 'hidden' ?>>
                     <p class="muted">Wähle Farben und ein Muster, füge Texte, Sticker, eigene Bilder hinzu oder zeichne frei mit dem Stift - alles direkt im Bild per Maus platzierbar. Auch die Anzahl der Fotoflächen (gestrichelt) bestimmst du selbst: hinzufügen, verschieben, in der Größe anpassen oder wieder entfernen.</p>
+                    <p class="muted" style="font-size:12px;">Der Editor wird per Maus/Touch bedient. Ohne Maus oder mit Screenreader? Wähle stattdessen oben eine fertige Vorlage - die lässt sich ganz ohne den Editor buchen.</p>
                     <div class="designer-layout">
                         <canvas id="designer-canvas" width="600" height="400"></canvas>
                         <div class="designer-controls">
@@ -1773,6 +1774,9 @@ require __DIR__ . '/_site_header.php';
                                 <p class="muted" style="font-size:12px;margin:-4px 0 8px;">Automatisch, weil du schon einmal bei uns gebucht hast - danke, dass du wiederkommst!</p>
                             <?php endif; ?>
                             <div class="price-row total"><span>Gesamtpreis</span><span><?= money_from_cents($total) ?></span></div>
+                            <?php if (($taxNote = (string) get_setting('business_tax_note', '')) !== ''): ?>
+                                <p class="muted" style="font-size:12px;margin:8px 0 0;"><?= htmlspecialchars($taxNote, ENT_QUOTES) ?></p>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -1893,9 +1897,9 @@ var MIN_BOOKING_LEAD_DAYS = <?= (int) booking_min_lead_days() ?>;
         var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
         var html = '<div class="cal-header">'
-            + '<button type="button" id="cal-prev">&larr;</button>'
+            + '<button type="button" id="cal-prev" aria-label="Vorheriger Monat">&larr;</button>'
             + '<span>' + monthNames[viewMonth] + ' ' + viewYear + '</span>'
-            + '<button type="button" id="cal-next">&rarr;</button>'
+            + '<button type="button" id="cal-next" aria-label="Nächster Monat">&rarr;</button>'
             + '</div><div class="cal-grid">';
 
         ['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(function (d) {
