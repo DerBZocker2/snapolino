@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form class="login-box" method="post" action="login.php">
         <img class="login-logo" src="<?= asset_url('../assets/logo-icon.png', __DIR__ . '/../assets/logo-icon.png') ?>" alt="" width="56" height="56">
         <h1>Snapolino Panel</h1>
+        <p class="login-subtitle">Anmeldung für Mitarbeiter</p>
         <?php if ($error !== ''): ?>
             <p class="error"><?= htmlspecialchars($error, ENT_QUOTES) ?></p>
         <?php endif; ?>

@@ -79,18 +79,18 @@ function render_email_html(PHPMailer $mail, string $heading, string $bodyHtml, s
 </head>
 <body style="margin:0;padding:0;background:#fffaf5;font-family:'Segoe UI',Arial,sans-serif;">
 {$preheaderHtml}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fffaf5;">
-<tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
-<tr><td align="center" style="padding-bottom:22px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fffaf5;font-family:'Segoe UI',Arial,sans-serif;">
+<tr><td align="center" style="padding:32px 16px;font-family:'Segoe UI',Arial,sans-serif;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;font-family:'Segoe UI',Arial,sans-serif;">
+<tr><td align="center" style="padding-bottom:22px;font-family:'Segoe UI',Arial,sans-serif;">
 {$logoImg}
-<div style="font-size:20px;font-weight:700;color:#241b3a;">Snapolino</div>
+<div style="font-size:20px;font-weight:700;color:#241b3a;font-family:'Segoe UI',Arial,sans-serif;">Snapolino</div>
 </td></tr>
-<tr><td style="background:#ffffff;border-radius:16px;padding:36px 32px;box-shadow:0 2px 16px rgba(36,27,58,0.08);">
-<h1 style="margin:0 0 18px;font-size:21px;line-height:1.3;color:#241b3a;text-align:center;">{$headingHtml}</h1>
+<tr><td style="background:#ffffff;border-radius:16px;padding:36px 32px;box-shadow:0 2px 16px rgba(36,27,58,0.08);font-family:'Segoe UI',Arial,sans-serif;">
+<h1 style="margin:0 0 18px;font-size:21px;line-height:1.3;color:#241b3a;text-align:center;font-family:'Segoe UI',Arial,sans-serif;">{$headingHtml}</h1>
 {$bodyHtml}
 </td></tr>
-<tr><td align="center" style="padding:22px 12px 0;font-size:12px;line-height:1.6;color:#9089a3;">
+<tr><td align="center" style="padding:22px 12px 0;font-size:12px;line-height:1.6;color:#9089a3;font-family:'Segoe UI',Arial,sans-serif;">
 Diese E-Mail wurde automatisch von Snapolino verschickt.
 </td></tr>
 </table>
@@ -103,12 +103,12 @@ HTML;
 
 function email_p(string $html): string
 {
-    return '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#2c2440;">' . $html . '</p>';
+    return '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#2c2440;font-family:\'Segoe UI\',Arial,sans-serif;">' . $html . '</p>';
 }
 
 function email_muted(string $html): string
 {
-    return '<p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#7d7490;">' . $html . '</p>';
+    return '<p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#7d7490;font-family:\'Segoe UI\',Arial,sans-serif;">' . $html . '</p>';
 }
 
 function email_button(string $url, string $label): string
@@ -118,7 +118,7 @@ function email_button(string $url, string $label): string
     return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px auto 22px;">'
         . '<tr><td style="border-radius:10px;background:#ff6f59;">'
         . '<a href="' . $url . '" style="display:inline-block;padding:13px 30px;font-size:15px;font-weight:600;'
-        . 'color:#ffffff;text-decoration:none;border-radius:10px;">' . $label . '</a>'
+        . 'color:#ffffff;text-decoration:none;border-radius:10px;font-family:\'Segoe UI\',Arial,sans-serif;">' . $label . '</a>'
         . '</td></tr></table>';
 }
 

@@ -51,6 +51,7 @@ a { color: var(--accent-dark); }
     gap: 10px;
     font-weight: 600;
     font-size: 19px;
+    letter-spacing: 0.2px;
     padding: 0 22px 22px;
     color: #fff;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -156,9 +157,13 @@ a { color: var(--accent-dark); }
     .content { padding: 18px; }
 }
 
-h1 { font-size: 25px; font-weight: 600; margin-bottom: 24px; color: var(--dark); }
+h1 { font-size: 25px; font-weight: 600; letter-spacing: -0.2px; margin-bottom: 24px; color: var(--dark); }
 h2 { font-size: 18px; font-weight: 600; margin-top: 0; color: var(--dark); }
 h3 { font-size: 15px; font-weight: 600; margin: 0; color: var(--dark); }
+
+th { letter-spacing: 0.3px; text-transform: uppercase; }
+
+.card-label, .stat-card-label { text-transform: uppercase; letter-spacing: 0.3px; }
 
 .panel {
     background: var(--panel);
@@ -436,8 +441,20 @@ body.login-page {
 .login-box h1 {
     text-align: center;
     font-size: 19px;
-    margin-top: 0;
+    margin: 0 0 4px;
     color: var(--dark);
+}
+
+.login-box .login-subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 22px;
+}
+
+.login-box button {
+    width: 100%;
+    margin-top: 4px;
 }
 
 /* ---------- Boxen & Buchungszuordnung (Drag & Drop) ---------- */

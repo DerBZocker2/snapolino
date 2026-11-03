@@ -279,7 +279,16 @@ im Panel angezeigt).
   (`admin/_header.php`) zeigt reinen Text ohne Emoji-Icons davor, aktive
   Eintraege markiert ein schmaler Akzent-Balken links statt einer bunten
   Farbverlauf-Pille. Gilt fuer das gesamte Panel (jede Seite bindet dieselbe
-  `style.css` ein), nicht nur fuer `dashboard.php`.
+  `style.css` ein), nicht nur fuer `dashboard.php`. Fuer zusaetzliche
+  typografische Praezision tragen `h1`, Tabellen-Spaltenkoepfe (`th`) sowie
+  die kleinen Kachel-Beschriftungen (`.card-label`, `.stat-card-label`)
+  dezente `letter-spacing`-Werte, `th` sowie diese beiden Label-Klassen
+  zusaetzlich `text-transform: uppercase` - liest sich als bewusst
+  gestaltetes Dashboard statt als rohe Tabellen/Kacheln, ohne dafuer Farbe
+  oder zusaetzliche Rahmenlinien einzusetzen. Der Login-Knopf (`login.php`)
+  ist dafuer ebenfalls bewusst `width: 100%` (vorher inline-breit und dadurch
+  optisch "verloren" neben den volle-Breite-Eingabefeldern), dazu eine kurze
+  Unterzeile "Anmeldung für Mitarbeiter" unter der Panel-Ueberschrift.
 - Aktions-Buttons einer Tabellenzeile (`bookings.php`, `coupons.php`,
   `extras.php`, `layouts.php`) stehen in einem `<div class="actions-row">`
   *innerhalb* der `<td class="actions">`, nicht direkt als `display: flex`
@@ -306,7 +315,15 @@ im Panel angezeigt).
   Gemeinsame Bausteine `render_email_html()`/`email_p()`/`email_button()`/
   `email_muted()`/`email_signoff()`, jede `send_*_email()`-Funktion baut
   daraus ihren HTML-Body und behaelt parallel eine reine Textversion fuer
-  `AltBody`. Ein "Profilbild" neben der Absenderadresse (z.B. in Gmail)
+  `AltBody`. `font-family: 'Segoe UI', Arial, sans-serif` steht dabei nicht
+  nur einmal am `<body>`-Tag, sondern bewusst zusaetzlich an jedem einzelnen
+  Element (jede `<table>`/`<td>`-Ebene in `render_email_html()`, sowie direkt
+  in `email_p()`/`email_muted()`/`email_button()`) - manche E-Mail-Clients
+  (allen voran wieder Outlook Desktop mit seiner Word-Engine) vererben CSS
+  vom `<body>` nicht zuverlaessig in verschachtelte Tabellenzellen. Die zwei
+  `font-family:monospace;`-Stellen fuer angezeigte Zahlencodes/PINs in
+  Mails bleiben bewusst Monospace (Lesbarkeit von Ziffern), nicht Sans-Serif.
+  Ein "Profilbild" neben der Absenderadresse (z.B. in Gmail)
   ist keine Sache des Mailinhalts, sondern des Postfachs/der Domain -
   siehe Offene Punkte.
 
