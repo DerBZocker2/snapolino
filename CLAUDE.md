@@ -267,28 +267,42 @@ im Panel angezeigt).
 - DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
   `config.php.example`), analog zu `box.ini` auf der Box.
 - Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts). Bewusst
-  **nüchtern-professionelles** statt verspieltes Design (`admin/assets/style.css`,
-  einzige Farbdatei fürs gesamte Panel - anders als die bunte öffentliche
-  Webseite mit `assets/site.css`): ein einzelner Blauton als Akzentfarbe
-  (`--accent`/`--accent-dark`/`--accent-soft`) statt zwei knalliger Marken-
-  farben, keine Farbverlaeufe auf Text/Flaechen (Zahlen/Ueberschriften in
-  gedecktem Dunkelgrau `--dark`, keine `background-clip: text`-Effekte mehr),
-  dezente neutrale Schatten (`rgba(16, 24, 40, ...)`) statt farbiger "Candy"-
-  Schatten, kleinere Eckenradien (6-10px statt 14-16px) und eine dunkle,
-  einfarbige Sidebar (`--dark`) ohne Farbverlauf. Die Sidebar-Navigation
-  (`admin/_header.php`) zeigt reinen Text ohne Emoji-Icons davor, aktive
-  Eintraege markiert ein schmaler Akzent-Balken links statt einer bunten
-  Farbverlauf-Pille. Gilt fuer das gesamte Panel (jede Seite bindet dieselbe
-  `style.css` ein), nicht nur fuer `dashboard.php`. Fuer zusaetzliche
-  typografische Praezision tragen `h1`, Tabellen-Spaltenkoepfe (`th`) sowie
-  die kleinen Kachel-Beschriftungen (`.card-label`, `.stat-card-label`)
-  dezente `letter-spacing`-Werte, `th` sowie diese beiden Label-Klassen
-  zusaetzlich `text-transform: uppercase` - liest sich als bewusst
-  gestaltetes Dashboard statt als rohe Tabellen/Kacheln, ohne dafuer Farbe
-  oder zusaetzliche Rahmenlinien einzusetzen. Der Login-Knopf (`login.php`)
-  ist dafuer ebenfalls bewusst `width: 100%` (vorher inline-breit und dadurch
-  optisch "verloren" neben den volle-Breite-Eingabefeldern), dazu eine kurze
-  Unterzeile "Anmeldung für Mitarbeiter" unter der Panel-Ueberschrift.
+  **stark an das Shopify-Admin-Design angelehnt** statt eines eigenen
+  Stils (`admin/assets/style.css`, einzige Farbdatei fürs gesamte Panel -
+  anders als die bunte öffentliche Webseite mit `assets/site.css`): eine
+  **helle** Sidebar (`--panel`, weiss) statt einer dunklen Flaeche, mit
+  einem **Icon vor jedem Navigationspunkt** (`nav_icon()` in `admin/_header.php`
+  - schlichte, selbst gezeichnete Strich-Icons im Outline-Stil, `<svg>`
+  inline im PHP statt externer Icon-Bibliothek/Icon-Font, analog zur
+  Begruendung bei den Unicode-Emoji-Stickern im Online-Designer: kein
+  Asset-/Lizenzthema). Aktive Sidebar-Eintraege bekommen eine volle,
+  abgerundete Hintergrund-Pille in der Markenfarbe (`--accent-soft`/
+  `--accent-dark`) statt eines Akzent-Balkens. **Primaere Aktions-Buttons
+  sind bewusst dunkel/schwarz** (`--dark`, `#1a1a1a`) statt in der
+  Markenfarbe - das ist im aktuellen Shopify-Admin (Polaris) der Stil fuer
+  Haupt-Buttons; die Markenfarbe selbst ist ein Gruenton
+  (`--accent`/`--accent-dark`/`--accent-soft`, `#008060`) und bleibt
+  Links, aktiven/Erfolgs-Zustaenden (gruene Status-Pillen, aktive Sidebar-
+  Pille, KPI-Pillen) vorbehalten - zwei bewusst getrennte Farbrollen statt
+  einer einzigen Akzentfarbe fuer alles. Badges/Status-Pillen (`.badge`,
+  `.status-pill`, `.nav-badge`) sind **voll abgerundet** (`border-radius:
+  999px`) statt nur leicht gerundet, Eckenradien bei Buttons/Eingabefeldern
+  durchgaengig 8px. Schriftfamilie ist der Systemfont-Stack
+  `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+  sans-serif` (derselbe generische Stack wie bei Shopifys eigenem Polaris-
+  Design-System, kein lizenzpflichtiger Webfont-Import noetig). Gilt fuer
+  das gesamte Panel (jede Seite bindet dieselbe `style.css` ein), nicht nur
+  fuer `dashboard.php`; auch `login.php` zieht automatisch dieselbe Palette
+  (schwarzer Anmelden-Knopf, gruener Fokus-Rahmen auf Eingabefeldern). Fuer
+  zusaetzliche typografische Praezision tragen `h1`, Tabellen-Spaltenkoepfe
+  (`th`) sowie die kleinen Kachel-Beschriftungen (`.card-label`,
+  `.stat-card-label`) dezente `letter-spacing`-Werte, `th` sowie diese
+  beiden Label-Klassen zusaetzlich `text-transform: uppercase` - liest sich
+  als bewusst gestaltetes Dashboard statt als rohe Tabellen/Kacheln. Der
+  Login-Knopf (`login.php`) ist ausserdem bewusst `width: 100%` (vorher
+  inline-breit und dadurch optisch "verloren" neben den volle-Breite-
+  Eingabefeldern), dazu eine kurze Unterzeile "Anmeldung für Mitarbeiter"
+  unter der Panel-Ueberschrift.
 - Aktions-Buttons einer Tabellenzeile (`bookings.php`, `coupons.php`,
   `extras.php`, `layouts.php`) stehen in einem `<div class="actions-row">`
   *innerhalb* der `<td class="actions">`, nicht direkt als `display: flex`
