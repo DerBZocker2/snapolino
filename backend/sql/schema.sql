@@ -146,6 +146,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- Gesetzt von bin/send_review_requests.php, sobald die automatische
     -- Bewertungsanfrage nach dem Event verschickt wurde (Migration 0022).
     review_requested_at   DATETIME NULL,
+    -- Gesetzt von bin/send_abandoned_reminders.php, sobald die
+    -- Erinnerungsmail fuer eine nie bis Schritt 5 abgeschlossene
+    -- Buchungsanfrage verschickt wurde (Migration 0032).
+    abandoned_reminder_sent_at DATETIME NULL,
     stripe_session_id      VARCHAR(255) NULL UNIQUE,
     stripe_payment_intent  VARCHAR(255) NULL,
     customer_name          VARCHAR(120) NOT NULL,
@@ -392,6 +396,10 @@ INSERT IGNORE INTO settings (name, value) VALUES
     -- Google-Bewertungsseite (leer = kein Bewertungslink-Knopf in der Mail).
     ('review_request_days_after_event', '3'),
     ('google_review_url', ''),
+    -- Stunden NACH DEM ANLEGEN einer Buchungsanfrage, ab denen
+    -- bin/send_abandoned_reminders.php eine Erinnerungsmail verschickt,
+    -- falls der Buchungsassistent nie bis Schritt 5 abgeschlossen wurde.
+    ('abandoned_reminder_hours', '24'),
     -- Automatischer Rabatt (Prozent) fuer wiederkehrende Kunden (per
     -- E-Mail-Adresse erkannt, siehe is_returning_customer()).
     ('returning_customer_discount_percent', '10'),

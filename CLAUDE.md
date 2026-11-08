@@ -1040,6 +1040,32 @@ Nachricht handelt und keine weiteren folgen - grenzt sie damit klarer von
 Werbung im Sinne des § 7 UWG ab, auch wenn sie als transaktionsbezogene
 Nachricht ohnehin schon keine gesonderte Einwilligung braucht.
 
+`bin/send_abandoned_reminders.php` (gedacht fuer einen **stuendlichen**
+statt taeglichen Cronjob, damit die Erinnerung zeitnah nach Ablauf der
+eingestellten Stundenzahl rausgeht, nicht erst am naechsten Tag) erinnert
+an **unvollstaendige Buchungsanfragen** - analog zu Shopifys "Abandoned
+Checkout"-Erinnerung. Der Buchungsassistent legt schon in Schritt 2
+(Name/E-Mail/Termin) eine `bookings`-Zeile mit Status `angefragt` an (siehe
+Buchungssystem oben); `total_price_cents` bleibt dabei bewusst `NULL`, bis
+der Kunde Schritt 5 (Zusammenfassung/Zahlung) tatsaechlich abschliesst - ein
+`NULL`-Wert ist also das zuverlaessige Signal fuer "Assistent begonnen, nie
+beendet", unabhaengig davon wie weit Design/Extras schon ausgefuellt
+wurden. `abandoned_reminder_hours()` (Einstellung, Panel unter
+Einstellungen, Standard 24) legt fest, wie lange seit `created_at`
+gewartet wird; `bookings.abandoned_reminder_sent_at` verhindert eine
+doppelte Mail (nur eine einzige Erinnerung pro Buchung). Admin-erstellte
+Buchungen (`admin/booking_new.php`) sind davon nie betroffen, da dort
+`total_price_cents` immer sofort gesetzt wird (0 fuer "kostenlos
+bestaetigt", der berechnete Preis fuer "Zahlungslink senden") - fuer diese
+gibt es bereits eine eigene Zahlungslink-Mail, eine zusaetzliche
+"Abandoned"-Erinnerung waere dort nur verwirrend. Die Mail
+(`send_abandoned_booking_email()`) verlinkt per `edit_token` zurueck in
+den Assistenten (`/buchen?step=3&token=...`), der bisherige Fortschritt
+bleibt erhalten; bereits vergangene Eventdaten werden nicht mehr
+angeschrieben. Ebenfalls mit Status-Anzeige und manuellem Sende-Knopf in
+den Buchungsdetails (nur sichtbar, solange die Buchung tatsaechlich noch
+unvollstaendig ist).
+
 ## Online-Galerie
 
 Sobald die Fotobox nach dem Event wieder mit dem Internet verbunden ist

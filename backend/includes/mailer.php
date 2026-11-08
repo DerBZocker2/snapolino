@@ -781,6 +781,56 @@ function send_event_reminder_email(array $booking): bool
     }
 }
 
+// Verschickt eine Erinnerung an unvollstaendige Buchungsanfragen - der
+// Kunde hat Schritt 2 (Name/E-Mail/Termin) abgeschlossen, aber nie bis
+// Schritt 5 (Zusammenfassung/Zahlung) weitergemacht (total_price_cents
+// ist dann noch NULL, siehe bin/send_abandoned_reminders.php). Analog zu
+// Shopifys "Abandoned Checkout"-Erinnerung: der Link fuehrt zurueck in den
+// Assistenten (edit_token), der Fortschritt (Termin, evtl. schon gewaehltes
+// Design) bleibt erhalten.
+function send_abandoned_booking_email(array $booking): bool
+{
+    $mail = create_smtp_mailer();
+    if ($mail === null) {
+        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Erinnerung unvollstaendige Buchung #' . $booking['id'] . ')');
+        return false;
+    }
+
+    try {
+        $mail->addAddress($booking['customer_email'], $booking['customer_name']);
+        $eventDate = (new DateTimeImmutable($booking['event_date']))->format('d.m.Y');
+        $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
+        $continueUrl = rtrim((string) backend_config()['base_url'], '/') . '/buchen?step=3&token=' . rawurlencode((string) $booking['edit_token']);
+
+        $mail->Subject = 'Deine Fotobox-Buchung wartet noch auf dich – Snapolino';
+        $mail->isHTML(true);
+
+        $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
+            . email_p('du hattest für den <strong>' . email_e($eventDate) . '</strong> eine Fotobox-Buchung begonnen, '
+                . 'sie aber noch nicht abgeschlossen - dein Termin ist für dich reserviert, bis du fertig buchst oder '
+                . 'absagst.')
+            . email_button($continueUrl, 'Buchung fortsetzen')
+            . email_muted('Falls du dich doch dagegen entschieden hast, musst du nichts weiter tun - melde dich bei '
+                . 'Fragen gerne einfach bei uns.')
+            . email_signoff($fromName);
+        $mail->Body = render_email_html($mail, 'Fast geschafft!', $html, 'Deine Buchung für den ' . $eventDate . ' wartet noch auf dich.');
+
+        $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
+            . "du hattest fuer den " . $eventDate . " eine Fotobox-Buchung begonnen, sie aber noch nicht "
+            . "abgeschlossen - dein Termin ist fuer dich reserviert, bis du fertig buchst oder absagst.\n\n"
+            . "Hier geht's weiter:\n" . $continueUrl . "\n\n"
+            . "Falls du dich doch dagegen entschieden hast, musst du nichts weiter tun - melde dich bei Fragen "
+            . "gerne einfach bei uns.\n\n"
+            . "Viele Grüße\n" . $fromName;
+
+        $mail->send();
+        return true;
+    } catch (PHPMailerException $e) {
+        error_log('Mailversand fehlgeschlagen (Erinnerung unvollstaendige Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 // Verschickt die Bestaetigung, sobald eine Zusatzzahlung tatsaechlich
 // eingegangen ist (siehe mark_addon_charge_paid()). Fuer diese kleinen
 // Nachforderungen gibt es keine eigene fortlaufende Rechnungsnummer wie bei

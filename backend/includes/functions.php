@@ -541,6 +541,17 @@ function review_request_days_after_event(): int
     return max(0, (int) get_setting('review_request_days_after_event', '3'));
 }
 
+// Stunden NACH DEM ANLEGEN einer Buchungsanfrage, ab denen
+// bin/send_abandoned_reminders.php eine Erinnerungsmail verschickt, falls
+// der Buchungsassistent nie bis Schritt 5 (Zusammenfassung/Zahlung)
+// abgeschlossen wurde - erkennbar an total_price_cents IS NULL, das wird
+// erst dort gesetzt (siehe buchen.php). Analog zu Shopifys "Abandoned
+// Checkout"-Erinnerung, im Panel unter Einstellungen editierbar.
+function abandoned_reminder_hours(): int
+{
+    return max(1, (int) get_setting('abandoned_reminder_hours', '24'));
+}
+
 // Link zur Google-Bewertungsseite fuer die Bewertungsanfrage-Mail, im Panel
 // unter Einstellungen editierbar - leer = Mail ohne Bewertungslink-Knopf.
 function google_review_url(): string

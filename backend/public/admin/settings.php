@@ -22,6 +22,7 @@ $returningCustomerDiscountPercent = (string) returning_customer_discount_percent
 $designEditDeadlineDays = (string) design_edit_deadline_days();
 $bookingMinLeadDays = (string) booking_min_lead_days();
 $waitlistMinLeadDays = (string) waitlist_min_lead_days();
+$abandonedReminderHours = (string) abandoned_reminder_hours();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
@@ -43,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $designEditDeadlineDays = trim((string) ($_POST['design_edit_deadline_days'] ?? ''));
     $bookingMinLeadDays = trim((string) ($_POST['booking_min_lead_days'] ?? ''));
     $waitlistMinLeadDays = trim((string) ($_POST['waitlist_min_lead_days'] ?? ''));
+    $abandonedReminderHours = trim((string) ($_POST['abandoned_reminder_hours'] ?? ''));
 
     if (!is_numeric($priceEuro) || (float) $priceEuro < 0) {
         $errors[] = 'Basispreis muss eine Zahl >= 0 sein.';
@@ -80,6 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!ctype_digit($waitlistMinLeadDays)) {
         $errors[] = 'Mindestvorlauf für die Warteliste muss eine ganze Zahl >= 0 sein.';
     }
+    if (!ctype_digit($abandonedReminderHours) || (int) $abandonedReminderHours < 1) {
+        $errors[] = 'Vorlauf der Erinnerung an unvollständige Buchungen muss eine ganze Zahl >= 1 sein.';
+    }
 
     if (!$errors) {
         set_setting('base_price_cents', (string) (int) round(((float) $priceEuro) * 100));
@@ -99,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('design_edit_deadline_days', (string) (int) $designEditDeadlineDays);
         set_setting('booking_min_lead_days', (string) (int) $bookingMinLeadDays);
         set_setting('waitlist_min_lead_days', (string) (int) $waitlistMinLeadDays);
+        set_setting('abandoned_reminder_hours', (string) (int) $abandonedReminderHours);
         header('Location: settings.php?gespeichert=1');
         exit;
     }
@@ -163,6 +169,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <code>bin/send_event_reminders.php</code>, siehe <code>backend/README.md</code>. 0 = am Eventtag selbst.</p>
         <label>Vorlauf in Tagen
             <input type="number" min="0" name="reminder_days_before_event" value="<?= htmlspecialchars($reminderDaysBeforeEvent, ENT_QUOTES) ?>" style="max-width:120px;">
+        </label>
+
+        <h2>Erinnerung an unvollständige Buchungen</h2>
+        <p class="muted-text">Wie viele Stunden <strong>nach dem Anlegen</strong> einer Buchungsanfrage eine
+            Erinnerungsmail verschickt wird, falls der Kunde den Buchungsassistenten begonnen, aber nie bis zur
+            Zusammenfassung/Zahlung abgeschlossen hat (vergleichbar mit einer "Abandoned Checkout"-Erinnerung) -
+            erfordert einen Cronjob für <code>bin/send_abandoned_reminders.php</code>, siehe
+            <code>backend/README.md</code>. Jede Buchung bekommt dabei nur eine einzige Erinnerung.</p>
+        <label>Vorlauf in Stunden
+            <input type="number" min="1" name="abandoned_reminder_hours" value="<?= htmlspecialchars($abandonedReminderHours, ENT_QUOTES) ?>" style="max-width:120px;">
         </label>
 
         <h2>Empfehlungsprogramm</h2>

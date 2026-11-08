@@ -27,6 +27,7 @@ backend/
     purge_expired_galleries.php  Loescht abgelaufene Galerie-Fotos (DSGVO), fuer taeglichen Cronjob
     send_event_reminders.php     Verschickt Erinnerungsmails vor dem Event, fuer taeglichen Cronjob
     send_review_requests.php     Verschickt Bewertungsanfragen nach dem Event, fuer taeglichen Cronjob
+    send_abandoned_reminders.php Erinnert an unvollstaendige Buchungsanfragen, fuer taeglichen Cronjob
   tools/
     generate_presets.py      Erzeugt die 22 mitgelieferten Preset-Rahmen per PIL
                              (kein Laufzeit-Bestandteil, nur bei Design-Ueberarbeitung)
@@ -124,6 +125,19 @@ sudo apt install php-gd php-curl php-mbstring && sudo systemctl reload apache2
    ```
    Ohne hinterlegten Google-Bewertungslink (Einstellung `google_review_url`)
    verschickt die Mail trotzdem eine Feedback-Bitte, nur ohne Bewertungs-Knopf.
+9. Fuer die Erinnerung an unvollstaendige Buchungsanfragen (Panel unter
+   **Einstellungen** editierbar, Standard 24 Stunden nach dem Anlegen)
+   ebenfalls einen Cronjob einrichten - stuendlich statt taeglich ist hier
+   sinnvoller, damit die Erinnerung zeitnah nach Ablauf der eingestellten
+   Stundenzahl verschickt wird, nicht erst am naechsten Tag:
+   ```
+   crontab -e
+   # stuendlich:
+   0 * * * * php /var/www/snapolino.de/backend/bin/send_abandoned_reminders.php >> /var/log/snapolino-abandoned.log 2>&1
+   ```
+   Ohne diesen Cronjob bekommen Kunden mit unvollstaendiger Buchungsanfrage
+   keine automatische Erinnerung - im Panel unter Buchungsdetails laesst sie
+   sich bei Bedarf trotzdem jederzeit manuell verschicken.
 
 ## Ablauf beim Anlegen einer Box
 

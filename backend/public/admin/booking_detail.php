@@ -61,6 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'send_abandoned_reminder_email') {
+        if (send_abandoned_booking_email($booking)) {
+            db()->prepare('UPDATE bookings SET abandoned_reminder_sent_at = NOW() WHERE id = ?')->execute([$bookingId]);
+        }
+        header('Location: booking_detail.php?id=' . $bookingId . '&abandoned_mail=1');
+        exit;
+    }
+
     if ($action === 'toggle_unlock') {
         $newValue = (int) $booking['edit_unlocked_by_admin'] === 1 ? 0 : 1;
         db()->prepare('UPDATE bookings SET edit_unlocked_by_admin = ? WHERE id = ?')
@@ -277,6 +285,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 <?php if (isset($_GET['review_mail'])): ?>
     <p class="badge">Bewertungsanfrage verschickt</p>
 <?php endif; ?>
+<?php if (isset($_GET['abandoned_mail'])): ?>
+    <p class="badge">Erinnerung an unvollständige Buchung verschickt</p>
+<?php endif; ?>
 <?php if (isset($_GET['neu_kostenlos'])): ?>
     <p class="badge">Buchung angelegt und kostenfrei bestätigt</p>
 <?php endif; ?>
@@ -471,6 +482,28 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
                 </tr>
             <?php endforeach; ?>
         </table>
+    </section>
+<?php endif; ?>
+
+<?php if ($booking['status'] === 'angefragt' && $booking['total_price_cents'] === null): ?>
+    <section class="panel">
+        <h2>Erinnerung an unvollständige Buchung</h2>
+        <p class="muted-text">Der Kunde hat den Buchungsassistenten begonnen, aber nie bis zur Zusammenfassung/Zahlung
+            abgeschlossen (vergleichbar mit einem abgebrochenen Checkout).</p>
+        <?php if ($booking['abandoned_reminder_sent_at']): ?>
+            <p class="muted-text">Erinnerung verschickt am
+                <?= htmlspecialchars((new DateTimeImmutable($booking['abandoned_reminder_sent_at']))->format('d.m.Y H:i'), ENT_QUOTES) ?>.</p>
+        <?php else: ?>
+            <p class="muted-text">Wird automatisch <?= abandoned_reminder_hours() ?> Stunde(n) nach dem Anlegen
+                verschickt, sofern der Cronjob (<code>bin/send_abandoned_reminders.php</code>) eingerichtet ist. Noch
+                nicht verschickt.</p>
+        <?php endif; ?>
+        <form method="post" action="booking_detail.php" style="display:inline;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
+            <input type="hidden" name="form_action" value="send_abandoned_reminder_email">
+            <button type="submit" class="button-secondary"><?= $booking['abandoned_reminder_sent_at'] ? 'Erneut senden' : 'Jetzt senden' ?></button>
+        </form>
     </section>
 <?php endif; ?>
 
