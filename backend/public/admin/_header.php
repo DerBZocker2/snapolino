@@ -39,8 +39,8 @@ function nav_class(array $pages, string $current): string
 
 // Schlichte, selbst gezeichnete Strich-Icons (keine externe Icon-Bibliothek/
 // kein Lizenzthema, analog zur Begruendung bei den Unicode-Emoji-Stickern
-// im Online-Designer) - ein Icon je Sidebar-Punkt, im Shopify-typischen
-// Outline-Stil (stroke statt fill, siehe .sidebar-nav a svg in style.css).
+// im Online-Designer) - ein Icon je Sidebar-Punkt, Outline-Stil (stroke
+// statt fill, siehe .sidebar-nav a svg in style.css).
 function nav_icon(string $name): string
 {
     $paths = [
@@ -57,6 +57,7 @@ function nav_icon(string $name): string
         'percent' => '<circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="17" r="2.3"/><path d="M19 5 5 19"/>',
         'star' => '<path d="m12 3 2.6 5.6 6.1.7-4.5 4.1 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.1 6.1-.7L12 3z"/>',
         'gear' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.1 7.1 0 0 0 0-2l2-1.5-2-3.5-2.3.9a7 7 0 0 0-1.7-1L15 3h-4l-.4 2.4a7 7 0 0 0-1.7 1l-2.3-.9-2 3.5L6.6 11a7.1 7.1 0 0 0 0 2l-2 1.5 2 3.5 2.3-.9a7 7 0 0 0 1.7 1L10.5 21h4l.4-2.4a7 7 0 0 0 1.7-1l2.3.9 2-3.5L19.4 13z"/>',
+        'search' => '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
     ];
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -81,6 +82,8 @@ function nav_icon(string $name): string
             <a class="<?= nav_class(['dashboard.php'], $currentPage) ?>" href="dashboard.php">
                 <?= nav_icon('home') ?> Übersicht
             </a>
+
+            <div class="sidebar-group-label">Verkauf</div>
             <a class="<?= nav_class(['bookings.php', 'booking_detail.php'], $currentPage) ?>" href="bookings.php">
                 <?= nav_icon('bookings') ?> Buchungen
                 <?php if ($openBookings > 0): ?>
@@ -96,6 +99,8 @@ function nav_icon(string $name): string
             <a class="<?= nav_class(['invoices.php'], $currentPage) ?>" href="invoices.php">
                 <?= nav_icon('receipt') ?> Rechnungen
             </a>
+
+            <div class="sidebar-group-label">Box &amp; Logistik</div>
             <a class="<?= nav_class(['boxes.php', 'box_layouts.php'], $currentPage) ?>" href="boxes.php">
                 <?= nav_icon('box') ?> Boxen
                 <?php if ($unassignedBookings > 0): ?>
@@ -108,12 +113,16 @@ function nav_icon(string $name): string
                     <span class="nav-badge"><?= $waitingEntries ?></span>
                 <?php endif; ?>
             </a>
+
+            <div class="sidebar-group-label">Katalog</div>
             <a class="<?= nav_class(['layouts.php', 'layout_form.php'], $currentPage) ?>" href="layouts.php">
                 <?= nav_icon('grid') ?> Layouts
             </a>
             <a class="<?= nav_class(['extras.php', 'extra_form.php'], $currentPage) ?>" href="extras.php">
                 <?= nav_icon('sparkle') ?> Extras
             </a>
+
+            <div class="sidebar-group-label">Marketing</div>
             <a class="<?= nav_class(['coupons.php', 'coupon_form.php'], $currentPage) ?>" href="coupons.php">
                 <?= nav_icon('tag') ?> Gutscheine
             </a>
@@ -123,6 +132,8 @@ function nav_icon(string $name): string
             <a class="<?= nav_class(['testimonials.php', 'testimonial_form.php'], $currentPage) ?>" href="testimonials.php">
                 <?= nav_icon('star') ?> Bewertungen
             </a>
+
+            <div class="sidebar-group-label">System</div>
             <a class="<?= nav_class(['settings.php'], $currentPage) ?>" href="settings.php">
                 <?= nav_icon('gear') ?> Einstellungen
             </a>
@@ -133,4 +144,10 @@ function nav_icon(string $name): string
         </div>
     </aside>
     <main class="content">
-        <h1><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?></h1>
+        <div class="topbar">
+            <h1><?= htmlspecialchars($pageTitle, ENT_QUOTES) ?></h1>
+            <form class="topbar-search" method="get" action="search.php">
+                <?= nav_icon('search') ?>
+                <input type="search" name="q" placeholder="Kunden, Buchungen durchsuchen…" value="<?= htmlspecialchars((string) ($_GET['q'] ?? ''), ENT_QUOTES) ?>">
+            </form>
+        </div>

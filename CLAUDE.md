@@ -266,43 +266,68 @@ im Panel angezeigt).
   erhöht `config_version` der betroffenen Box(en).
 - DB-Zugangsdaten in `backend/includes/config.php` (nicht im Repo, siehe
   `config.php.example`), analog zu `box.ini` auf der Box.
-- Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts). Bewusst
-  **stark an das Shopify-Admin-Design angelehnt** statt eines eigenen
-  Stils (`admin/assets/style.css`, einzige Farbdatei fürs gesamte Panel -
-  anders als die bunte öffentliche Webseite mit `assets/site.css`): eine
-  **helle** Sidebar (`--panel`, weiss) statt einer dunklen Flaeche, mit
-  einem **Icon vor jedem Navigationspunkt** (`nav_icon()` in `admin/_header.php`
-  - schlichte, selbst gezeichnete Strich-Icons im Outline-Stil, `<svg>`
-  inline im PHP statt externer Icon-Bibliothek/Icon-Font, analog zur
-  Begruendung bei den Unicode-Emoji-Stickern im Online-Designer: kein
-  Asset-/Lizenzthema). Aktive Sidebar-Eintraege bekommen eine volle,
-  abgerundete Hintergrund-Pille in der Markenfarbe (`--accent-soft`/
-  `--accent-dark`) statt eines Akzent-Balkens. **Primaere Aktions-Buttons
-  sind bewusst dunkel/schwarz** (`--dark`, `#1a1a1a`) statt in der
-  Markenfarbe - das ist im aktuellen Shopify-Admin (Polaris) der Stil fuer
-  Haupt-Buttons; die Markenfarbe selbst ist ein Gruenton
-  (`--accent`/`--accent-dark`/`--accent-soft`, `#008060`) und bleibt
-  Links, aktiven/Erfolgs-Zustaenden (gruene Status-Pillen, aktive Sidebar-
-  Pille, KPI-Pillen) vorbehalten - zwei bewusst getrennte Farbrollen statt
-  einer einzigen Akzentfarbe fuer alles. Badges/Status-Pillen (`.badge`,
-  `.status-pill`, `.nav-badge`) sind **voll abgerundet** (`border-radius:
-  999px`) statt nur leicht gerundet, Eckenradien bei Buttons/Eingabefeldern
-  durchgaengig 8px. Schriftfamilie ist der Systemfont-Stack
-  `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-  sans-serif` (derselbe generische Stack wie bei Shopifys eigenem Polaris-
-  Design-System, kein lizenzpflichtiger Webfont-Import noetig). Gilt fuer
-  das gesamte Panel (jede Seite bindet dieselbe `style.css` ein), nicht nur
-  fuer `dashboard.php`; auch `login.php` zieht automatisch dieselbe Palette
-  (schwarzer Anmelden-Knopf, gruener Fokus-Rahmen auf Eingabefeldern). Fuer
-  zusaetzliche typografische Praezision tragen `h1`, Tabellen-Spaltenkoepfe
-  (`th`) sowie die kleinen Kachel-Beschriftungen (`.card-label`,
-  `.stat-card-label`) dezente `letter-spacing`-Werte, `th` sowie diese
-  beiden Label-Klassen zusaetzlich `text-transform: uppercase` - liest sich
-  als bewusst gestaltetes Dashboard statt als rohe Tabellen/Kacheln. Der
-  Login-Knopf (`login.php`) ist ausserdem bewusst `width: 100%` (vorher
-  inline-breit und dadurch optisch "verloren" neben den volle-Breite-
-  Eingabefeldern), dazu eine kurze Unterzeile "Anmeldung für Mitarbeiter"
-  unter der Panel-Ueberschrift.
+- Admin-Panel im Sidebar-Layout (Übersicht/Buchungen/Boxen/Layouts), eigenes
+  Design-System in `admin/assets/style.css` (einzige Farbdatei fürs gesamte
+  Panel - anders als die bunte öffentliche Webseite mit `assets/site.css`),
+  bewusst mehrfach ueberarbeitet (zunaechst "nuechtern-professionell" mit
+  einem Blauton, dann stark an Shopifys helle Admin-Oberflaeche angelehnt,
+  aktuell eine **dunkle Sidebar mit indigo-violetter Markenfarbe** -
+  Geschichte bewusst nicht im Detail nachgefuehrt, da sich das Design per
+  Nutzerwunsch weiterhin aendern kann; massgeblich ist immer der
+  tatsaechliche Stand von `admin/assets/style.css`). Aktuelle Eckpunkte:
+  - **Dunkle Sidebar** (`--dark`, `#15151f`) mit **gruppierter Navigation**:
+    `admin/_header.php` teilt die Sidebar-Punkte in benannte Abschnitte
+    (`.sidebar-group-label`, z.B. "Verkauf", "Box & Logistik", "Katalog",
+    "Marketing", "System") statt einer einzigen langen, flachen Liste -
+    sollte sich die Zahl der Admin-Seiten weiter erhoehen, verschlechtert
+    sich die Uebersichtlichkeit dadurch nicht linear mit jeder neuen Seite.
+    Jeder Punkt hat ein **Icon** (`nav_icon()` in `admin/_header.php` -
+    schlichte, selbst gezeichnete Strich-Icons im Outline-Stil, inline
+    `<svg>` im PHP statt externer Icon-Bibliothek/Icon-Font, analog zur
+    Begruendung bei den Unicode-Emoji-Stickern im Online-Designer: kein
+    Asset-/Lizenzthema). Aktive Eintraege bekommen eine volle, satte
+    Hintergrund-Pille in der Markenfarbe (`--accent`) statt eines
+    Akzent-Balkens oder einer blassen Soft-Variante.
+  - **Topbar** (`.topbar` in `admin/_header.php`, direkt um die bisherige
+    `<h1>` herum) zeigt Seitentitel und eine **globale Suche**
+    (`.topbar-search`) nebeneinander statt die Ueberschrift allein - auf
+    jeder Admin-Seite verfuegbar, nicht nur auf einer eigenen Suchseite.
+  - **`admin/search.php`**: globale Volltextsuche ueber Kunden
+    (`customer_number`/`name`/`email`/`phone`) UND Buchungen
+    (`customer_name`/`customer_email`/`customer_phone`) gleichzeitig, als
+    zwei getrennte Ergebnislisten auf einer Seite (je bis zu 25 Treffer,
+    neueste zuerst) - die Topbar-Suche jeder Seite sendet dorthin. Bewusst
+    zwei separate `LIKE`-Abfragen statt einer `UNION`, da Kunden und
+    Buchungen unterschiedliche Spalten/Linkziele haben.
+  - Primaere Aktions-Buttons, Filter-Tabs und aktive Sidebar-Punkte nutzen
+    durchgaengig dieselbe Markenfarbe (`--accent`) mit weissem Text -
+    anders als die vorherige Shopify-Phase, die bewusst zwischen
+    schwarzen Haupt-Buttons und einer separaten Gruen-Markenfarbe trennte.
+  - Badges/Status-Pillen (`.badge`, `.status-pill`, `.nav-badge`) sind
+    **voll abgerundet** (`border-radius: 999px`), Eckenradien bei Panels/
+    Karten/Buttons/Eingabefeldern durchgaengig 8-14px.
+  - Schriftfamilie ist der generische Systemfont-Stack `-apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`
+    (kein lizenzpflichtiger Webfont-Import noetig).
+  - Gilt fuer das gesamte Panel (jede Seite bindet dieselbe `style.css`
+    ein), nicht nur fuer `dashboard.php`; auch `login.php` zieht
+    automatisch dieselbe Palette.
+  - `h1`, Tabellen-Spaltenkoepfe (`th`) sowie die kleinen
+    Kachel-Beschriftungen (`.card-label`, `.stat-card-label`) tragen
+    dezente `letter-spacing`-Werte, `th` sowie diese beiden Label-Klassen
+    zusaetzlich `text-transform: uppercase`. Der Login-Knopf (`login.php`)
+    ist bewusst `width: 100%` (vorher inline-breit und dadurch optisch
+    "verloren" neben den volle-Breite-Eingabefeldern), dazu eine kurze
+    Unterzeile "Anmeldung für Mitarbeiter" unter der Panel-Ueberschrift.
+
+  **Bei einer erneuten Design-Aenderung**: Farben/Formensprache sitzen
+  zentral in den `:root`-Variablen von `admin/assets/style.css` (einmal
+  anpassen wirkt ueberall) - bei einem neuen Farbschema immer den
+  Text-auf-Hintergrund-Kontrast neu pruefen (mind. 4,5:1 fuer normale,
+  3:1 fuer grosse/fette Textgroesse ab 18,66px), nicht nur auf
+  Markenkonsistenz achten (siehe Konventionen unten, dort schon einmal
+  als Lektion aus einem zu hellen Farbverlauf auf der oeffentlichen Seite
+  dokumentiert - gilt hier genauso).
 - Aktions-Buttons einer Tabellenzeile (`bookings.php`, `coupons.php`,
   `extras.php`, `layouts.php`) stehen in einem `<div class="actions-row">`
   *innerhalb* der `<td class="actions">`, nicht direkt als `display: flex`

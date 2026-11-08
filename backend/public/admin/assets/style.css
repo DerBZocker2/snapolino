@@ -1,20 +1,20 @@
 :root {
-    --bg: #f1f2f4;
+    --bg: #f6f6f9;
     --panel: #ffffff;
-    --border: #e3e5e7;
-    --text: #1a1a1a;
-    --muted: #6d7175;
-    --accent: #008060;
-    --accent-dark: #006e52;
-    --accent-soft: #e3f1ec;
-    --dark: #1a1a1a;
-    --dark-2: #303030;
-    --success: #008060;
-    --success-bg: #e3f1ec;
-    --warning: #946800;
-    --warning-bg: #fff4e4;
-    --danger: #d72c0d;
-    --danger-bg: #fdeae8;
+    --border: #e5e5ec;
+    --text: #17171f;
+    --muted: #6c6c7c;
+    --accent: #4f46e5;
+    --accent-dark: #4338ca;
+    --accent-soft: #eef0ff;
+    --dark: #15151f;
+    --dark-2: #1f1f2d;
+    --success: #16a34a;
+    --success-bg: #e8f8ee;
+    --warning: #b45309;
+    --warning-bg: #fef3e2;
+    --danger: #dc2626;
+    --danger-bg: #fdeaea;
 }
 
 * { box-sizing: border-box; }
@@ -35,17 +35,16 @@ a { color: var(--accent-dark); }
     align-items: stretch;
 }
 
-/* ---------- Sidebar: helle Shopify-artige Navigation statt dunkler Flaeche ---------- */
+/* ---------- Sidebar: dunkle Flaeche mit gruppierter Navigation ---------- */
 
 .sidebar {
-    width: 250px;
+    width: 252px;
     flex-shrink: 0;
-    background: var(--panel);
-    color: var(--text);
+    background: var(--dark);
+    color: #fff;
     display: flex;
     flex-direction: column;
     padding: 0;
-    border-right: 1px solid var(--border);
 }
 
 .sidebar-brand {
@@ -56,9 +55,9 @@ a { color: var(--accent-dark); }
     font-size: 16px;
     letter-spacing: 0.1px;
     padding: 18px 20px;
-    color: var(--text);
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 10px;
 }
 
 .sidebar-brand img {
@@ -72,13 +71,23 @@ a { color: var(--accent-dark); }
     flex: 1;
     gap: 2px;
     padding: 4px 12px;
+    overflow-y: auto;
+}
+
+.sidebar-group-label {
+    color: #8585a0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 16px 12px 4px;
 }
 
 .sidebar-nav a {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--muted);
+    color: #a6a5ba;
     text-decoration: none;
     padding: 9px 12px;
     font-size: 14px;
@@ -98,45 +107,99 @@ a { color: var(--accent-dark); }
     stroke-linejoin: round;
 }
 
-.sidebar-nav a:hover { background: rgba(0, 0, 0, 0.045); color: var(--text); }
+.sidebar-nav a:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
 
 .sidebar-nav a.active {
-    background: var(--accent-soft);
-    color: var(--accent-dark);
+    background: var(--accent);
+    color: #fff;
     font-weight: 600;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
 
 .nav-badge {
     margin-left: auto;
-    background: var(--dark);
+    background: rgba(255, 255, 255, 0.16);
     color: #fff;
     border-radius: 999px;
     font-size: 11px;
     line-height: 1;
     padding: 3px 7px;
 }
+.sidebar-nav a.active .nav-badge { background: rgba(255, 255, 255, 0.3); }
 
 .sidebar-footer {
     padding: 14px 20px;
     margin-top: 12px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
 .sidebar-footer a {
-    color: var(--muted);
+    color: #8c8ba0;
     font-size: 13px;
     text-decoration: none;
 }
 
-.sidebar-footer a:hover { color: var(--text); }
+.sidebar-footer a:hover { color: #fff; }
 
 .content {
     flex: 1;
     min-width: 0;
-    padding: 34px 40px;
+    padding: 30px 40px;
+}
+
+/* ---------- Topbar: Seitentitel + globale Suche ---------- */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.topbar h1 { margin-bottom: 0; }
+
+.topbar-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 320px;
+    max-width: 100%;
+}
+
+.topbar-search svg {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    stroke: var(--muted);
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.topbar-search input {
+    width: 100%;
+    padding: 9px 14px 9px 38px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 14px;
+    background: var(--panel);
+    color: var(--text);
+}
+
+.topbar-search input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
 @media (max-width: 760px) {
@@ -147,8 +210,6 @@ a { color: var(--accent-dark); }
         flex-wrap: wrap;
         align-items: center;
         padding: 10px 14px;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
     }
     .sidebar-brand { padding: 0 16px 0 0; border-bottom: none; margin-bottom: 0; }
     .sidebar-nav {
@@ -159,9 +220,10 @@ a { color: var(--accent-dark); }
         gap: 4px;
         margin-top: 10px;
         padding: 0;
+        overflow-y: visible;
     }
+    .sidebar-group-label { display: none; }
     .sidebar-nav a { padding: 8px 10px; white-space: nowrap; }
-    .sidebar-nav a.active { box-shadow: inset 0 -2px 0 var(--accent); }
     .nav-badge { margin-left: 4px; }
     .sidebar-footer {
         flex-direction: row;
@@ -172,6 +234,7 @@ a { color: var(--accent-dark); }
         gap: 12px;
     }
     .content { padding: 18px; }
+    .topbar-search { width: 100%; order: 2; }
 }
 
 h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 24px; color: var(--text); }
@@ -185,10 +248,10 @@ th { letter-spacing: 0.3px; text-transform: uppercase; }
 .panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 1px 0 rgba(26, 26, 26, 0.03);
+    box-shadow: 0 1px 2px rgba(23, 23, 31, 0.04);
     overflow-x: auto;
 }
 
@@ -202,20 +265,21 @@ th { letter-spacing: 0.3px; text-transform: uppercase; }
 .card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 20px 22px;
     text-decoration: none;
     color: var(--text);
     display: flex;
     flex-direction: column;
     min-width: 140px;
-    box-shadow: 0 1px 0 rgba(26, 26, 26, 0.03);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 1px 2px rgba(23, 23, 31, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .card:hover {
     border-color: var(--accent);
-    box-shadow: 0 2px 8px rgba(26, 26, 26, 0.06);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12);
+    transform: translateY(-1px);
 }
 
 .card-number {
@@ -240,7 +304,7 @@ th, td {
 
 th { color: var(--muted); font-weight: 600; font-size: 12px; }
 
-tbody tr:hover { background: #fafbfb; }
+tbody tr:hover { background: #fafafd; }
 
 /* Erlaubt horizontales Scrollen der Tabelle selbst, statt dass sie auf
    schmalen Bildschirmen (Tablet/Handy) den gesamten Seiteninhalt aufbricht. */
@@ -271,7 +335,7 @@ label.checkbox { display: flex; align-items: center; gap: 8px; color: var(--text
 label.checkbox input { margin: 0; }
 
 input[type=text], input[type=password], input[type=number], input[type=file],
-input[type=email], select {
+input[type=email], input[type=search], select {
     display: block;
     width: 100%;
     margin-top: 5px;
@@ -287,7 +351,7 @@ input[type=email], select {
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.15);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
 .grid3 {
@@ -306,14 +370,10 @@ input:focus, select:focus, textarea:focus {
 
 .inline-form label { margin-bottom: 0; min-width: 160px; }
 
-/* Primaere Aktionen bewusst in Dunkel/Schwarz statt Markenfarbe - das ist
-   im aktuellen Shopify-Admin-Design (Polaris) der Stil fuer Haupt-Buttons,
-   die Markenfarbe (--accent, Gruen) bleibt Links/aktiven Zustaenden/Erfolg
-   vorbehalten. */
 button, .button, .button-secondary {
-    background: var(--dark);
+    background: var(--accent);
     color: #fff;
-    border: 1px solid var(--dark);
+    border: 1px solid var(--accent);
     border-radius: 8px;
     padding: 10px 16px;
     font-size: 14px;
@@ -324,7 +384,7 @@ button, .button, .button-secondary {
     transition: background 0.15s ease;
 }
 
-button:hover, .button:hover { background: var(--dark-2); }
+button:hover, .button:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
 
 .button-secondary {
     background: #fff;
@@ -332,7 +392,7 @@ button:hover, .button:hover { background: var(--dark-2); }
     border: 1px solid var(--border);
 }
 
-.button-secondary:hover { background: #fafbfb; border-color: #c9ccce; }
+.button-secondary:hover { background: #fafafd; border-color: #c7c7d6; }
 
 button.danger {
     background: #fff;
@@ -371,15 +431,13 @@ button.danger:hover { background: var(--danger-bg); }
     transition: background 0.15s ease, border-color 0.15s ease;
     white-space: nowrap;
 }
-.actions-row > a:hover { background: #fafbfb; border-color: #c9ccce; }
+.actions-row > a:hover { background: #fafafd; border-color: #c7c7d6; }
 
 .actions-row button, .actions-row .button, .actions-row .button-secondary {
     padding: 6px 12px;
     font-size: 13px;
     white-space: nowrap;
 }
-
-/* ---------- Badges/Status-Pillen: voll abgerundet statt kantig (Shopify-Stil) ---------- */
 
 .badge {
     background: var(--success-bg);
@@ -422,13 +480,13 @@ button.danger:hover { background: var(--danger-bg); }
 .muted-text { color: var(--muted); font-size: 12px; }
 
 /* Buchungen: Zeilen, deren Versand in Kuerze ansteht, dezent hervorheben. */
-.row-urgent { box-shadow: inset 3px 0 0 var(--accent); background: #f3faf7; }
-.row-urgent:hover { background: #e9f6f0; }
+.row-urgent { box-shadow: inset 3px 0 0 var(--accent); background: #f6f6fe; }
+.row-urgent:hover { background: #efeffd; }
 
 .button-secondary.active {
-    background: var(--dark);
+    background: var(--accent);
     color: #fff;
-    border-color: var(--dark);
+    border-color: var(--accent);
 }
 
 textarea {
@@ -452,10 +510,10 @@ body.login-page {
 .login-box {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 32px;
     width: 320px;
-    box-shadow: 0 4px 16px rgba(26, 26, 26, 0.06);
+    box-shadow: 0 10px 30px rgba(23, 23, 31, 0.08);
 }
 
 .login-logo {
@@ -493,15 +551,15 @@ body.login-page {
 .booking-chip {
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 14px 16px;
     min-width: 210px;
     cursor: grab;
-    box-shadow: 0 1px 0 rgba(26, 26, 26, 0.03);
+    box-shadow: 0 1px 2px rgba(23, 23, 31, 0.04);
     transition: box-shadow 0.15s ease;
 }
 
-.booking-chip:hover { box-shadow: 0 2px 8px rgba(26, 26, 26, 0.06); }
+.booking-chip:hover { box-shadow: 0 4px 14px rgba(23, 23, 31, 0.08); }
 .booking-chip:active { cursor: grabbing; }
 .booking-chip.dragging { opacity: 0.35; }
 
@@ -526,9 +584,9 @@ body.login-page {
 .box-card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 20px;
-    box-shadow: 0 1px 0 rgba(26, 26, 26, 0.03);
+    box-shadow: 0 1px 2px rgba(23, 23, 31, 0.04);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -542,7 +600,7 @@ body.login-page {
 
 .box-card-drop {
     border: 2px dashed var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 16px;
     min-height: 64px;
     display: flex;
@@ -592,7 +650,7 @@ body.login-page {
     border-radius: 8px;
     transition: background 0.15s ease, border-color 0.15s ease;
 }
-.box-card-actions > a:hover { background: #fafbfb; border-color: #c9ccce; }
+.box-card-actions > a:hover { background: #fafafd; border-color: #c7c7d6; }
 
 .box-card-actions button.danger { padding: 7px 13px; font-size: 13px; }
 
@@ -646,9 +704,9 @@ body.login-page {
 }
 
 .stat-card {
-    background: #fafbfb;
+    background: #fafafd;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 16px 18px;
 }
 
@@ -800,12 +858,12 @@ body.login-page {
     gap: 1px;
     background: var(--border);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
 }
 
 .calendar-weekday {
-    background: #fafbfb;
+    background: #fafafd;
     color: var(--muted);
     font-size: 12px;
     font-weight: 600;
