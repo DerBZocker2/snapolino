@@ -84,7 +84,10 @@ $today = new DateTimeImmutable('today');
                 </a>
             <?php endforeach; ?>
         </div>
-        <a href="booking_new.php">+ Neue Buchung</a>
+        <div class="inline-form" style="margin-bottom:0;">
+            <a href="bookings_export.php<?= $statusFilter !== '' ? '?status=' . urlencode($statusFilter) : '' ?>" class="button-secondary">Als CSV exportieren</a>
+            <a href="booking_new.php">+ Neue Buchung</a>
+        </div>
     </div>
 
     <div class="table-responsive">

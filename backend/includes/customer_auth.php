@@ -54,19 +54,35 @@ function logout_customer(): void
 // Legt bei Bedarf ein Konto fuer diese E-Mail-Adresse an (z.B. beim
 // Anlegen einer Reservierung) und gibt dessen ID zurueck - ein Konto pro
 // E-Mail-Adresse, mehrfacher Aufruf mit derselben Adresse ist unschaedlich.
-function find_or_create_customer_account(string $email): int
+function find_or_create_customer_account(string $email, ?string $name = null, ?string $phone = null): int
 {
     $email = trim($email);
-    $stmt = db()->prepare('SELECT id FROM customer_accounts WHERE email = ?');
+    $name = $name !== null ? trim($name) : null;
+    $phone = $phone !== null ? trim($phone) : null;
+
+    $stmt = db()->prepare('SELECT id, name, phone FROM customer_accounts WHERE email = ?');
     $stmt->execute([$email]);
-    $id = $stmt->fetchColumn();
-    if ($id !== false) {
-        return (int) $id;
+    $existing = $stmt->fetch();
+    if ($existing) {
+        // Name/Telefon nur nachtragen, wenn noch nichts hinterlegt ist -
+        // ein vom Admin auf der Kundenseite bewusst gepflegter Wert soll
+        // nicht durch eine spaetere, evtl. abweichend getippte Buchung
+        // stillschweigend ueberschrieben werden.
+        if (($existing['name'] === null || $existing['name'] === '') && $name) {
+            db()->prepare('UPDATE customer_accounts SET name = ? WHERE id = ?')->execute([$name, $existing['id']]);
+        }
+        if (($existing['phone'] === null || $existing['phone'] === '') && $phone) {
+            db()->prepare('UPDATE customer_accounts SET phone = ? WHERE id = ?')->execute([$phone, $existing['id']]);
+        }
+        return (int) $existing['id'];
     }
 
-    $stmt = db()->prepare('INSERT INTO customer_accounts (email) VALUES (?)');
-    $stmt->execute([$email]);
-    return (int) db()->lastInsertId();
+    $stmt = db()->prepare('INSERT INTO customer_accounts (email, name, phone) VALUES (?, ?, ?)');
+    $stmt->execute([$email, $name !== '' ? $name : null, $phone !== '' ? $phone : null]);
+    $id = (int) db()->lastInsertId();
+    db()->prepare('UPDATE customer_accounts SET customer_number = ? WHERE id = ?')
+        ->execute(['K-' . str_pad((string) $id, 5, '0', STR_PAD_LEFT), $id]);
+    return $id;
 }
 
 // Erzeugt einen neuen 6-stelligen Code und verschickt ihn per Mail. Liefert

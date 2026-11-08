@@ -90,10 +90,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
             if (!in_array($mode, ['free', 'payment_link'], true)) {
                 $errors[] = 'Bitte eine der beiden Optionen unten wählen.';
             } else {
-                $accountId = find_or_create_customer_account($email);
+                $customerName = trim($firstName . ' ' . $lastName);
+                $accountId = find_or_create_customer_account($email, $customerName, $phone);
                 $editToken = random_key(24);
                 $customerPin = generate_customer_pin();
-                $customerName = trim($firstName . ' ' . $lastName);
 
                 db()->beginTransaction();
                 $stmt = db()->prepare(

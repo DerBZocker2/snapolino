@@ -309,6 +309,9 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
             </td></tr>
         <?php endif; ?>
         <tr><th>E-Mail</th><td><a href="mailto:<?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?>"><?= htmlspecialchars($booking['customer_email'], ENT_QUOTES) ?></a></td></tr>
+        <?php if ($booking['customer_account_id']): ?>
+            <tr><th>Kunde</th><td><a href="customer_detail.php?id=<?= (int) $booking['customer_account_id'] ?>">Kundenprofil ansehen</a></td></tr>
+        <?php endif; ?>
         <tr><th>Design-PIN</th><td>
             <code><?= htmlspecialchars($booking['customer_pin'], ENT_QUOTES) ?></code>
             <span class="muted-text">wurde dem Kunden per Mail geschickt - schützt auf der Box den Bereich zum

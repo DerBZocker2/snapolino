@@ -777,6 +777,46 @@ bleibt die einzige Quelle der Rechnungen, die Seite ist rein lesend. Eine
 Stornorechnung fliesst mit negativem Betrag in die Liste ein, wird aber
 bei der Umsatzsumme oben bewusst nicht mitgezaehlt.
 
+## Kundenverwaltung
+Im Panel unter **Kunden** (`admin/customers.php`) gibt es eine eigene
+Kundenliste - analog zur "Kunden"-Funktion in Shopify, aber auf
+`customer_accounts` aufgesetzt statt einer eigenen Tabelle, da dort
+(siehe "Kundenkonten" oben) ohnehin schon ein Konto pro E-Mail-Adresse
+existiert. Migration `0031_customer_profiles.sql` ergaenzt dafuer
+`customer_number` (fortlaufende, menschenlesbare Kennung `K-00001` usw.,
+aus der Konto-ID abgeleitet und bei der Erstellung eines neuen Kontos in
+`find_or_create_customer_account()` gesetzt, siehe `includes/customer_auth.php`),
+`name`, `phone` (werden bei der ersten Buchung dieser E-Mail-Adresse
+automatisch befuellt, aus `buchen.php` Schritt 2 bzw. `admin/booking_new.php`
+- **nur falls noch leer**, damit ein vom Admin bewusst gepflegter Wert nicht
+durch eine spaetere, evtl. abweichend getippte Buchung stillschweigend
+ueberschrieben wird) sowie `notes` (rein interne Admin-Notiz, nie fuer den
+Kunden sichtbar, analog zu `bookings.admin_note`).
+
+Die Liste zeigt je Kunde Kundennummer, Name, Kontakt, Anzahl Buchungen und
+bezahlten Gesamtumsatz (`LEFT JOIN` auf `bookings` ueber
+`customer_account_id`, summiert nur `paid_at IS NOT NULL`), durchsuchbar
+per `?q=` ueber Kundennummer/Name/E-Mail/Telefon (`LIKE`). Ein Knopf
+"Als CSV exportieren" (`admin/customers_export.php`, respektiert denselben
+Suchfilter) exportiert die aktuelle Liste als UTF-8-BOM-CSV mit
+Semikolon-Trennzeichen (deutsches Excel erwartet das, kein Komma) - analog
+existiert auch fuer die Buchungsliste ein CSV-Export
+(`admin/bookings_export.php`, respektiert den Status-Filter von
+`bookings.php`), beides nach dem Vorbild von Shopifys Bestellungs-/
+Kunden-Export.
+
+`admin/customer_detail.php` zeigt KPI-Kacheln (Kundennummer, Anzahl
+Buchungen, bezahlter Umsatz, Kunde seit) sowie ein Formular zum Bearbeiten
+von Name/Telefon/interner Notiz (E-Mail-Adresse ist die eindeutige
+Konto-Kennung und daher nicht editierbar) und darunter alle Buchungen
+dieses Kontos. Verlinkt von `admin/booking_detail.php` aus einer eigenen
+Tabellenzeile "Kunde" (nur falls `bookings.customer_account_id` gesetzt
+ist - bei sehr alten, vor Einfuehrung der Kontenfunktion angelegten
+Buchungen kann das fehlen, siehe "Kundenkonten" oben zur Migration ueber
+die E-Mail-Adresse). Das Dashboard (`admin/dashboard.php`) zeigt
+zusaetzlich eine KPI-Kachel "Kunden" (Gesamtzahl `customer_accounts`,
+verlinkt zur Kundenliste) in derselben Kachelreihe wie Boxen/Layouts.
+
 ## Wartungs-Checkliste
 Jede Box zeigt im Panel unter **Boxen** einen aufklappbaren "Wartung"-
 Bereich mit einer gemeinsamen, ebenfalls dort verwaltbaren Liste von

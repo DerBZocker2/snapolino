@@ -11,6 +11,11 @@ require __DIR__ . '/_header.php';
 
 $boxCount = (int) db()->query('SELECT COUNT(*) FROM boxes')->fetchColumn();
 $layoutCount = (int) db()->query('SELECT COUNT(*) FROM layouts')->fetchColumn();
+try {
+    $customerCount = (int) db()->query('SELECT COUNT(*) FROM customer_accounts')->fetchColumn();
+} catch (PDOException $e) {
+    $customerCount = 0;
+}
 
 $statsAvailable = true;
 $statsError = '';
@@ -177,6 +182,10 @@ try {
     <a class="card" href="boxes.php">
         <span class="card-number"><?= $statsAvailable ? $unassignedCount : 0 ?></span>
         <span class="card-label">Buchungen ohne Box</span>
+    </a>
+    <a class="card" href="customers.php">
+        <span class="card-number"><?= $customerCount ?></span>
+        <span class="card-label">Kunden</span>
     </a>
     <a class="card" href="boxes.php">
         <span class="card-number"><?= $boxCount ?></span>

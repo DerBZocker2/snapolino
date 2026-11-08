@@ -46,6 +46,7 @@ function nav_icon(string $name): string
     $paths = [
         'home' => '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
         'bookings' => '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M8 11h8M8 15h8M8 7h4"/>',
+        'users' => '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.2.5 3.8 2.4 3.8 4.8"/>',
         'calendar' => '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
         'receipt' => '<path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5V3z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
         'box' => '<path d="M3 8l9-5 9 5-9 5-9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
@@ -85,6 +86,9 @@ function nav_icon(string $name): string
                 <?php if ($openBookings > 0): ?>
                     <span class="nav-badge"><?= $openBookings ?></span>
                 <?php endif; ?>
+            </a>
+            <a class="<?= nav_class(['customers.php', 'customer_detail.php'], $currentPage) ?>" href="customers.php">
+                <?= nav_icon('users') ?> Kunden
             </a>
             <a class="<?= nav_class(['calendar.php'], $currentPage) ?>" href="calendar.php">
                 <?= nav_icon('calendar') ?> Kalender

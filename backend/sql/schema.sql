@@ -93,10 +93,18 @@ INSERT INTO maintenance_checklist_items (name, sort_order) VALUES
 
 -- Kundenkonto pro E-Mail-Adresse, Login per zeitlich begrenztem Code statt
 -- Passwort (siehe includes/customer_auth.php). Wird automatisch beim
--- Anlegen einer Reservierung erstellt/wiederverwendet.
+-- Anlegen einer Reservierung erstellt/wiederverwendet. customer_number/
+-- name/phone/notes speisen die Kundenverwaltung im Admin-Panel
+-- (admin/customers.php, Migration 0031) - customer_number ist eine
+-- fortlaufende, menschenlesbare Kennung (K-00001 usw.), notes ist eine
+-- rein interne Admin-Notiz (nie oeffentlich sichtbar).
 CREATE TABLE IF NOT EXISTS customer_accounts (
     id                     INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    customer_number        VARCHAR(20) NULL UNIQUE,
     email                  VARCHAR(190) NOT NULL UNIQUE,
+    name                   VARCHAR(120) NULL,
+    phone                  VARCHAR(40) NULL,
+    notes                  TEXT NULL,
     login_code             VARCHAR(10) NULL,
     login_code_expires_at  DATETIME NULL,
     login_code_attempts    INT UNSIGNED NOT NULL DEFAULT 0,

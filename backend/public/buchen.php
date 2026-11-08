@@ -162,7 +162,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         $newToken = random_key(24);
-        $accountId = find_or_create_customer_account($email);
+        $accountId = find_or_create_customer_account($email, trim($firstName . ' ' . $lastName));
         $stmt = db()->prepare(
             'INSERT INTO bookings (edit_token, customer_pin, customer_name, customer_email, customer_account_id, event_date, status)
              VALUES (?, ?, ?, ?, ?, ?, ?)'
