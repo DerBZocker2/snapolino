@@ -868,19 +868,49 @@ blind einen Betrag/ein Datum zu uebernehmen. Stattdessen laeuft der Upload
   falls auf dem Server installiert - fehlt eines der beiden Werkzeuge
   oder enthaelt der Beleg keine Textebene (z.B. ein gescanntes Bild-PDF),
   bleibt der Text einfach leer, kein Fehler.
-- **Schritt 2**: ein vorausgefuelltes Formular (Betrag per Keyword-Suche
-  nach "Gesamtbetrag"/"Rechnungsbetrag"/"zu zahlen" etc., in dieser
-  Prioritaet ueber den **gesamten** Text gesucht statt zeilenweise - sonst
-  wuerde z.B. eine frueher stehende "Zwischensumme"-Zeile faelschlich vor
-  dem eigentlichen Gesamtbetrag treffen; ohne Keyword-Treffer wird der
-  groesste im Text gefundene Betrag verwendet. Datum per
-  TT.MM.JJJJ-Regex, Firma/Absender naiv aus der ersten nicht-leeren
-  Textzeile) - der Admin **prueft und korrigiert jedes Feld von Hand**,
-  bevor "Speichern" den Eintrag tatsaechlich anlegt. Ohne Texterkennung
-  bleibt das Formular leer, die Buchhaltung funktioniert aber genauso
-  weiter (reine manuelle Eingabe). Ein "Abbrechen"-Knopf entfernt den in
-  Schritt 1 schon gespeicherten Beleg wieder, statt ihn verwaist liegen zu
-  lassen.
+- **Schritt 2**: ein vorausgefuelltes Formular, dessen Vorschlaege bewusst
+  robust gegen stark unterschiedliche Rechnungslayouts (Amazon, Behoerden-
+  schreiben, Lieferanten wie Canon...) gestaltet sind, aber **nie** als
+  100% verlaesslich behandelt werden - dafuer zeigt ein aufklappbarer
+  Bereich "Erkannten Text anzeigen" immer den vollstaendigen erkannten
+  Text zum Abgleichen an, sobald einer vorliegt:
+  - **Betrag**: Keyword-Suche nach "Endbetrag"/"Rechnungsendbetrag"/
+    "Gesamtbetrag"/"Rechnungsbetrag"/"zu zahlen"/"amount due" usw., in
+    dieser Prioritaet ueber den **gesamten** Text gesucht statt zeilenweise
+    (sonst wuerde z.B. eine frueher stehende "Zwischensumme"-Zeile
+    faelschlich vor dem eigentlichen Gesamtbetrag treffen) - steht das
+    Schluesselwort mehrfach im Text, gewinnt das **letzte** Vorkommen (der
+    tatsaechliche Endbetrag steht fast immer nach der Netto-/Steuer-
+    Aufschluesselung, also weiter unten). Deutsches Zahlenformat
+    (1.234,56) wird bevorzugt erkannt, englisches Format (1.234,56 vs.
+    1,234.56) nur zusammen mit einem danebenstehenden Waehrungszeichen
+    akzeptiert - sonst wuerde z.B. ein Datum wie "20.11.2026" faelschlich
+    als Betrag "20,11" gelesen (ein Punkt als Dezimaltrennzeichen ist
+    sonst nicht von einem Datum zu unterscheiden). Ohne Keyword-Treffer
+    wird der groesste im Text gefundene Betrag verwendet.
+  - **Datum**: zuerst die deutsche Briefkopf-Konvention "Ort, den <Datum>"
+    (z.B. Gemeinde-/Behoerdenschreiben), dann eine Zeile mit "Rechnungsdatum"/
+    "Datum" (ausdruecklich **nicht** Liefer- oder Faelligkeitsdatum, auch
+    nicht dessen ae-Transliteration "Faelligkeitsdatum" - PDF-Schriften
+    liefern Umlaute beim Auslesen nicht immer zuverlaessig), sonst das im
+    Text am frueheste vorkommende Datum - vergleicht dafuer die Fundstelle
+    von TT.MM.JJJJ- und "5. November 2026"-Format statt ein Format
+    pauschal zu bevorzugen (sonst wuerde z.B. ein spaeter stehendes
+    Faelligkeitsdatum in Zahlenform vor einem frueher stehenden Datum im
+    Textformat gewinnen).
+  - **Firma/Absender**: durchsucht die ersten 20 Zeilen nach einer
+    Rechtsform (GmbH/AG/KG/Ltd/LLC/S.a.r.l./SARL/...) statt stur die erste
+    Zeile zu nehmen - Rechnungen (besonders von Amazon) beginnen oft mit
+    Bestell-/Rechnungsnummer oder Adresszeilen, bevor der eigentliche Name
+    auftaucht. Ohne Treffer faellt es auf die erste nicht-leere Zeile
+    zurueck, die weder rein numerisch noch eine erkennbare Metadaten-Zeile
+    (Bestell-/Rechnungs-/Kundennummer, Datum) ist.
+
+  Der Admin **prueft und korrigiert jedes Feld von Hand**, bevor
+  "Speichern" den Eintrag tatsaechlich anlegt. Ohne Texterkennung bleibt
+  das Formular leer, die Buchhaltung funktioniert aber genauso weiter
+  (reine manuelle Eingabe). Ein "Abbrechen"-Knopf entfernt den in Schritt 1
+  schon gespeicherten Beleg wieder, statt ihn verwaist liegen zu lassen.
 - **Richtung** (Einnahme/Ausgabe) wird bewusst **nicht** per Text-Heuristik
   zu erraten versucht (zu unzuverlaessig) - die Auswahl startet stattdessen
   immer bei "Ausgabe" vorbelegt (der weit ueberwiegende Regelfall fuer

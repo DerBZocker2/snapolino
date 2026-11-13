@@ -155,6 +155,17 @@ if (isset($_POST['confirm'])) {
                 Keine automatische Texterkennung möglich (keine Textebene im PDF gefunden,
                 oder keine Texterkennung installiert) - bitte die Felder von Hand ausfüllen.
             </p>
+        <?php else: ?>
+            <p class="muted-text">
+                Die Felder unten sind nur ein <strong>Vorschlag</strong> aus dem erkannten Text -
+                bei unterschiedlichen Rechnungslayouts (Amazon, Behörden, Lieferanten...) kann
+                das danebenliegen. Bitte jedes Feld gegen den unten einsehbaren erkannten Text
+                prüfen und korrigieren, bevor du speicherst.
+            </p>
+            <details style="margin-bottom:16px;">
+                <summary>Erkannten Text anzeigen (zum Abgleichen)</summary>
+                <pre style="white-space:pre-wrap;max-height:300px;overflow:auto;background:var(--bg-subtle,#f5f5f7);padding:12px;border-radius:8px;font-size:13px;"><?= htmlspecialchars($guessed['extracted_text'], ENT_QUOTES) ?></pre>
+            </details>
         <?php endif; ?>
         <form method="post">
             <?= csrf_field() ?>
