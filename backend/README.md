@@ -728,6 +728,37 @@ Migration 0025 legt `testimonials` fuer die Kundenbewertungen auf der
 Startseite an - siehe "Startseite: Kundenbewertungen und Illustrationen" in
 CLAUDE.md. Kein Cronjob noetig, bewusst ohne Seed-Daten.
 
+Migration 0033 legt `bookkeeping_entries` fuer die einfache Buchhaltung/EUER
+im Panel unter Buchhaltung an - siehe "Buchhaltung (EUER)" in CLAUDE.md.
+Zusaetzlich muss der Ordner `backend/storage/bookkeeping/` existieren und
+fuer den Webserver-Nutzer beschreibbar sein (analog zu `storage/frames/`,
+Pfad optional ueber `bookkeeping_storage_dir` in `includes/config.php`
+anpassbar, siehe `config.php.example`):
+
+```
+mkdir -p backend/storage/bookkeeping
+chown www-data:www-data backend/storage/bookkeeping
+chmod 750 backend/storage/bookkeeping
+```
+
+Fuer die automatische Texterkennung aus hochgeladenen PDF-Belegen wird
+zusaetzlich `pdftotext` (Paket `poppler-utils`) benoetigt - ohne dieses Paket
+funktioniert der Upload weiterhin, nur ohne Vorausfuellen (Felder muessen
+von Hand ausgefuellt werden):
+
+```
+sudo apt install poppler-utils
+```
+
+Optional (fuer Texterkennung aus Bildern/Fotos von Belegen statt PDFs)
+zusaetzlich `tesseract-ocr` samt deutschem Sprachpaket:
+
+```
+sudo apt install tesseract-ocr tesseract-ocr-deu
+```
+
+Kein Cronjob noetig, Upload/Auslesen passiert direkt im Panel.
+
 Ist eine Migration noch nicht eingespielt, zeigt das Panel eine Hinweis-
 meldung statt abzustuerzen.
 

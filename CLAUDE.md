@@ -277,8 +277,8 @@ im Panel angezeigt).
   tatsaechliche Stand von `admin/assets/style.css`). Aktuelle Eckpunkte:
   - **Dunkle Sidebar** (`--dark`, `#15151f`) mit **gruppierter Navigation**:
     `admin/_header.php` teilt die Sidebar-Punkte in benannte Abschnitte
-    (`.sidebar-group-label`, z.B. "Verkauf", "Box & Logistik", "Katalog",
-    "Marketing", "System") statt einer einzigen langen, flachen Liste -
+    (`.sidebar-group-label`, z.B. "Verkauf", "Finanzen", "Box & Logistik",
+    "Katalog", "Marketing", "System") statt einer einzigen langen, flachen Liste -
     sollte sich die Zahl der Admin-Seiten weiter erhoehen, verschlechtert
     sich die Uebersichtlichkeit dadurch nicht linear mit jeder neuen Seite.
     Jeder Punkt hat ein **Icon** (`nav_icon()` in `admin/_header.php` -
@@ -841,6 +841,67 @@ Buchungen kann das fehlen, siehe "Kundenkonten" oben zur Migration ueber
 die E-Mail-Adresse). Das Dashboard (`admin/dashboard.php`) zeigt
 zusaetzlich eine KPI-Kachel "Kunden" (Gesamtzahl `customer_accounts`,
 verlinkt zur Kundenliste) in derselben Kachelreihe wie Boxen/Layouts.
+
+## Buchhaltung (EUER)
+Im Panel unter **Buchhaltung** (`admin/bookkeeping.php`, eigene Tabelle
+`bookkeeping_entries`, Migration 0033) kann der Admin beliebige Belege
+(Eingangsrechnungen wie Druckerpapier/Farbband/Technik/Hosting, sowie
+seltene Ausgangsrechnungen ausserhalb des Buchungsflusses) hochladen,
+speichern und fuer die eigene **Einnahmenueberschussrechnung** (EUER, §4
+Abs. 3 EStG) erfassen - unabhaengig von den automatisch per Stripe erzeugten
+Ausgangsrechnungen aus Kundenbuchungen (die laufen weiterhin unveraendert
+ueber **Rechnungen**, `admin/invoices.php`). Da der Betrieb die
+Kleinunternehmerregelung (§19 UStG) nutzt, speichert jeder Eintrag nur
+einen einzigen Bruttobetrag - keine USt-Aufschluesselung/Vorsteuerabzug
+noetig.
+
+**Bewusst kein vollautomatisches OCR-Buchhaltungssystem**: echte
+Texterkennung ist fuer dauerhafte Steuerunterlagen zu unzuverlaessig, um
+blind einen Betrag/ein Datum zu uebernehmen. Stattdessen laeuft der Upload
+(`admin/bookkeeping_upload.php`) zweistufig wie `admin/booking_new.php`:
+- **Schritt 1**: Beleg hochladen (PDF/JPG/PNG, max. 15 MB, Validierung per
+  `finfo` wie bei `layout_form.php`, Speicherung unter zufaelligem
+  Dateinamen in `bookkeeping_storage_dir()` - Ordner ausserhalb des
+  Webroots, analog zu `storage/frames`/`storage/gallery`). Textbasierte
+  PDFs werden per `pdftotext` (Paket `poppler-utils`, `includes/bookkeeping.php`
+  `bookkeeping_extract_text()`) ausgelesen, Bilder optional per `tesseract`,
+  falls auf dem Server installiert - fehlt eines der beiden Werkzeuge
+  oder enthaelt der Beleg keine Textebene (z.B. ein gescanntes Bild-PDF),
+  bleibt der Text einfach leer, kein Fehler.
+- **Schritt 2**: ein vorausgefuelltes Formular (Betrag per Keyword-Suche
+  nach "Gesamtbetrag"/"Rechnungsbetrag"/"zu zahlen" etc., in dieser
+  Prioritaet ueber den **gesamten** Text gesucht statt zeilenweise - sonst
+  wuerde z.B. eine frueher stehende "Zwischensumme"-Zeile faelschlich vor
+  dem eigentlichen Gesamtbetrag treffen; ohne Keyword-Treffer wird der
+  groesste im Text gefundene Betrag verwendet. Datum per
+  TT.MM.JJJJ-Regex, Firma/Absender naiv aus der ersten nicht-leeren
+  Textzeile) - der Admin **prueft und korrigiert jedes Feld von Hand**,
+  bevor "Speichern" den Eintrag tatsaechlich anlegt. Ohne Texterkennung
+  bleibt das Formular leer, die Buchhaltung funktioniert aber genauso
+  weiter (reine manuelle Eingabe). Ein "Abbrechen"-Knopf entfernt den in
+  Schritt 1 schon gespeicherten Beleg wieder, statt ihn verwaist liegen zu
+  lassen.
+- **Richtung** (Einnahme/Ausgabe) wird bewusst **nicht** per Text-Heuristik
+  zu erraten versucht (zu unzuverlaessig) - die Auswahl startet stattdessen
+  immer bei "Ausgabe" vorbelegt (der weit ueberwiegende Regelfall fuer
+  manuell hochgeladene Belege, da Ausgangsrechnungen aus Buchungen ja schon
+  automatisch unter Rechnungen laufen) und laesst sich mit einem Klick auf
+  "Einnahme" umstellen.
+
+Die Listenansicht (`admin/bookkeeping.php`) zeigt pro Jahr (Dropdown, nur
+Jahre mit tatsaechlichen Eintraegen) drei Kacheln - Betriebseinnahmen,
+Betriebsausgaben und das EUER-Ergebnis (Einnahmen minus Ausgaben, rot bei
+Verlust) - sowie darunter die Tabelle aller Eintraege dieses Jahres,
+zusaetzlich nach Richtung filterbar (die Filterung betrifft nur die
+Tabelle, nicht die Summenkacheln - die zeigen immer das volle Jahresbild).
+Jede Zeile verlinkt auf den gespeicherten Beleg (`admin/bookkeeping_file.php`,
+login-geschuetzt wie jede andere Admin-Seite, liefert die Originaldatei mit
+ihrem echten MIME-Type aus) und laesst sich einzeln loeschen
+(`admin/bookkeeping_delete.php`, entfernt dabei auch die zugehoerige Datei).
+Ein Knopf "Als CSV exportieren" (`admin/bookkeeping_export.php`, respektiert
+Jahr/Richtungs-Filter) liefert dieselbe UTF-8-BOM-Semikolon-CSV wie die
+Buchungs-/Kundenexporte - fuer den Steuerberater oder die eigene
+EUER-Vorbereitung.
 
 ## Wartungs-Checkliste
 Jede Box zeigt im Panel unter **Boxen** einen aufklappbaren "Wartung"-
