@@ -25,6 +25,22 @@ function asset_url(string $urlPath, string $fsPath): string
     return $urlPath . '?v=' . $version;
 }
 
+// Schlichte, selbst gezeichnete Strich-Icons fuer die oeffentliche Seite -
+// analog zu nav_icon() im Admin-Panel (admin/_header.php): inline <svg>
+// statt externer Icon-Bibliothek/Icon-Font (kein Asset-/Lizenzthema) statt
+// Emoji, die je nach Betriebssystem/Browser unterschiedlich aussehen und
+// nicht zur eigenen Formensprache passen.
+function site_icon(string $name): string
+{
+    $paths = [
+        'layout' => '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/>',
+        'brush' => '<path d="M14.5 4.5 19.5 9.5"/><path d="M4 20l3-6 9-9 3 3-9 9-6 3z"/>',
+        'upload' => '<path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+        'quote' => '<path d="M7 7a4 4 0 0 0-4 4v2a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2"/><path d="M17 7a4 4 0 0 0-4 4v2a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2"/>',
+    ];
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
+}
+
 // Bestaetigt eine Buchung und weist ihr eine Box zu (bei genau einer Box
 // automatisch, sonst muss $boxId uebergeben werden). Ueberfuehrt die
 // gewuenschten Layouts nach box_layouts und erhoeht die config_version -

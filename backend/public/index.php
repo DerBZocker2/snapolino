@@ -28,85 +28,83 @@ require __DIR__ . '/_site_header.php';
 
 <section class="hero">
     <div class="confetti" aria-hidden="true">
-        <span class="confetti-piece" style="left:8%;background:var(--accent);animation-duration:3.2s;animation-delay:0s;"></span>
-        <span class="confetti-piece" style="left:20%;background:var(--accent2);animation-duration:2.6s;animation-delay:0.4s;"></span>
-        <span class="confetti-piece" style="left:32%;background:var(--teal);animation-duration:3.6s;animation-delay:0.9s;"></span>
-        <span class="confetti-piece" style="left:48%;background:var(--accent);animation-duration:2.9s;animation-delay:0.2s;"></span>
-        <span class="confetti-piece" style="left:62%;background:var(--accent2);animation-duration:3.3s;animation-delay:1.1s;"></span>
-        <span class="confetti-piece" style="left:75%;background:var(--teal);animation-duration:2.7s;animation-delay:0.6s;"></span>
-        <span class="confetti-piece" style="left:86%;background:var(--accent);animation-duration:3.1s;animation-delay:1.4s;"></span>
-        <span class="confetti-piece" style="left:94%;background:var(--accent2);animation-duration:2.8s;animation-delay:0.1s;"></span>
+        <span class="confetti-piece" style="left:58%;background:var(--accent);animation-duration:1.6s;animation-delay:0s;"></span>
+        <span class="confetti-piece" style="left:68%;background:var(--accent2);animation-duration:1.4s;animation-delay:0.15s;"></span>
+        <span class="confetti-piece" style="left:78%;background:var(--flash);animation-duration:1.8s;animation-delay:0.3s;"></span>
+        <span class="confetti-piece" style="left:88%;background:var(--accent);animation-duration:1.5s;animation-delay:0.05s;"></span>
+        <span class="confetti-piece" style="left:95%;background:var(--accent2);animation-duration:1.7s;animation-delay:0.25s;"></span>
     </div>
-    <h1>Fotobox-Vermietung für deine <span class="accent-text">Veranstaltung</span></h1>
-    <p>
-        Selbstbedienungs-Fotobox mit Sofortdruck – wir schicken sie dir bequem
-        zu, du stellst sie auf, deine Gäste machen die Fotos selbst.
-    </p>
-    <?php if ($priceCents > 0): ?>
-        <p class="muted" style="margin-top:-16px;">
-            ab <strong><?= money_from_cents($priceCents) ?></strong>
-            <?= $priceLabel ? '· ' . htmlspecialchars($priceLabel, ENT_QUOTES) : '' ?>
+    <div class="hero-copy">
+        <h1>Fotobox-Vermietung für deine Veranstaltung</h1>
+        <p>
+            Selbstbedienungs-Fotobox mit Sofortdruck – wir schicken sie dir bequem
+            zu, du stellst sie auf, deine Gäste machen die Fotos selbst.
         </p>
-    <?php endif; ?>
-    <a class="button" href="buchen.php">Jetzt buchen</a>
-    <div class="trust-bar" style="margin-top:20px;">
-        <span>🔒 Keine Zahlungsdaten für die Reservierung nötig</span>
-        <span>💳 Sichere Zahlung über Stripe</span>
-        <span>🇩🇪 Made in Deutschland</span>
+        <?php if ($priceCents > 0): ?>
+            <p class="muted" style="margin-top:-16px;">
+                ab <strong><?= money_from_cents($priceCents) ?></strong>
+                <?= $priceLabel ? '· ' . htmlspecialchars($priceLabel, ENT_QUOTES) : '' ?>
+            </p>
+        <?php endif; ?>
+        <a class="button" href="buchen.php">Jetzt buchen</a>
+        <div class="trust-bar" style="margin-top:22px;">
+            <span>Keine Zahlungsdaten für die Reservierung nötig</span>
+            <span>Sichere Zahlung über Stripe</span>
+            <span>Made in Deutschland</span>
+        </div>
+    </div>
+    <div class="hero-visuals">
+        <img class="hero-illustration" src="<?= asset_url('assets/hero-illustration.png', __DIR__ . '/assets/hero-illustration.png') ?>" alt="Illustration einer Fotobox mit Kamera-Symbol auf dem Bildschirm und einem gedruckten Fotostreifen" loading="lazy">
+        <img class="hero-photo-strip" src="<?= asset_url('assets/photo-strip-illustration.png', __DIR__ . '/assets/photo-strip-illustration.png') ?>" alt="Illustrierter Fotostreifen mit vier bunten Motiven" loading="lazy">
     </div>
 </section>
 
-<div class="hero-visuals">
-    <img class="hero-illustration" src="<?= asset_url('assets/hero-illustration.png', __DIR__ . '/assets/hero-illustration.png') ?>" alt="Illustration einer Fotobox mit Kamera-Symbol auf dem Bildschirm und einem gedruckten Fotostreifen" loading="lazy">
-    <img class="hero-photo-strip" src="<?= asset_url('assets/photo-strip-illustration.png', __DIR__ . '/assets/photo-strip-illustration.png') ?>" alt="Illustrierter Fotostreifen mit vier bunten Motiven" loading="lazy">
-</div>
-
 <section class="section" id="ablauf">
-    <h2>🚀 So funktioniert's</h2>
-    <p class="lead">In vier einfachen Schritten zu deiner eigenen Fotobox.</p>
-    <div class="feature-grid">
+    <h2>So funktioniert's</h2>
+    <p class="lead">In vier Schritten zu deiner eigenen Fotobox.</p>
+    <div class="feature-grid feature-grid--steps">
         <div class="feature-card">
-            <div class="icon">📅</div>
-            <h3>1. Termin buchen</h3>
+            <div class="icon">1</div>
+            <h3>Termin buchen</h3>
             <p>Wähle deinen Eventtag im Buchungsassistenten, gestalte dein Layout und schließe die Buchung sicher online ab.</p>
         </div>
         <div class="feature-card">
-            <div class="icon">📦</div>
-            <h3>2. Box erhalten</h3>
+            <div class="icon">2</div>
+            <h3>Box erhalten</h3>
             <p>Wir schicken dir die fertig eingerichtete Fotobox rechtzeitig vor deinem Event bequem nach Hause.</p>
         </div>
         <div class="feature-card">
-            <div class="icon">🎉</div>
-            <h3>3. Losfeiern</h3>
+            <div class="icon">3</div>
+            <h3>Losfeiern</h3>
             <p>Aufstellen, anschalten, loslegen – deine Gäste bedienen die Box ganz von selbst und Fotos werden direkt gedruckt.</p>
         </div>
         <div class="feature-card">
-            <div class="icon">↩️</div>
-            <h3>4. Zurückschicken</h3>
+            <div class="icon">4</div>
+            <h3>Zurückschicken</h3>
             <p>Nach dem Event einfach wieder einpacken und an uns zurückschicken – alle Details dazu bekommst du rechtzeitig von uns.</p>
         </div>
     </div>
 </section>
 
 <section class="section" id="design-optionen">
-    <h2>🎨 So gestaltest du deine <span class="accent-text">Fotobox</span></h2>
+    <h2>So gestaltest du deine Fotobox</h2>
     <p class="lead">
         Für jeden Anlass das passende Layout – drei Wege, wie du dein
         Design festlegst.
     </p>
     <div class="feature-grid">
         <div class="feature-card">
-            <div class="icon">🎨</div>
+            <div class="icon"><?= site_icon('layout') ?></div>
             <h3><?= $presetCount > 0 ? $presetCount . ' Design-Vorlagen' : 'Design-Vorlagen' ?></h3>
             <p>Vorlagen für jeden Anlass – sofort einsatzbereit, nach Kategorie filterbar.</p>
         </div>
         <div class="feature-card">
-            <div class="icon">🖌️</div>
+            <div class="icon"><?= site_icon('brush') ?></div>
             <h3>Kostenloser Online-Designer</h3>
             <p>Gestalte dein eigenes Layout mit unserem Editor – Farben, Muster und Text sind frei anpassbar.</p>
         </div>
         <div class="feature-card">
-            <div class="icon">📤</div>
+            <div class="icon"><?= site_icon('upload') ?></div>
             <h3>Eigenes Design hochladen</h3>
             <p>Für Designer und Druckereien: Lade während der Buchung ein fertiges PNG mit transparenten Fotoflächen hoch.</p>
         </div>
@@ -115,7 +113,7 @@ require __DIR__ . '/_site_header.php';
 
 <?php if ($testimonials): ?>
 <section class="section" id="bewertungen">
-    <h2>💬 Das sagen unsere <span class="accent-text">Kunden</span></h2>
+    <h2>Das sagen unsere Kunden</h2>
     <p class="lead">Echte Rückmeldungen von echten Veranstaltungen.</p>
     <div class="testimonial-grid">
         <?php foreach ($testimonials as $t): ?>
@@ -137,27 +135,27 @@ require __DIR__ . '/_site_header.php';
 <?php endif; ?>
 
 <section class="section" id="faq">
-    <h2>❓ Häufige Fragen</h2>
+    <h2>Häufige Fragen</h2>
     <p class="lead">Frage antippen, Antwort erscheint. Weitere Fragen findest du auf unserer
         <a href="faq.php">FAQ-Seite</a>.</p>
 
     <details class="panel-box">
-        <summary>🙋 Muss jemand die Fotobox bedienen?</summary>
+        <summary>Muss jemand die Fotobox bedienen?</summary>
         <div class="faq-answer"><p>Nein. Deine Gäste tippen ein Layout an, schauen in die Kamera und der
             Countdown startet automatisch – ganz ohne Personal.</p></div>
     </details>
     <details class="panel-box">
-        <summary>📦 Was ist im Lieferumfang enthalten?</summary>
+        <summary>Was ist im Lieferumfang enthalten?</summary>
         <div class="faq-answer"><p>Die fertig eingerichtete Fotobox inkl. Drucker, Kamera und deinem
             gewählten Design – einfach auspacken, aufstellen und einschalten.</p></div>
     </details>
     <details class="panel-box">
-        <summary>📶 Brauche ich Internet vor Ort?</summary>
+        <summary>Brauche ich Internet vor Ort?</summary>
         <div class="faq-answer"><p>Nein. Die Box ist offline-first und speichert alles lokal – für
             Aufnahme, Anzeige und Druck brauchst du kein WLAN am Veranstaltungsort.</p></div>
     </details>
     <details class="panel-box">
-        <summary>🖼️ Wie viele Fotos landen auf einem Ausdruck?</summary>
+        <summary>Wie viele Fotos landen auf einem Ausdruck?</summary>
         <div class="faq-answer"><p>Standard sind 4 Bilder pro Collage. Auf Wunsch kannst du bei der
             Buchung zusätzlich Layouts mit 1, 2 oder 3 Fotos dazuwählen (bis zu drei
             Zusatzformate gleichzeitig) – deine Gäste entscheiden dann direkt an der Box,
@@ -166,31 +164,31 @@ require __DIR__ . '/_site_header.php';
             als Extra-Abzug drucken.</p></div>
     </details>
     <details class="panel-box">
-        <summary>🎨 Wie gestalte ich mein Design?</summary>
+        <summary>Wie gestalte ich mein Design?</summary>
         <div class="faq-answer"><p>Du hast drei Wege: eine fertige Design-Vorlage aus unserer Galerie
             wählen, im kostenlosen Online-Designer Farbe, Muster und Text selbst anpassen,
             oder ein eigenes PNG mit transparenten Fotoflächen hochladen.</p></div>
     </details>
     <details class="panel-box">
-        <summary>✏️ Kann ich meine Buchung nachträglich ändern?</summary>
+        <summary>Kann ich meine Buchung nachträglich ändern?</summary>
         <div class="faq-answer"><p>Ja. Sobald du deine E-Mail-Adresse zur Buchung angegeben hast,
             kannst du dich unter <a href="konto.php">Mein Konto</a> per E-Mail-Code einloggen
             und dort Datum, Design und Extras anpassen, solange noch nicht bezahlt wurde.
             Danach ist die Buchung nur noch einsehbar.</p></div>
     </details>
     <details class="panel-box">
-        <summary>⏰ Wie lange vorher sollte ich buchen?</summary>
+        <summary>Wie lange vorher sollte ich buchen?</summary>
         <div class="faq-answer"><p>Je früher, desto besser – vor allem an Wochenenden in der Hochsaison sind
             Termine schnell vergeben. Da wir aktuell nur eine Box haben, ist mit dem Absenden
             deiner Anfrage der Termin sofort für andere gesperrt, bis wir sie bearbeitet haben.</p></div>
     </details>
     <details class="panel-box">
-        <summary>❌ Kann ich stornieren?</summary>
+        <summary>Kann ich stornieren?</summary>
         <div class="faq-answer"><p>Ja, die genauen Fristen und Bedingungen findest du in unseren
             <a href="agb.php">AGB</a>.</p></div>
     </details>
     <details class="panel-box">
-        <summary>🔒 Sind meine Zahlungsdaten sicher?</summary>
+        <summary>Sind meine Zahlungsdaten sicher?</summary>
         <div class="faq-answer"><p>Ja. Die Zahlung läuft komplett über den Zahlungsdienstleister Stripe –
             deine Kartendaten erreichen unseren Server nie. Details dazu in unserer
             <a href="datenschutz.php">Datenschutzerklärung</a>.</p></div>

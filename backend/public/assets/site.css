@@ -1,24 +1,40 @@
+/* Designsprache: lehnt sich an das eigentliche Produkt an - den
+   physischen Fotostreifen, den Samtvorhang der Fotobox und das
+   Blitzlicht im Moment der Aufnahme - statt einer generischen
+   SaaS-Palette. --accent (Samtvorhang-Bordeaux) und --flash
+   (Blitzlicht-Gold) sind die beiden bewusst gesetzten Farbakzente,
+   --accent2 (Dunkelkammer-Petrol) bleibt zurueckhaltend fuer Links/Infos.
+   --teal haelt aus Kompatibilitaetsgruenden weiterhin den Namen (einige
+   Seiten referenzieren ihn inline), transportiert jetzt aber das
+   Blitzlicht-Gold statt des alten Tuerkis. */
 :root {
-    --bg: #fffaf5;
+    --bg: #fffdf8;
     --panel: #ffffff;
-    --border: #ece3f5;
-    --text: #2c2440;
-    --muted: #736a94;
-    --accent: #c0392b;
-    --accent-dark: #a52f1f;
-    --accent2: #6c5ce7;
-    --accent2-dark: #5643d1;
-    --teal: #17c3b2;
-    --dark: #241b3a;
+    --border: #e8dccf;
+    --text: #241331;
+    --muted: #6b5a62;
+    --accent: #8e2140;
+    --accent-dark: #6e1831;
+    --accent2: #2b5257;
+    --accent2-dark: #1d3c40;
+    --teal: #f2b134;
+    --flash: #f2b134;
+    --dark: #1e1026;
+    --font-display: "Bricolage Grotesque", "Segoe UI", Arial, sans-serif;
+    --font-body: "Hanken Grotesk", "Segoe UI", Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 body {
     margin: 0;
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
+}
+
+h1, h2, h3, h4, .brand, .button, .hero .button {
+    font-family: var(--font-display);
 }
 
 a { color: var(--accent2-dark); }
@@ -107,64 +123,85 @@ a { color: var(--accent2-dark); }
 .site-header nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
 
 .hero {
-    text-align: center;
-    padding: 72px 20px 56px;
-    max-width: 760px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    align-items: center;
+    gap: 48px;
+    padding: 76px 24px 64px;
+    max-width: 1140px;
     margin: 0 auto;
-    background:
-        radial-gradient(circle at 15% 20%, rgba(255, 111, 89, 0.14), transparent 45%),
-        radial-gradient(circle at 85% 15%, rgba(108, 92, 231, 0.14), transparent 45%),
-        radial-gradient(circle at 50% 90%, rgba(23, 195, 178, 0.10), transparent 50%);
 }
 
+.hero-copy { max-width: 540px; }
+
 .hero h1 {
-    font-size: 38px;
-    margin: 0 0 14px;
+    font-size: 44px;
+    line-height: 1.08;
+    margin: 0 0 18px;
     letter-spacing: -0.5px;
+    font-weight: 700;
 }
 
 .hero p {
     color: var(--muted);
-    font-size: 17px;
+    font-size: 18px;
     line-height: 1.6;
     margin: 0 0 28px;
+    max-width: 48ch;
 }
 
 /* Eigenstaendige Button-Optik (nicht mehr an .hero gebunden) - wurde
    bisher ausserhalb des Hero-Bereichs (z.B. "Zur Startseite" auf
    warteliste.php/404.php, "Jetzt buchen" auf konto.php) komplett unstyled
    als nackter Link dargestellt, weil die Regel nur "'.hero .button" statt
-   ".button" lautete. Die Puls-Animation unten bleibt bewusst nur dem
-   grossen Hero-CTA vorbehalten (".hero .button { animation: ... }"). */
+   ".button" lautete. Ein satter, einfarbiger Samtvorhang-Ton statt eines
+   Farbverlaufs - wirkt wie ein bewusst gesetzter Akzent statt einer
+   generischen Verlaufs-Deko. */
 .button {
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 30px;
-    padding: 15px 32px;
+    border-radius: 10px;
+    padding: 15px 30px;
     font-size: 16px;
     font-weight: 600;
     text-decoration: none;
     display: inline-block;
-    box-shadow: 0 8px 20px rgba(108, 92, 231, 0.25);
+    box-shadow: 0 6px 0 var(--accent-dark);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
-.button:hover { filter: brightness(1.06); }
+.button:hover { transform: translateY(2px); box-shadow: 0 4px 0 var(--accent-dark); }
 
 .trust-bar {
-    max-width: 620px;
-    margin: 0 auto 8px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 30px;
-    padding: 10px 20px;
+    margin: 0 0 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
     display: flex;
-    justify-content: center;
-    gap: 18px;
+    gap: 20px;
     flex-wrap: wrap;
     font-size: 13px;
     color: var(--muted);
-    box-shadow: 0 6px 18px rgba(44, 36, 64, 0.06);
+}
+
+.trust-bar span { position: relative; padding-left: 16px; }
+.trust-bar span::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent2);
+    transform: translateY(-50%);
+}
+
+@media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding: 48px 20px 40px; text-align: left; }
+    .hero h1 { font-size: 32px; }
+    .hero-copy { max-width: none; }
 }
 
 .section {
@@ -175,7 +212,7 @@ a { color: var(--accent2-dark); }
 
 .section h2 {
     text-align: center;
-    font-size: 26px;
+    font-size: 28px;
     margin-bottom: 8px;
 }
 
@@ -191,31 +228,64 @@ a { color: var(--accent2-dark); }
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
+    position: relative;
 }
 
-.feature-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px 24px;
-    transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.feature-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 24px rgba(44, 36, 64, 0.08);
-}
+.feature-card { padding: 0; text-align: left; }
 
 .feature-card .icon {
-    font-size: 26px;
-    margin-bottom: 14px;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+    margin: 0 0 16px;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(255, 111, 89, 0.15), rgba(108, 92, 231, 0.15));
+    background: rgba(43, 82, 87, 0.1);
+    color: var(--accent2);
+}
+
+.feature-card .icon svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Vier echte, aufeinanderfolgende Schritte - deshalb als durchgaengig
+   verbundene Reihe statt identischer, loser Karten: die Nummer sitzt in
+   einem Kreis auf einer durchgehenden Linie, die alle vier Schritte
+   miteinander verbindet. Nur fuer diesen einen Ablauf-Abschnitt - die
+   anderen feature-grids (Design-Optionen) sind keine Sequenz. */
+.feature-grid--steps {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.feature-grid--steps::before {
+    content: "";
+    position: absolute;
+    top: 26px;
+    left: calc(12.5% + 2px);
+    right: calc(12.5% + 2px);
+    height: 2px;
+    background: var(--border);
+}
+
+.feature-grid--steps .feature-card { padding: 0 16px; text-align: center; }
+
+.feature-grid--steps .feature-card .icon {
+    position: relative;
+    margin: 0 auto 18px;
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
 }
 
 .testimonial-grid {
@@ -254,9 +324,6 @@ a { color: var(--accent2-dark); }
 }
 
 .testimonial-card .author .muted { font-weight: 400; }
-
-.feature-card:nth-child(2) .icon { background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(23, 195, 178, 0.15)); }
-.feature-card:nth-child(3) .icon { background: linear-gradient(135deg, rgba(23, 195, 178, 0.15), rgba(255, 111, 89, 0.15)); }
 
 .feature-card h3 {
     font-size: 18px;
@@ -386,8 +453,8 @@ a { color: var(--accent2-dark); }
 }
 
 @media (max-width: 760px) {
-    .feature-grid { grid-template-columns: 1fr; }
-    .hero h1 { font-size: 26px; }
+    .feature-grid { grid-template-columns: 1fr; gap: 20px; }
+    .feature-grid--steps::before { display: none; }
 }
 
 /* ---------- Buchungsformular ---------- */
@@ -1343,7 +1410,7 @@ button:hover { background: var(--accent-dark); }
 
 /* ---------- Startseite: Party-Deko & FAQ-Akkordeon ---------- */
 
-.hero { position: relative; overflow: hidden; }
+.hero { position: relative; }
 
 .confetti {
     position: absolute;
@@ -1351,6 +1418,9 @@ button:hover { background: var(--accent-dark); }
     pointer-events: none;
 }
 
+/* Einmaliger Fall statt Dauerschleife - ein einziger, orchestrierter
+   Moment beim Laden wirkt bewusster als endlos rieselndes Konfetti im
+   Hintergrund, das dauerhaft um Aufmerksamkeit konkurriert. */
 .confetti-piece {
     position: absolute;
     top: -20px;
@@ -1359,27 +1429,18 @@ button:hover { background: var(--accent-dark); }
     border-radius: 2px;
     opacity: 0.85;
     animation-name: confetti-fall;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
+    animation-timing-function: ease-in;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
 }
 
 @keyframes confetti-fall {
     0%   { transform: translateY(0) rotate(0deg); opacity: 0.9; }
-    100% { transform: translateY(320px) rotate(340deg); opacity: 0; }
-}
-
-.hero .button {
-    animation: btn-pop 2.6s ease-in-out infinite;
-}
-
-@keyframes btn-pop {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.035); }
+    100% { transform: translateY(280px) rotate(340deg); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .confetti-piece { animation: none; display: none; }
-    .hero .button { animation: none; }
     .reveal { transition: none; }
 }
 
@@ -1388,29 +1449,32 @@ button:hover { background: var(--accent-dark); }
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease; }
 .reveal.is-visible { opacity: 1; transform: translateY(0); }
 
+/* Der Fotostreifen als greifbares Objekt - leicht schraeg "hingeworfen"
+   mit weissem Rahmen und Schattenwurf, statt flach im Raster zu liegen.
+   Bewusst das einzige Hero-Bild (die Geraete-Illustration passt zum sehr
+   schmalen, hohen Seitenverhaeltnis des Streifens nicht gut dazu und wird
+   an anderer Stelle der Seite weiterverwendet) - ein Element bekommt die
+   ganze Aufmerksamkeit, statt zwei Bilder gegeneinander auszuspielen. Die
+   Breite ist bewusst viewport-abhaengig (clamp), die Hoehe ergibt sich
+   automatisch aus dem echten Seitenverhaeltnis der Bilddatei (340x1216) -
+   kein fester Container, der bei einem derart hochformatigen Bild auf
+   schmalen Bildschirmen leicht ueberlaufen wuerde.*/
 .hero-visuals {
     display: flex;
     justify-content: center;
-    align-items: center;
-    gap: 8px;
-    margin: 0 auto 8px;
-    max-width: 900px;
-    padding: 0 20px;
+    padding: 12px 0;
 }
 
-.hero-visuals img {
-    display: block;
-    max-width: 100%;
+.hero-visuals .hero-illustration { display: none; }
+
+.hero-visuals .hero-photo-strip {
+    width: clamp(130px, 18vw, 190px);
     height: auto;
-}
-
-.hero-visuals .hero-illustration { width: 380px; }
-.hero-visuals .hero-photo-strip { width: 150px; }
-
-@media (max-width: 700px) {
-    .hero-visuals { flex-direction: column; gap: 0; }
-    .hero-visuals .hero-illustration { width: 260px; }
-    .hero-visuals .hero-photo-strip { display: none; }
+    background: #fff;
+    padding: 10px 10px 18px;
+    border-radius: 4px;
+    box-shadow: 0 18px 36px rgba(36, 19, 49, 0.22);
+    transform: rotate(-6deg);
 }
 
 .feature-card .icon { transition: transform 0.2s ease; }

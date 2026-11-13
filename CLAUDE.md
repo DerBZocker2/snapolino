@@ -1034,6 +1034,50 @@ Admin-Dashboard zaehlt eine KPI-Kachel "Rabattaktionen gewährt" die Summe
 aller bei bestaetigten Buchungen gewaehrten Rabattaktionsbetraege zusammen
 (analog zur bestehenden "Stammkundenrabatt gewährt"-Kachel).
 
+## Oeffentliche Seite: Visuelle Neuausrichtung (laufend, bereichsweise)
+Die oeffentliche Seite wird schrittweise auf eine eigenstaendige, am
+tatsaechlichen Produkt orientierte Optik umgestellt statt generischer
+SaaS-Defaults - Motiv ist der physische Fotostreifen/Samtvorhang/das
+Blitzlicht der Fotobox selbst, nicht Kundenfotos oder abstrakte Icons.
+Zentral in `assets/site.css` unter `:root` (gilt seitenweit, ein einziges
+Stylesheet fuer die gesamte oeffentliche Seite):
+- **Farben**: `--accent` Samtvorhang-Bordeaux (`#8e2140`), `--teal`/`--flash`
+  Blitzlicht-Gold (`#f2b134`, derselbe Wert unter beiden Variablennamen -
+  `--teal` behaelt den alten Namen aus Kompatibilitaetsgruenden fuer
+  bestehende Inline-Referenzen), `--accent2` Dunkelkammer-Petrol (`#2b5257`)
+  fuer Links/zurueckhaltende Akzente, `--bg` ein kuehleres Blitzlicht-Weiss.
+  Bei jeder weiteren Farbaenderung Kontrast erneut pruefen (siehe
+  Konventionen unten).
+- **Typografie**: `--font-display` ("Bricolage Grotesque", Headlines/Buttons)
+  und `--font-body` ("Hanken Grotesk", Fliesstext) per Google Fonts in
+  `_site_header.php` eingebunden (analog zur bestehenden Praxis in
+  `tools/generate_presets.py`/`generate_homepage_art.py` - kein neues
+  Lizenzthema).
+- **`site_icon()`** (`includes/functions.php`) liefert schlichte,
+  selbst gezeichnete Strich-Icons (inline `<svg>`) fuer die oeffentliche
+  Seite - analog zu `nav_icon()` im Admin-Panel. Ersetzt nach und nach
+  Emoji-Icons, die je nach Betriebssystem/Browser unterschiedlich aussehen.
+- Bewusst **kein** eingefaerbtes Einzelwort mehr in Ueberschriften
+  (`.accent-text` bleibt fuer noch nicht ueberarbeitete Seiten bestehen,
+  wird aber nicht mehr neu eingesetzt) und keine Emoji direkt in `<h2>`.
+- `index.php` als erster fertig umgestellter Umfang: asymmetrischer Hero
+  (linksbuendiger Text, der Fotostreifen selbst als einziges, hochformatiges
+  Hero-Bild - bewusst ohne die zusaetzliche Geraete-Illustration kombiniert,
+  da deren Seitenverhaeltnis nicht dazu passt und zwei gegeneinander
+  ausgespielte Bilder die Aufmerksamkeit zerstreuen; Breite per `clamp()`,
+  Hoehe ergibt sich automatisch aus dem echten 340x1216-Seitenverhaeltnis
+  der Datei statt eines festen Containers, der sonst auf schmalen
+  Bildschirmen ueberlaufen wuerde), vier echte Ablaufschritte als verbundene
+  Reihe mit nummerierten Kreisen (`.feature-grid--steps`, nur fuer echte
+  Sequenzen - die Design-Optionen darunter sind drei gleichwertige
+  Alternativen, kein Ablauf, und nutzen deshalb `site_icon()`-Kreise ohne
+  Verbindungslinie). Konfetti laeuft nur noch einmalig beim Laden
+  (`animation-iteration-count: 1`) statt endlos im Hintergrund zu rieseln -
+  ein einzelner orchestrierter Moment wirkt bewusster als eine Dauerschleife,
+  die staendig um Aufmerksamkeit der Betrachtenden konkurriert.
+- Noch nicht ueberarbeitet (naechste Schritte): Buchungsassistent
+  (`buchen.php`), FAQ/Konto/Galerie/rechtliche Seiten, Admin-Panel.
+
 ## Oeffentliche Seite: Bedienbarkeit und professioneller Auftritt
 Mehrere konkrete Verbesserungen fuer einen fluessigeren Buchungsablauf und
 einen einheitlicheren, professionelleren Gesamtauftritt:
