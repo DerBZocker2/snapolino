@@ -1000,6 +1000,27 @@ function booking_address_lines(array $booking): array
     return $lines;
 }
 
+// Liefert die tatsaechliche Lieferanschrift (wohin die Box geschickt
+// wird) - die eigenen shipping_*-Felder, falls ship_to_different_address
+// gesetzt ist (Migration 0034), sonst identisch zur Rechnungsanschrift
+// (booking_address_lines()) wie bisher immer.
+function booking_shipping_address_lines(array $booking): array
+{
+    if (empty($booking['ship_to_different_address'])) {
+        return booking_address_lines($booking);
+    }
+
+    $lines = [];
+    if (!empty($booking['shipping_street'])) {
+        $lines[] = (string) $booking['shipping_street'];
+    }
+    $zipCity = trim((string) ($booking['shipping_zip'] ?? '') . ' ' . (string) ($booking['shipping_city'] ?? ''));
+    if ($zipCity !== '') {
+        $lines[] = $zipCity;
+    }
+    return $lines;
+}
+
 // ---------- Gutscheine ----------
 
 // Liefert den Gutschein nur, wenn er aktuell einloesbar ist (aktiv, nicht

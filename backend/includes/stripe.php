@@ -62,16 +62,58 @@ function stripe_request(string $method, string $endpoint, array $params = []): ?
     return $data;
 }
 
+// Legt einen Stripe-Customer mit Name/Adresse/Telefon an, damit die von
+// Stripe erstellte Rechnung (invoice_creation unten) die tatsaechliche
+// Rechnungsanschrift zeigt statt nur der E-Mail-Adresse - vorher wurde
+// ueberhaupt keine Adresse an Stripe uebergeben, obwohl buchen.php sie
+// laengst abfragt. Bei Firmenrechnung (invoice_to_company) wird der
+// Firmenname statt des persoenlichen Namens gesetzt. Gibt die Customer-ID
+// zurueck oder null bei einem Fehler - create_stripe_checkout_session()
+// faellt dann auf customer_email zurueck, damit ein Stripe-Problem nie
+// die Buchung selbst blockiert.
+function create_or_update_stripe_customer(array $booking): ?string
+{
+    $isCompany = !empty($booking['invoice_to_company']) && !empty($booking['customer_company']);
+    $params = [
+        'email' => $booking['customer_email'],
+        'name' => $isCompany ? $booking['customer_company'] : $booking['customer_name'],
+    ];
+    if (!empty($booking['customer_phone'])) {
+        $params['phone'] = $booking['customer_phone'];
+    }
+    if (!empty($booking['customer_street']) && !empty($booking['customer_zip']) && !empty($booking['customer_city'])) {
+        $params['address'] = [
+            'line1' => $booking['customer_street'],
+            'postal_code' => $booking['customer_zip'],
+            'city' => $booking['customer_city'],
+            'country' => 'DE',
+        ];
+    }
+
+    $customer = stripe_request('POST', 'customers', $params);
+    return $customer['id'] ?? null;
+}
+
 // Erstellt eine Checkout Session fuer eine Buchung. $lineItems ist eine
 // Liste von ['name' => string, 'amount_cents' => int, 'quantity' => int].
 // Liefert die Session (u.a. 'id' und 'url') oder null bei einem Fehler.
 function create_stripe_checkout_session(array $booking, array $lineItems, string $successUrl, string $cancelUrl): ?array
 {
+    $customFields = [
+        ['name' => 'Buchung', 'value' => 'Snapolino #' . $booking['id']],
+    ];
+    if (!empty($booking['billing_vat_id'])) {
+        // custom_fields statt eines formalen Stripe-Tax-ID-Objekts, da
+        // letzteres einen laenderspezifischen Typ-Code braucht und bei
+        // einem ungueltigen Format die ganze Checkout-Session scheitern
+        // liesse - hier bleibt es immer nur eine sichtbare Textzeile.
+        $customFields[] = ['name' => 'USt-IdNr.', 'value' => (string) $booking['billing_vat_id']];
+    }
+
     $params = [
         'mode' => 'payment',
         'success_url' => $successUrl,
         'cancel_url' => $cancelUrl,
-        'customer_email' => $booking['customer_email'],
         'metadata' => [
             'booking_id' => (string) $booking['id'],
         ],
@@ -82,12 +124,20 @@ function create_stripe_checkout_session(array $booking, array $lineItems, string
         'invoice_creation' => [
             'enabled' => true,
             'invoice_data' => [
-                'custom_fields' => [
-                    ['name' => 'Buchung', 'value' => 'Snapolino #' . $booking['id']],
-                ],
+                'custom_fields' => $customFields,
             ],
         ],
     ];
+
+    $customerId = create_or_update_stripe_customer($booking);
+    if ($customerId !== null) {
+        $params['customer'] = $customerId;
+    } else {
+        // Fallback, falls die Customer-Anlage fehlschlaegt (z.B. Stripe
+        // kurzzeitig nicht erreichbar) - die Buchung soll trotzdem bezahlt
+        // werden koennen, nur ohne vorausgefuellten Namen/Adresse.
+        $params['customer_email'] = $booking['customer_email'];
+    }
 
     foreach (array_values($lineItems) as $i => $item) {
         $params['line_items'][$i]['quantity'] = $item['quantity'] ?? 1;

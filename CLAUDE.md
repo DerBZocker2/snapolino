@@ -603,12 +603,35 @@ versionieren, ohne deren unveraenderte `_v2`-Dateien unnoetig erneut zu
 erzeugen/umzubenennen.
 
 Schritt 5 (Zusammenfassung): zweispaltiges Layout, links strukturierte
-Rechnungsadresse (Strasse/PLZ/Ort, optional Firma) - waehrend der Eingabe
-schlaegt eine Autocomplete gegen den oeffentlichen Adresssuchdienst Photon
-(komoot, OpenStreetMap-Daten, siehe `datenschutz.php`) passende Adressen
-vor und fuellt PLZ/Ort automatisch korrekt aus; rein optional, ohne
-Vorschlagsauswahl bleiben die drei Felder normal von Hand ausfuellbar,
-rechts eine sticky Buchungsuebersicht mit Vorschaubild je gewaehltem
+Rechnungsadresse (Strasse/PLZ/Ort, optional Firma + USt-IdNr., Migration
+0034) - waehrend der Eingabe schlaegt eine Autocomplete gegen den
+oeffentlichen Adresssuchdienst Photon (komoot, OpenStreetMap-Daten, siehe
+`datenschutz.php`) passende Adressen vor und fuellt PLZ/Ort automatisch
+korrekt aus; rein optional, ohne Vorschlagsauswahl bleiben die drei Felder
+normal von Hand ausfuellbar. Darunter eine **separate Lieferanschrift**
+(`ship_to_different_address`/`shipping_street`/`shipping_zip`/
+`shipping_city`) - ueblicher Checkout-Standard ("Lieferung an andere
+Adresse"), relevant z.B. wenn die Box an den Veranstaltungsort statt an die
+Rechnungsadresse der buchenden Firma gehen soll. Checkbox-Default ist
+**nicht angehakt** (Lieferung = Rechnungsadresse, der weit ueberwiegende
+Regelfall), erst beim Anhaken erscheint das zweite Adressfeld (mit
+eigener, aus der ersten herausgeloester Photon-Autocomplete-Instanz -
+`attachAddressAutocomplete()` statt verdoppeltem Code). `booking_address_lines()`/
+`booking_shipping_address_lines()` (`includes/functions.php`) liefern
+die jeweils zutreffenden Zeilen, auch fuer die Anzeige in
+`admin/booking_detail.php` (zwei getrennte Zeilen "Rechnungsadresse"/
+"Lieferanschrift", letztere zeigt "entspricht der Rechnungsadresse" ohne
+Dopplung, wenn nicht abweichend gesetzt). Die eingegebene Firma/Adresse/
+USt-IdNr. wird jetzt auch tatsaechlich an Stripe weitergereicht
+(`create_or_update_stripe_customer()` in `includes/stripe.php` legt vor
+der Checkout-Session einen Stripe-Customer mit Name/Adresse/Telefon an,
+`customer` statt nur `customer_email` in der Session - die USt-IdNr. landet
+als sichtbares `custom_field` auf der Rechnung, bewusst **kein** formales
+Stripe-Tax-ID-Objekt, da das einen laenderspezifischen Typ-Code braucht und
+bei falschem Format sonst die ganze Checkout-Session scheitern liesse).
+Schlaegt die Customer-Anlage fehl, faellt die Funktion auf das bisherige
+`customer_email` zurueck - eine Buchung darf nie an einem Stripe-Problem
+bei dieser Zusatzinfo scheitern. Rechts eine sticky Buchungsuebersicht mit Vorschaubild je gewaehltem
 Layout (holt die Zeilen bewusst per `fetch_layout_with_slots()` statt aus
 der schon geladenen Layout-Liste, da diese eigene Designs ausschliesst -
 sonst waere ein per Online-Designer/Upload erstelltes Design in der

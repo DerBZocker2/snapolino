@@ -161,6 +161,16 @@ CREATE TABLE IF NOT EXISTS bookings (
     customer_city          VARCHAR(100) NULL,
     customer_company       VARCHAR(150) NULL,
     invoice_to_company     TINYINT(1) NOT NULL DEFAULT 0,
+    -- USt-IdNr. fuer Firmenrechnungen, optional (Migration 0034) - landet
+    -- als custom_field auf der Stripe-Rechnung, siehe includes/stripe.php.
+    billing_vat_id          VARCHAR(20) NULL,
+    -- Lieferanschrift (wohin die Box geschickt wird), nur wenn sie von der
+    -- obigen Rechnungsanschrift abweicht (Migration 0034) - Standard ist
+    -- "gleiche Adresse", siehe buchen.php Schritt 5.
+    ship_to_different_address TINYINT(1) NOT NULL DEFAULT 0,
+    shipping_street         VARCHAR(150) NULL,
+    shipping_zip            VARCHAR(10) NULL,
+    shipping_city           VARCHAR(100) NULL,
     coupon_code            VARCHAR(50) NULL,
     discount_cents         INT UNSIGNED NOT NULL DEFAULT 0,
     -- Automatischer Stammkundenrabatt (Migration 0023), zusaetzlich zu

@@ -330,11 +330,21 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
                 Logo-Menü).</span>
         </td></tr>
         <tr><th>Telefon</th><td><?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?: '—' ?></td></tr>
-        <tr><th>Versandadresse</th><td>
+        <tr><th>Rechnungsadresse</th><td>
             <?php $addressLines = booking_address_lines($booking); ?>
             <?= $addressLines ? htmlspecialchars(implode("\n", $addressLines), ENT_QUOTES) : '—' ?>
             <?php if ($booking['invoice_to_company'] && $booking['customer_company']): ?>
                 <br><span class="muted-text">Rechnung auf Firma: <?= htmlspecialchars((string) $booking['customer_company'], ENT_QUOTES) ?></span>
+            <?php endif; ?>
+            <?php if (!empty($booking['billing_vat_id'])): ?>
+                <br><span class="muted-text">USt-IdNr.: <?= htmlspecialchars((string) $booking['billing_vat_id'], ENT_QUOTES) ?></span>
+            <?php endif; ?>
+        </td></tr>
+        <tr><th>Lieferanschrift</th><td>
+            <?php if (empty($booking['ship_to_different_address'])): ?>
+                <span class="muted-text">entspricht der Rechnungsadresse</span>
+            <?php else: ?>
+                <?= htmlspecialchars(implode("\n", booking_shipping_address_lines($booking)), ENT_QUOTES) ?>
             <?php endif; ?>
         </td></tr>
         <tr><th>Gewünschte Layouts</th><td>

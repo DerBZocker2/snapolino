@@ -324,6 +324,11 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $city = trim((string) ($_POST['customer_city'] ?? ''));
         $company = trim((string) ($_POST['customer_company'] ?? ''));
         $invoiceToCompany = isset($_POST['invoice_to_company']);
+        $vatId = trim((string) ($_POST['billing_vat_id'] ?? ''));
+        $shipToDifferent = isset($_POST['ship_to_different_address']);
+        $shippingStreet = trim((string) ($_POST['shipping_street'] ?? ''));
+        $shippingZip = trim((string) ($_POST['shipping_zip'] ?? ''));
+        $shippingCity = trim((string) ($_POST['shipping_city'] ?? ''));
         $message = trim((string) ($_POST['message'] ?? ''));
         $wantsQuote = isset($_POST['wants_quote']);
         $agbAccepted = isset($_POST['agb_accepted']);
@@ -333,6 +338,9 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($invoiceToCompany && $company === '') {
             $errors[] = 'Bitte einen Firmennamen für die Rechnung angeben.';
+        }
+        if ($shipToDifferent && ($shippingStreet === '' || $shippingZip === '' || $shippingCity === '')) {
+            $errors[] = 'Bitte Straße, PLZ und Ort der Lieferanschrift angeben.';
         }
         if (!$agbAccepted) {
             $errors[] = 'Bitte bestätige, dass du die AGB und die Datenschutzerklärung gelesen hast.';
@@ -349,7 +357,9 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = db()->prepare(
                 'UPDATE bookings SET customer_phone = ?, customer_street = ?, customer_zip = ?, customer_city = ?,
-                 customer_company = ?, invoice_to_company = ?, message = ?, discount_cents = ?,
+                 customer_company = ?, invoice_to_company = ?, billing_vat_id = ?,
+                 ship_to_different_address = ?, shipping_street = ?, shipping_zip = ?, shipping_city = ?,
+                 message = ?, discount_cents = ?,
                  returning_discount_cents = ?, promotion_discount_cents = ?, applied_promotions_json = ?,
                  total_price_cents = ?, wants_quote = ?, agb_accepted_at = ? WHERE id = ?'
             );
@@ -360,6 +370,11 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $city,
                 $company !== '' ? $company : null,
                 $invoiceToCompany ? 1 : 0,
+                $invoiceToCompany && $vatId !== '' ? $vatId : null,
+                $shipToDifferent ? 1 : 0,
+                $shipToDifferent ? $shippingStreet : null,
+                $shipToDifferent ? $shippingZip : null,
+                $shipToDifferent ? $shippingCity : null,
                 $message !== '' ? $message : null,
                 $pricing['discount_cents'],
                 $pricing['returning_discount_cents'],
@@ -1640,7 +1655,21 @@ require __DIR__ . '/_site_header.php';
                         <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
                         <input type="hidden" name="form_action" value="submit">
 
-                        <label>Telefon<input type="text" name="customer_phone" value="<?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?>"></label>
+                        <label>Telefon<input type="text" name="customer_phone" autocomplete="tel" value="<?= htmlspecialchars((string) $booking['customer_phone'], ENT_QUOTES) ?>"></label>
+
+                        <label class="checkbox">
+                            <input type="checkbox" name="invoice_to_company" id="invoice-company-checkbox" <?= $booking['invoice_to_company'] ? 'checked' : '' ?>>
+                            Rechnung auf Firma ausstellen
+                        </label>
+                        <div id="company-name-field" <?= $booking['invoice_to_company'] ? '' : 'hidden' ?>>
+                            <label>Firmenname
+                                <input type="text" name="customer_company" autocomplete="organization" value="<?= htmlspecialchars((string) $booking['customer_company'], ENT_QUOTES) ?>">
+                            </label>
+                            <label>USt-IdNr. (optional)
+                                <input type="text" name="billing_vat_id" placeholder="z.B. DE123456789" value="<?= htmlspecialchars((string) ($booking['billing_vat_id'] ?? ''), ENT_QUOTES) ?>">
+                            </label>
+                        </div>
+
                         <label>Straße und Hausnummer *
                             <div class="address-autocomplete">
                                 <input type="text" name="customer_street" id="customer_street" autocomplete="off" required value="<?= htmlspecialchars((string) $booking['customer_street'], ENT_QUOTES) ?>">
@@ -1649,18 +1678,25 @@ require __DIR__ . '/_site_header.php';
                         </label>
                         <p class="muted" style="margin-top:-10px;font-size:12px;">Adresse eintippen und aus den Vorschlägen wählen - PLZ und Ort werden automatisch ausgefüllt. Geht auch ohne, dann bitte von Hand ausfüllen.</p>
                         <div class="grid2">
-                            <label>PLZ *<input type="text" name="customer_zip" id="customer_zip" required value="<?= htmlspecialchars((string) $booking['customer_zip'], ENT_QUOTES) ?>"></label>
-                            <label>Ort *<input type="text" name="customer_city" id="customer_city" required value="<?= htmlspecialchars((string) $booking['customer_city'], ENT_QUOTES) ?>"></label>
+                            <label>PLZ *<input type="text" name="customer_zip" id="customer_zip" autocomplete="postal-code" required value="<?= htmlspecialchars((string) $booking['customer_zip'], ENT_QUOTES) ?>"></label>
+                            <label>Ort *<input type="text" name="customer_city" id="customer_city" autocomplete="address-level2" required value="<?= htmlspecialchars((string) $booking['customer_city'], ENT_QUOTES) ?>"></label>
                         </div>
 
                         <label class="checkbox">
-                            <input type="checkbox" name="invoice_to_company" id="invoice-company-checkbox" <?= $booking['invoice_to_company'] ? 'checked' : '' ?>>
-                            Rechnung auf Firma ausstellen
+                            <input type="checkbox" name="ship_to_different_address" id="ship-different-checkbox" <?= $booking['ship_to_different_address'] ? 'checked' : '' ?>>
+                            Die Fotobox soll an eine andere Adresse geliefert werden
                         </label>
-                        <div id="company-name-field" <?= $booking['invoice_to_company'] ? '' : 'hidden' ?>>
-                            <label>Firmenname
-                                <input type="text" name="customer_company" value="<?= htmlspecialchars((string) $booking['customer_company'], ENT_QUOTES) ?>">
+                        <div id="shipping-address-fields" <?= $booking['ship_to_different_address'] ? '' : 'hidden' ?>>
+                            <label>Lieferanschrift - Straße und Hausnummer *
+                                <div class="address-autocomplete">
+                                    <input type="text" name="shipping_street" id="shipping_street" autocomplete="off" value="<?= htmlspecialchars((string) ($booking['shipping_street'] ?? ''), ENT_QUOTES) ?>">
+                                    <div id="shipping-address-suggestions" class="address-suggestions" hidden></div>
+                                </div>
                             </label>
+                            <div class="grid2">
+                                <label>PLZ *<input type="text" name="shipping_zip" id="shipping_zip" autocomplete="postal-code" value="<?= htmlspecialchars((string) ($booking['shipping_zip'] ?? ''), ENT_QUOTES) ?>"></label>
+                                <label>Ort *<input type="text" name="shipping_city" id="shipping_city" autocomplete="address-level2" value="<?= htmlspecialchars((string) ($booking['shipping_city'] ?? ''), ENT_QUOTES) ?>"></label>
+                            </div>
                         </div>
 
                         <label>Nachricht (optional)<textarea name="message" rows="3"><?= htmlspecialchars((string) $booking['message'], ENT_QUOTES) ?></textarea></label>
@@ -1797,73 +1833,93 @@ require __DIR__ . '/_site_header.php';
                     companyField.hidden = !companyCb.checked;
                 });
 
+                var shipDifferentCb = document.getElementById('ship-different-checkbox');
+                var shippingFields = document.getElementById('shipping-address-fields');
+                shipDifferentCb.addEventListener('change', function () {
+                    shippingFields.hidden = !shipDifferentCb.checked;
+                });
+
                 // Adress-Autocomplete ueber Photon (komoot, oeffentliche
                 // OpenStreetMap-Suche, siehe datenschutz.php) - rein
                 // optionale Hilfe, bei Fehler/Timeout bleiben die drei
-                // Felder ganz normal von Hand ausfuellbar.
-                var streetInput = document.getElementById('customer_street');
-                var zipInput = document.getElementById('customer_zip');
-                var cityInput = document.getElementById('customer_city');
-                var suggestionsBox = document.getElementById('address-suggestions');
-                var debounceTimer = null;
-                var activeController = null;
+                // Felder ganz normal von Hand ausfuellbar. Als Funktion
+                // statt fest verdrahteter IDs, damit sowohl die
+                // Rechnungs- als auch die (optionale) Lieferanschrift
+                // dieselbe Hilfe bekommen, ohne den Code zu verdoppeln.
+                function attachAddressAutocomplete(streetInput, zipInput, cityInput, suggestionsBox) {
+                    var debounceTimer = null;
+                    var activeController = null;
 
-                function hideSuggestions() {
-                    suggestionsBox.hidden = true;
-                    suggestionsBox.innerHTML = '';
-                }
+                    function hideSuggestions() {
+                        suggestionsBox.hidden = true;
+                        suggestionsBox.innerHTML = '';
+                    }
 
-                function showSuggestions(features) {
-                    suggestionsBox.innerHTML = '';
-                    var shown = 0;
-                    features.forEach(function (feature) {
-                        var p = feature.properties || {};
-                        if (p.countrycode !== 'DE' || !p.postcode || !p.city || !p.street) {
+                    function showSuggestions(features) {
+                        suggestionsBox.innerHTML = '';
+                        var shown = 0;
+                        features.forEach(function (feature) {
+                            var p = feature.properties || {};
+                            if (p.countrycode !== 'DE' || !p.postcode || !p.city || !p.street) {
+                                return;
+                            }
+                            var streetLine = p.street + (p.housenumber ? ' ' + p.housenumber : '');
+                            var btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'address-suggestion';
+                            btn.textContent = streetLine + ', ' + p.postcode + ' ' + p.city;
+                            btn.addEventListener('click', function () {
+                                streetInput.value = streetLine;
+                                zipInput.value = p.postcode;
+                                cityInput.value = p.city;
+                                hideSuggestions();
+                            });
+                            suggestionsBox.appendChild(btn);
+                            shown++;
+                        });
+                        suggestionsBox.hidden = shown === 0;
+                    }
+
+                    streetInput.addEventListener('input', function () {
+                        var query = streetInput.value.trim();
+                        clearTimeout(debounceTimer);
+                        if (query.length < 4) {
+                            hideSuggestions();
                             return;
                         }
-                        var streetLine = p.street + (p.housenumber ? ' ' + p.housenumber : '');
-                        var btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'address-suggestion';
-                        btn.textContent = streetLine + ', ' + p.postcode + ' ' + p.city;
-                        btn.addEventListener('click', function () {
-                            streetInput.value = streetLine;
-                            zipInput.value = p.postcode;
-                            cityInput.value = p.city;
-                            hideSuggestions();
-                        });
-                        suggestionsBox.appendChild(btn);
-                        shown++;
+                        debounceTimer = setTimeout(function () {
+                            if (activeController) {
+                                activeController.abort();
+                            }
+                            activeController = ('AbortController' in window) ? new AbortController() : null;
+                            fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(query) + '&lang=de&limit=8', {
+                                signal: activeController ? activeController.signal : undefined,
+                            })
+                                .then(function (r) { return r.json(); })
+                                .then(function (data) { showSuggestions(data.features || []); })
+                                .catch(function () { /* Dienst nicht erreichbar - Felder bleiben manuell ausfuellbar */ });
+                        }, 350);
                     });
-                    suggestionsBox.hidden = shown === 0;
+
+                    document.addEventListener('click', function (ev) {
+                        if (ev.target !== streetInput && !suggestionsBox.contains(ev.target)) {
+                            hideSuggestions();
+                        }
+                    });
                 }
 
-                streetInput.addEventListener('input', function () {
-                    var query = streetInput.value.trim();
-                    clearTimeout(debounceTimer);
-                    if (query.length < 4) {
-                        hideSuggestions();
-                        return;
-                    }
-                    debounceTimer = setTimeout(function () {
-                        if (activeController) {
-                            activeController.abort();
-                        }
-                        activeController = ('AbortController' in window) ? new AbortController() : null;
-                        fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(query) + '&lang=de&limit=8', {
-                            signal: activeController ? activeController.signal : undefined,
-                        })
-                            .then(function (r) { return r.json(); })
-                            .then(function (data) { showSuggestions(data.features || []); })
-                            .catch(function () { /* Dienst nicht erreichbar - Felder bleiben manuell ausfuellbar */ });
-                    }, 350);
-                });
-
-                document.addEventListener('click', function (ev) {
-                    if (ev.target !== streetInput && !suggestionsBox.contains(ev.target)) {
-                        hideSuggestions();
-                    }
-                });
+                attachAddressAutocomplete(
+                    document.getElementById('customer_street'),
+                    document.getElementById('customer_zip'),
+                    document.getElementById('customer_city'),
+                    document.getElementById('address-suggestions')
+                );
+                attachAddressAutocomplete(
+                    document.getElementById('shipping_street'),
+                    document.getElementById('shipping_zip'),
+                    document.getElementById('shipping_city'),
+                    document.getElementById('shipping-address-suggestions')
+                );
             })();
             </script>
         <?php endif; ?>
