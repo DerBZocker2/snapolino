@@ -1,27 +1,24 @@
-/* Designsprache: lehnt sich an das eigentliche Produkt an - den
-   physischen Fotostreifen, den Samtvorhang der Fotobox und das
-   Blitzlicht im Moment der Aufnahme - statt einer generischen
-   SaaS-Palette. --accent (Samtvorhang-Bordeaux) und --flash
-   (Blitzlicht-Gold) sind die beiden bewusst gesetzten Farbakzente,
-   --accent2 (Dunkelkammer-Petrol) bleibt zurueckhaltend fuer Links/Infos.
-   --teal haelt aus Kompatibilitaetsgruenden weiterhin den Namen (einige
-   Seiten referenzieren ihn inline), transportiert jetzt aber das
-   Blitzlicht-Gold statt des alten Tuerkis. */
+/* Designsprache: helle, bunte Party-Palette passend zum froehlichen
+   Charakter einer Fotobox-Vermietung (Hochzeit/Geburtstag/Firmenfeier)
+   statt gedeckter, dunkler Toene - drei kraeftige, aber auf Weiss
+   kontrastgepruefte Akzentfarben (Himbeere/Violett/Tuerkis) statt einer
+   einzelnen Markenfarbe. --teal/--flash bleiben zwei Namen fuer denselben
+   Tuerkis-Wert (Kompatibilitaet mit bestehenden Inline-Referenzen). */
 :root {
     --bg: #fffdf8;
     --panel: #ffffff;
-    --border: #e8dccf;
-    --text: #241331;
-    --muted: #6b5a62;
-    --accent: #8e2140;
-    --accent-dark: #6e1831;
-    --accent2: #2b5257;
-    --accent2-dark: #1d3c40;
-    --teal: #f2b134;
-    --flash: #f2b134;
-    --dark: #1e1026;
-    --font-display: "Bricolage Grotesque", "Segoe UI", Arial, sans-serif;
-    --font-body: "Hanken Grotesk", "Segoe UI", Arial, sans-serif;
+    --border: #f0e6ec;
+    --text: #2b2140;
+    --muted: #6b5e78;
+    --accent: #d81b5f;
+    --accent-dark: #b5134b;
+    --accent2: #6c5ce7;
+    --accent2-dark: #5643d1;
+    --teal: #16bdae;
+    --flash: #16bdae;
+    --dark: #241b3a;
+    --font-display: "Poppins", "Segoe UI", Arial, sans-serif;
+    --font-body: "Poppins", "Segoe UI", Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -241,7 +238,7 @@ a { color: var(--accent2-dark); }
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(43, 82, 87, 0.1);
+    background: rgba(108, 92, 231, 0.12);
     color: var(--accent2);
 }
 
@@ -1412,12 +1409,6 @@ button:hover { background: var(--accent-dark); }
 
 .hero { position: relative; }
 
-.confetti {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
 /* Einmaliger Fall statt Dauerschleife - ein einziger, orchestrierter
    Moment beim Laden wirkt bewusster als endlos rieselndes Konfetti im
    Hintergrund, das dauerhaft um Aufmerksamkeit konkurriert. */
@@ -1460,9 +1451,21 @@ button:hover { background: var(--accent-dark); }
    kein fester Container, der bei einem derart hochformatigen Bild auf
    schmalen Bildschirmen leicht ueberlaufen wuerde.*/
 .hero-visuals {
+    position: relative;
     display: flex;
     justify-content: center;
     padding: 12px 0;
+}
+
+/* Innerhalb von .hero-visuals statt des ganzen .hero verankert, damit die
+   Positionierung (in %) unabhaengig vom jeweiligen Breakpoint immer relativ
+   zum Fotostreifen bleibt, statt bei einem Spaltenwechsel (Desktop
+   zweispaltig / Mobil einspaltig) plötzlich ueber dem Flieaesstext zu
+   landen. */
+.confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
 }
 
 .hero-visuals .hero-illustration { display: none; }

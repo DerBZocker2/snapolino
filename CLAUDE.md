@@ -1037,22 +1037,24 @@ aller bei bestaetigten Buchungen gewaehrten Rabattaktionsbetraege zusammen
 ## Oeffentliche Seite: Visuelle Neuausrichtung (laufend, bereichsweise)
 Die oeffentliche Seite wird schrittweise auf eine eigenstaendige, am
 tatsaechlichen Produkt orientierte Optik umgestellt statt generischer
-SaaS-Defaults - Motiv ist der physische Fotostreifen/Samtvorhang/das
-Blitzlicht der Fotobox selbst, nicht Kundenfotos oder abstrakte Icons.
-Zentral in `assets/site.css` unter `:root` (gilt seitenweit, ein einziges
-Stylesheet fuer die gesamte oeffentliche Seite):
-- **Farben**: `--accent` Samtvorhang-Bordeaux (`#8e2140`), `--teal`/`--flash`
-  Blitzlicht-Gold (`#f2b134`, derselbe Wert unter beiden Variablennamen -
-  `--teal` behaelt den alten Namen aus Kompatibilitaetsgruenden fuer
-  bestehende Inline-Referenzen), `--accent2` Dunkelkammer-Petrol (`#2b5257`)
-  fuer Links/zurueckhaltende Akzente, `--bg` ein kuehleres Blitzlicht-Weiss.
-  Bei jeder weiteren Farbaenderung Kontrast erneut pruefen (siehe
-  Konventionen unten).
-- **Typografie**: `--font-display` ("Bricolage Grotesque", Headlines/Buttons)
-  und `--font-body` ("Hanken Grotesk", Fliesstext) per Google Fonts in
-  `_site_header.php` eingebunden (analog zur bestehenden Praxis in
-  `tools/generate_presets.py`/`generate_homepage_art.py` - kein neues
-  Lizenzthema).
+SaaS-Defaults - Motiv ist der physische Fotostreifen der Fotobox selbst,
+nicht Kundenfotos oder abstrakte Icons. Nach Kundenfeedback zur ersten
+Fassung (zu gedeckt/dunkel, zu ungewoehnliche Schriftart) bewusst auf eine
+hellere, buntere Party-Palette sowie eine weit verbreitete Web-Schriftart
+umgeschwenkt. Zentral in `assets/site.css` unter `:root` (gilt seitenweit,
+ein einziges Stylesheet fuer die gesamte oeffentliche Seite):
+- **Farben**: drei kraeftige, aber auf Weiss kontrastgepruefte Akzente -
+  `--accent` Himbeer-Pink (`#d81b5f`, fuer CTAs/Buttons mit weissem Text
+  bewusst dunkel genug fuer AA-Kontrast), `--accent2` Violett (`#6c5ce7`,
+  Links/zweiter Akzent) und `--teal`/`--flash` Tuerkis (`#16bdae`, derselbe
+  Wert unter beiden Variablennamen - `--teal` behaelt den alten Namen aus
+  Kompatibilitaetsgruenden fuer bestehende Inline-Referenzen). `--bg`
+  bleibt ein helles, warmes Weiss. Bei jeder weiteren Farbaenderung
+  Kontrast erneut pruefen (siehe Konventionen unten).
+- **Typografie**: "Poppins" fuer Headlines und Fliesstext (`--font-display`/
+  `--font-body`, bewusst dieselbe Familie fuer beides) - eine der im Web
+  meistgenutzten Google-Font-Schriften statt einer ausgefalleneren Wahl,
+  auf Kundenwunsch. Eingebunden per Google Fonts in `_site_header.php`.
 - **`site_icon()`** (`includes/functions.php`) liefert schlichte,
   selbst gezeichnete Strich-Icons (inline `<svg>`) fuer die oeffentliche
   Seite - analog zu `nav_icon()` im Admin-Panel. Ersetzt nach und nach

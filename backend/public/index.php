@@ -27,13 +27,6 @@ require __DIR__ . '/_site_header.php';
 ?>
 
 <section class="hero">
-    <div class="confetti" aria-hidden="true">
-        <span class="confetti-piece" style="left:58%;background:var(--accent);animation-duration:1.6s;animation-delay:0s;"></span>
-        <span class="confetti-piece" style="left:68%;background:var(--accent2);animation-duration:1.4s;animation-delay:0.15s;"></span>
-        <span class="confetti-piece" style="left:78%;background:var(--flash);animation-duration:1.8s;animation-delay:0.3s;"></span>
-        <span class="confetti-piece" style="left:88%;background:var(--accent);animation-duration:1.5s;animation-delay:0.05s;"></span>
-        <span class="confetti-piece" style="left:95%;background:var(--accent2);animation-duration:1.7s;animation-delay:0.25s;"></span>
-    </div>
     <div class="hero-copy">
         <h1>Fotobox-Vermietung für deine Veranstaltung</h1>
         <p>
@@ -54,6 +47,13 @@ require __DIR__ . '/_site_header.php';
         </div>
     </div>
     <div class="hero-visuals">
+        <div class="confetti" aria-hidden="true">
+            <span class="confetti-piece" style="left:5%;background:var(--accent);animation-duration:1.6s;animation-delay:0s;"></span>
+            <span class="confetti-piece" style="left:25%;background:var(--accent2);animation-duration:1.4s;animation-delay:0.15s;"></span>
+            <span class="confetti-piece" style="left:50%;background:var(--flash);animation-duration:1.8s;animation-delay:0.3s;"></span>
+            <span class="confetti-piece" style="left:75%;background:var(--accent);animation-duration:1.5s;animation-delay:0.05s;"></span>
+            <span class="confetti-piece" style="left:92%;background:var(--accent2);animation-duration:1.7s;animation-delay:0.25s;"></span>
+        </div>
         <img class="hero-illustration" src="<?= asset_url('assets/hero-illustration.png', __DIR__ . '/assets/hero-illustration.png') ?>" alt="Illustration einer Fotobox mit Kamera-Symbol auf dem Bildschirm und einem gedruckten Fotostreifen" loading="lazy">
         <img class="hero-photo-strip" src="<?= asset_url('assets/photo-strip-illustration.png', __DIR__ . '/assets/photo-strip-illustration.png') ?>" alt="Illustrierter Fotostreifen mit vier bunten Motiven" loading="lazy">
     </div>
