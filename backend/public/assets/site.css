@@ -154,21 +154,28 @@ a { color: var(--accent2-dark); }
    ".button" lautete. Ein satter, einfarbiger Samtvorhang-Ton statt eines
    Farbverlaufs - wirkt wie ein bewusst gesetzter Akzent statt einer
    generischen Verlaufs-Deko. */
+/* Soll sofort als DER klickbare Call-to-Action auffallen - satte Farbe
+   plus ein farbiger Schein (statt nur eines neutralen grauen Schattens
+   wie bei Karten/Panels), damit der Knopf sich spuerbar von der Seite
+   abhebt statt nur ein weiteres farbiges Element unter vielen zu sein. */
 .button {
     background: var(--accent);
     color: #fff;
     border: none;
     border-radius: 10px;
-    padding: 15px 30px;
-    font-size: 16px;
+    padding: 17px 36px;
+    font-size: 17px;
     font-weight: 600;
     text-decoration: none;
     display: inline-block;
-    box-shadow: 0 6px 0 var(--accent-dark);
+    box-shadow: 0 6px 0 var(--accent-dark), 0 14px 28px -6px rgba(216, 27, 95, 0.45);
     transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
-.button:hover { transform: translateY(2px); box-shadow: 0 4px 0 var(--accent-dark); }
+.button:hover {
+    transform: translateY(2px);
+    box-shadow: 0 4px 0 var(--accent-dark), 0 10px 22px -6px rgba(216, 27, 95, 0.5);
+}
 
 .trust-bar {
     margin: 0 0 8px;
