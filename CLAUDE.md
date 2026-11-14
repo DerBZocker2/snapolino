@@ -338,6 +338,17 @@ im Panel angezeigt).
   (`bookings.php`) stehen zusaetzlich in einem `<div class="table-responsive">`
   (`overflow-x: auto`), damit sie auf schmalen Bildschirmen horizontal
   scrollen statt das Seitenlayout zu sprengen.
+- **`label.checkbox` (`site.css`) ist `display: flex`** - der Beschriftungstext
+  **muss** deshalb in einem einzigen `<span>` stehen, sobald er einen Link
+  oder sonst ein Element enthaelt (z.B. die AGB-Checkbox in `buchen.php`
+  Schritt 5, "Ich habe die `<a>`AGB`</a>` und die `<a>`Datenschutzerklaerung`</a>`
+  gelesen..."). Ohne diesen Span wird jeder Text-/Link-Abschnitt zu einem
+  eigenen Flex-Item nebeneinander statt normal als Fliesstext zu umbrechen -
+  sichtbares Symptom war eine auf zwei ueberlappende Zeilen "zusammen-
+  gequetschte" Beschriftung mit scheinbar fehlenden Leerzeichen zwischen
+  Wort und Link. Reiner Text ohne eingebettete Elemente (die ueberwiegende
+  Mehrheit der Checkbox-Labels im Projekt) ist davon nicht betroffen, da er
+  ohnehin nur ein einziges (anonymes) Flex-Item ergibt.
 - Logo: `backend/public/assets/logo-icon.png` (Kamera-Icon, aus dem
   offiziellen Snapolino-Logo freigestellt, transparenter Hintergrund),
   dazu `favicon.ico`/`apple-touch-icon.png` im selben Ordner - eingebunden

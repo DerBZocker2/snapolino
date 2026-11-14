@@ -1706,9 +1706,9 @@ require __DIR__ . '/_site_header.php';
                         </label>
                         <label class="checkbox">
                             <input type="checkbox" name="agb_accepted" id="agb-checkbox" required <?= $booking['agb_accepted_at'] ? 'checked' : '' ?>>
-                            Ich habe die <a href="/agb" target="_blank" rel="noopener">AGB</a> und die
+                            <span>Ich habe die <a href="/agb" target="_blank" rel="noopener">AGB</a> und die
                             <a href="/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a>
-                            gelesen und akzeptiere sie. *
+                            gelesen und akzeptiere sie. *</span>
                         </label>
 
                         <button type="submit" id="submit-booking-btn" class="btn-gradient">
