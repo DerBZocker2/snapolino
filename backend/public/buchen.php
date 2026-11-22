@@ -1560,7 +1560,8 @@ require __DIR__ . '/_site_header.php';
                     $layoutSurcharge += (int) $l['surcharge_cents'];
                 }
             }
-            $baseTotal = base_price_cents() + $layoutSurcharge;
+            $bookingPackage4 = fetch_package($booking['package_id'] !== null ? (int) $booking['package_id'] : null);
+            $baseTotal = ($bookingPackage4 ? (int) $bookingPackage4['price_cents'] : base_price_cents()) + $layoutSurcharge;
             $includedExtraIds = package_included_extra_ids($booking['package_id'] !== null ? (int) $booking['package_id'] : null);
             ?>
             <div class="panel-box" style="max-width:600px;margin:0 auto;">
