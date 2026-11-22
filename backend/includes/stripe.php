@@ -254,7 +254,7 @@ function stripe_create_credit_note(string $invoiceId, int $amountCents): ?array
         'memo' => 'Stornierung der Buchung',
         'lines' => [[
             'type' => 'custom_line_item',
-            'description' => 'Rueckerstattung nach Stornierung (abzgl. Stornogebuehr gemaess AGB Ziffer 8)',
+            'description' => 'Rückerstattung nach Stornierung (abzgl. Stornogebühr gemäß AGB Ziffer 8)',
             'quantity' => 1,
             'unit_amount' => $amountCents,
         ]],

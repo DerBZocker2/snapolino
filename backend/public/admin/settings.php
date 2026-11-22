@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Empfehlungsrabatt muss zwischen 0 und 100 Prozent liegen.';
     }
     if (!is_numeric($referralRewardEuro) || (float) $referralRewardEuro < 0) {
-        $errors[] = 'Empfehlungspraemie muss eine Zahl >= 0 sein.';
+        $errors[] = 'Empfehlungsprämie muss eine Zahl >= 0 sein.';
     }
     if (!ctype_digit($reviewRequestDaysAfterEvent)) {
         $errors[] = 'Vorlauf der Bewertungsanfrage muss eine ganze Zahl >= 0 sein.';

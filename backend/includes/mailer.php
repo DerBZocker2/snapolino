@@ -142,7 +142,7 @@ function send_booking_confirmation_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -205,7 +205,7 @@ function send_booking_request_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -252,7 +252,7 @@ function send_admin_confirmed_booking_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -279,8 +279,8 @@ function send_admin_confirmed_booking_email(array $booking): bool
         $mail->Body = render_email_html($mail, 'Buchung bestätigt 🎉', $html, 'Deine Fotobox ist fest für dich reserviert - kostenfrei.');
 
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
-            . "deine Fotobox ist fest fuer den " . $eventDate . " fuer dich reserviert - eine Zahlung ist dafuer "
-            . "nicht noetig.\n\n"
+            . "deine Fotobox ist fest für den " . $eventDate . " für dich reserviert - eine Zahlung ist dafür "
+            . "nicht nötig.\n\n"
             . "Wir schicken dir die Box rechtzeitig vor deiner Veranstaltung zu.\n\n"
             . "Bis " . design_edit_deadline_days() . " Tage vor deinem Event kannst du Design und Extras in deinem "
             . "Konto noch anpassen: " . rtrim((string) backend_config()['base_url'], '/') . "/konto\n\n"
@@ -306,7 +306,7 @@ function send_booking_payment_link_email(array $booking, string $paymentUrl): bo
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -331,9 +331,9 @@ function send_booking_payment_link_email(array $booking, string $paymentUrl): bo
         $mail->Body = render_email_html($mail, 'Zahlung ausstehend', $html, 'Buchung vom ' . $eventDate . ' – ' . $total);
 
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
-            . "fuer deine Fotobox-Buchung am " . $eventDate . " steht noch die Zahlung ueber " . $total . " aus.\n\n"
+            . "für deine Fotobox-Buchung am " . $eventDate . " steht noch die Zahlung über " . $total . " aus.\n\n"
             . "Dein Termin wird fest reserviert, sobald die Zahlung eingegangen ist. Du kannst hier sicher per "
-            . "Kreditkarte, Klarna o.ae. bezahlen:\n" . $paymentUrl . "\n\n"
+            . "Kreditkarte, Klarna o.ä. bezahlen:\n" . $paymentUrl . "\n\n"
             . "Bei Fragen melde dich gerne bei uns.\n\n"
             . "Viele Grüße\n" . $fromName;
 
@@ -355,7 +355,7 @@ function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Stornierung Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Stornierung Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -391,12 +391,12 @@ function send_booking_cancelled_email(array $booking, bool $wasRefunded, ?string
                 ? "Die Stornorechnung dazu findest du hier:\n" . $creditNotePdfUrl . "\n\n"
                 : '';
             $feeNotePlain = $feeCents > 0
-                ? "Gemaess unseren AGB (Ziffer 8) behalten wir davon eine Stornogebuehr von "
+                ? "Gemäß unseren AGB (Ziffer 8) behalten wir davon eine Stornogebühr von "
                     . money_from_cents($feeCents) . " ein, der Rest wird erstattet.\n\n"
                 : '';
             $plainBody = "vielen Dank für deine Nachricht - deine Buchung für den " . $eventDate . " wurde storniert.\n\n"
-                . "Dir werden " . $refundLabel . " über Stripe auf dein urspruengliches "
-                . "Zahlungsmittel zurueckerstattet (je nach Zahlungsmittel kann das ein paar Tage dauern).\n\n"
+                . "Dir werden " . $refundLabel . " über Stripe auf dein ursprüngliches "
+                . "Zahlungsmittel zurückerstattet (je nach Zahlungsmittel kann das ein paar Tage dauern).\n\n"
                 . $feeNotePlain
                 . $creditNoteNote;
         } else {
@@ -425,7 +425,7 @@ function send_customer_login_code_email(string $email, string $code): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Login-Code fuer ' . $email . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Login-Code für ' . $email . ')');
         return false;
     }
 
@@ -450,16 +450,16 @@ function send_customer_login_code_email(string $email, string $code): bool
         $mail->Body = render_email_html($mail, 'Dein Anmeldecode', $html, 'Dein Anmeldecode: ' . $code);
 
         $mail->AltBody = "Hallo,\n\n"
-            . "dein Anmeldecode fuer dein Snapolino-Konto lautet:\n\n"
+            . "dein Anmeldecode für dein Snapolino-Konto lautet:\n\n"
             . $code . "\n\n"
-            . "Der Code ist " . CUSTOMER_LOGIN_CODE_TTL_MINUTES . " Minuten gueltig. "
+            . "Der Code ist " . CUSTOMER_LOGIN_CODE_TTL_MINUTES . " Minuten gültig. "
             . "Falls du diesen Code nicht angefordert hast, kannst du diese E-Mail ignorieren.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
         return true;
     } catch (PHPMailerException $e) {
-        error_log('Mailversand fehlgeschlagen (Login-Code fuer ' . $email . '): ' . $mail->ErrorInfo);
+        error_log('Mailversand fehlgeschlagen (Login-Code für ' . $email . '): ' . $mail->ErrorInfo);
         return false;
     }
 }
@@ -471,7 +471,7 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Zusatzzahlung Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Zusatzzahlung Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -480,7 +480,7 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
         $fromName = (string) (backend_config()['smtp_from_name'] ?? 'Snapolino');
         $amount = money_from_cents($amountCents);
 
-        $mail->Subject = 'Zusaetzliche Zahlung zu deiner Buchung – Snapolino';
+        $mail->Subject = 'Zusätzliche Zahlung zu deiner Buchung – Snapolino';
         $mail->isHTML(true);
 
         $html = email_p('Hallo ' . email_e($booking['customer_name']) . ',')
@@ -494,9 +494,9 @@ function send_addon_charge_payment_link_email(array $booking, string $descriptio
         $mail->Body = render_email_html($mail, 'Zusätzliche Zahlung', $html, $description . ' – ' . $amount);
 
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
-            . "fuer deine Buchung wurde folgende zusaetzliche Leistung vorgeschlagen:\n\n"
+            . "für deine Buchung wurde folgende zusätzliche Leistung vorgeschlagen:\n\n"
             . $description . " – " . $amount . "\n\n"
-            . "Sie wird erst nach Zahlungseingang wirksam. Du kannst hier sicher per Kreditkarte, Klarna o.ae. bezahlen:\n"
+            . "Sie wird erst nach Zahlungseingang wirksam. Du kannst hier sicher per Kreditkarte, Klarna o.ä. bezahlen:\n"
             . $paymentUrl . "\n\n"
             . "Bei Fragen melde dich gerne bei uns.\n\n"
             . "Viele Grüße\n" . $fromName;
@@ -521,7 +521,7 @@ function send_gallery_email(array $booking, string $galleryUrl, string $deletion
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Galerie-Mail Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Galerie-Mail Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -546,10 +546,10 @@ function send_gallery_email(array $booking, string $galleryUrl, string $deletion
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
             . "die Fotos von eurer Veranstaltung sind jetzt online. Über den Link unten könnt ihr sie euch ansehen, "
             . "herunterladen und bei Bedarf einzelne Fotos ausblenden:\n\n" . $galleryUrl . "\n\n"
-            . "Auf der Seite findet ihr ausserdem einen separaten Link zum Weitergeben an eure Gaeste - der zeigt "
+            . "Auf der Seite findet ihr ausserdem einen separaten Link zum Weitergeben an eure Gäste - der zeigt "
             . "nur die Fotos, die ihr nicht ausgeblendet habt.\n\n"
-            . "Aus Datenschutzgruenden werden die Fotos automatisch am " . $deletionDateFormatted . " geloescht - "
-            . "ladet euch gewuenschte Fotos vorher herunter.\n\n"
+            . "Aus Datenschutzgründen werden die Fotos automatisch am " . $deletionDateFormatted . " gelöscht - "
+            . "ladet euch gewünschte Fotos vorher herunter.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
@@ -566,7 +566,7 @@ function send_referral_reward_email(array $referrerBooking, string $rewardCode, 
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Empfehlungspraemie Buchung #' . $referrerBooking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Empfehlungsprämie Buchung #' . $referrerBooking['id'] . ')');
         return false;
     }
 
@@ -592,15 +592,15 @@ function send_referral_reward_email(array $referrerBooking, string $rewardCode, 
         $mail->Body = render_email_html($mail, 'Danke fürs Weiterempfehlen! 🎁', $html, 'Wir schenken dir ' . $reward . ' für deine nächste Buchung.');
 
         $mail->AltBody = "Hallo " . $referrerBooking['customer_name'] . ",\n\n"
-            . "jemand hat gerade mit deinem Empfehlungscode gebucht - vielen Dank fuers Weitersagen! Als Dankeschoen "
-            . "schenken wir dir " . $reward . " fuer deine naechste Buchung:\n\n" . $rewardCode . "\n\n"
-            . "Der Code ist einmalig einloesbar beim Buchen unter Schritt 5.\n\n"
+            . "jemand hat gerade mit deinem Empfehlungscode gebucht - vielen Dank fürs Weitersagen! Als Dankeschön "
+            . "schenken wir dir " . $reward . " für deine nächste Buchung:\n\n" . $rewardCode . "\n\n"
+            . "Der Code ist einmalig einlösbar beim Buchen unter Schritt 5.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
         return true;
     } catch (PHPMailerException $e) {
-        error_log('Mailversand fehlgeschlagen (Empfehlungspraemie Buchung #' . $referrerBooking['id'] . '): ' . $mail->ErrorInfo);
+        error_log('Mailversand fehlgeschlagen (Empfehlungsprämie Buchung #' . $referrerBooking['id'] . '): ' . $mail->ErrorInfo);
         return false;
     }
 }
@@ -612,7 +612,7 @@ function send_review_request_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Bewertungsanfrage Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Bewertungsanfrage Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -638,9 +638,9 @@ function send_review_request_email(array $booking): bool
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
             . "wir hoffen, ihr hattet mit unserer Fotobox eine tolle Zeit bei eurer Veranstaltung!\n\n"
             . ($reviewUrl !== ''
-                ? "Wir wuerden uns riesig ueber eine kurze Google-Bewertung freuen - das hilft uns sehr und dauert "
+                ? "Wir würden uns riesig über eine kurze Google-Bewertung freuen - das hilft uns sehr und dauert "
                     . "nur eine Minute:\n\n" . $reviewUrl . "\n\n"
-                : "Wir wuerden uns riesig ueber euer Feedback freuen - meldet euch gerne einfach bei uns.\n\n")
+                : "Wir würden uns riesig über euer Feedback freuen - meldet euch gerne einfach bei uns.\n\n")
             . "Diese einmalige Nachricht bezieht sich auf eure Buchung - wir verschicken keine weiteren "
             . "Bewertungsanfragen oder Werbung.\n\n"
             . "Viele Grüße\n" . $fromName;
@@ -658,7 +658,7 @@ function send_waitlist_signup_email(array $entry): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Warteliste-Eintragung #' . $entry['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Warteliste-Eintragung #' . $entry['id'] . ')');
         return false;
     }
 
@@ -679,10 +679,10 @@ function send_waitlist_signup_email(array $entry): bool
         $mail->Body = render_email_html($mail, 'Du bist auf der Warteliste', $html, 'Wir melden uns, sobald der Termin frei wird.');
 
         $mail->AltBody = "Hallo " . $entry['customer_name'] . ",\n\n"
-            . "du stehst jetzt auf der Warteliste fuer den " . $eventDate . ". Sobald dieser Termin wieder frei wird, "
+            . "du stehst jetzt auf der Warteliste für den " . $eventDate . ". Sobald dieser Termin wieder frei wird, "
             . "melden wir uns automatisch bei dir per E-Mail.\n\n"
             . "Das ist noch keine Buchung - erst wenn wir uns melden und du den Termin dann wirklich buchst, ist die "
-            . "Fotobox fuer dich reserviert.\n\n"
+            . "Fotobox für dich reserviert.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
@@ -700,7 +700,7 @@ function send_waitlist_slot_free_email(array $entry): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Warteliste frei #' . $entry['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Warteliste frei #' . $entry['id'] . ')');
         return false;
     }
 
@@ -724,10 +724,10 @@ function send_waitlist_slot_free_email(array $entry): bool
         $mail->Body = render_email_html($mail, 'Dein Termin ist wieder frei! 🎉', $html, 'Der ' . $eventDate . ' ist wieder frei.');
 
         $mail->AltBody = "Hallo " . $entry['customer_name'] . ",\n\n"
-            . "gute Nachrichten: der " . $eventDate . ", fuer den du dich auf unsere Warteliste eingetragen hattest, "
+            . "gute Nachrichten: der " . $eventDate . ", für den du dich auf unsere Warteliste eingetragen hattest, "
             . "ist wieder frei. Hier kannst du ihn buchen:\n\n" . $bookingUrl . "\n\n"
             . "Der Termin ist nicht reserviert, solange du ihn nicht wirklich buchst - bei mehreren Interessenten "
-            . "zaehlt, wer zuerst bucht.\n\n"
+            . "zählt, wer zuerst bucht.\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
@@ -744,7 +744,7 @@ function send_event_reminder_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Erinnerungsmail Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Erinnerungsmail Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -768,9 +768,9 @@ function send_event_reminder_email(array $booking): bool
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
             . "nur noch kurz hin bis zu eurer Veranstaltung am " . $eventDate . " - wir wollten euch rechtzeitig "
             . "daran erinnern.\n\n"
-            . "Die Fotobox wird euch puenktlich zugestellt bzw. steht bereit, alles Weitere ist bereits erledigt. "
-            . "Falls sich noch etwas an Datum oder Ablauf aendert, meldet euch gerne kurz bei uns.\n\n"
-            . "Wir wuenschen euch schon jetzt eine wundervolle Feier!\n\n"
+            . "Die Fotobox wird euch pünktlich zugestellt bzw. steht bereit, alles Weitere ist bereits erledigt. "
+            . "Falls sich noch etwas an Datum oder Ablauf ändert, meldet euch gerne kurz bei uns.\n\n"
+            . "Wir wünschen euch schon jetzt eine wundervolle Feier!\n\n"
             . "Viele Grüße\n" . $fromName;
 
         $mail->send();
@@ -792,7 +792,7 @@ function send_abandoned_booking_email(array $booking): bool
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Erinnerung unvollstaendige Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Erinnerung unvollständige Buchung #' . $booking['id'] . ')');
         return false;
     }
 
@@ -816,8 +816,8 @@ function send_abandoned_booking_email(array $booking): bool
         $mail->Body = render_email_html($mail, 'Fast geschafft!', $html, 'Deine Buchung für den ' . $eventDate . ' wartet noch auf dich.');
 
         $mail->AltBody = "Hallo " . $booking['customer_name'] . ",\n\n"
-            . "du hattest fuer den " . $eventDate . " eine Fotobox-Buchung begonnen, sie aber noch nicht "
-            . "abgeschlossen - dein Termin ist fuer dich reserviert, bis du fertig buchst oder absagst.\n\n"
+            . "du hattest für den " . $eventDate . " eine Fotobox-Buchung begonnen, sie aber noch nicht "
+            . "abgeschlossen - dein Termin ist für dich reserviert, bis du fertig buchst oder absagst.\n\n"
             . "Hier geht's weiter:\n" . $continueUrl . "\n\n"
             . "Falls du dich doch dagegen entschieden hast, musst du nichts weiter tun - melde dich bei Fragen "
             . "gerne einfach bei uns.\n\n"
@@ -826,7 +826,7 @@ function send_abandoned_booking_email(array $booking): bool
         $mail->send();
         return true;
     } catch (PHPMailerException $e) {
-        error_log('Mailversand fehlgeschlagen (Erinnerung unvollstaendige Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
+        error_log('Mailversand fehlgeschlagen (Erinnerung unvollständige Buchung #' . $booking['id'] . '): ' . $mail->ErrorInfo);
         return false;
     }
 }
@@ -840,7 +840,7 @@ function send_addon_charge_paid_email(array $booking, string $description, int $
 {
     $mail = create_smtp_mailer();
     if ($mail === null) {
-        error_log('Mailversand uebersprungen: smtp_host fehlt in config.php (Zusatzzahlung bezahlt, Buchung #' . $booking['id'] . ')');
+        error_log('Mailversand übersprungen: smtp_host fehlt in config.php (Zusatzzahlung bezahlt, Buchung #' . $booking['id'] . ')');
         return false;
     }
 

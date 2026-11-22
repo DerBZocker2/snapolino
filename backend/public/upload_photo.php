@@ -79,7 +79,7 @@ if (preg_match('/^\d{8}_\d{6}_foto\d+\.jpg$/', $filename)) {
 } elseif (preg_match('/^\d{8}_\d{6}\.jpg$/', $filename)) {
     $kind = 'collage';
 } else {
-    upload_error(400, 'Ungueltiger Dateiname');
+    upload_error(400, 'Ungültiger Dateiname');
 }
 
 if (($file['size'] ?? 0) > 20 * 1024 * 1024) {

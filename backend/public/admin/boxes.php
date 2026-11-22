@@ -237,7 +237,7 @@ $layoutStmt = db()->prepare(
 <section class="panel">
     <h2>Wartungs-Checkliste verwalten</h2>
     <p class="muted-text">Diese Punkte erscheinen bei jeder Box unter "Wartung" - werden beim Aufheben einer
-        Buchungs-Zuordnung automatisch fuer diese Box zurueckgesetzt.</p>
+        Buchungs-Zuordnung automatisch für diese Box zurückgesetzt.</p>
     <form method="post" action="boxes.php" class="inline-form">
         <?= csrf_field() ?>
         <input type="hidden" name="form_action" value="add_maintenance_item">

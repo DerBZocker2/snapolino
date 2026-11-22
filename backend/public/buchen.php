@@ -568,6 +568,23 @@ require __DIR__ . '/_site_header.php';
                     <p class="muted" style="text-align:center;">Keine Zahlungsdaten nötig. Wir senden dir eine E-Mail mit allen Details.</p>
                 </form>
             </div>
+            <script>
+            (function () {
+                // :has(input:checked) allein reicht nicht zuverlaessig -
+                // manche Browser aktualisieren die Stilberechnung beim
+                // impliziten Abwaehlen der anderen Radios in der Gruppe
+                // nicht zuverlaessig mit, die vorher gewaehlte Karte bliebe
+                // optisch markiert. Deshalb zusaetzlich aktiv per JS
+                // synchron halten.
+                document.querySelectorAll('input[name=package_id]').forEach(function (input) {
+                    input.addEventListener('change', function () {
+                        document.querySelectorAll('.package-card').forEach(function (card) {
+                            card.classList.toggle('selected', card.contains(input) && input.checked);
+                        });
+                    });
+                });
+            })();
+            </script>
 
         <?php elseif ($step === 3): ?>
             <?php

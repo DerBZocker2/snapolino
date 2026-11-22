@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
         </form>
     <?php else: ?>
         <h2>Neue Buchung anlegen</h2>
-        <p class="muted-text">Fuer eine telefonische oder persoenliche Anfrage - unabhaengig vom oeffentlichen
+        <p class="muted-text">Für eine telefonische oder persönliche Anfrage - unabhängig vom öffentlichen
             Buchungsassistenten, kein Mindestvorlauf.</p>
 
         <form method="post" action="booking_new.php">

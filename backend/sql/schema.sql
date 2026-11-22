@@ -491,8 +491,8 @@ INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort
 -- frei anpassbar.
 INSERT INTO packages (name, description, price_cents, supplies_note, sort_order) VALUES
     ('Basic', 'Fotobox mit Sofortdruck - die Collage wird einmal gedruckt.', 21900, '1x Fotopapier (108 Blatt) + 1x Farbband', 10),
-    ('Premium', 'Wie Basic, zusaetzlich die Online-Galerie zum Nachbestellen/Teilen der Fotos nach dem Event.', 26900, '1x Fotopapier (108 Blatt) + 1x Farbband', 20),
-    ('Deluxe', 'Wie Premium, zusaetzlich duerfen Gaeste ihr Foto am Ende noch bis zu 3x extra ausdrucken lassen.', 32900, '2x Fotopapier (108 Blatt) + 2x Farbband', 30);
+    ('Premium', 'Wie Basic, zusätzlich die Online-Galerie zum Nachbestellen/Teilen der Fotos nach dem Event.', 26900, '1x Fotopapier (108 Blatt) + 1x Farbband', 20),
+    ('Deluxe', 'Wie Premium, zusätzlich dürfen Gäste ihr Foto am Ende noch bis zu 3x extra ausdrucken lassen.', 32900, '2x Fotopapier (108 Blatt) + 2x Farbband', 30);
 
 -- Online-Galerie in Premium und Deluxe kostenlos inkludieren (bleibt fuer
 -- Basic ein separat zubuchbares Extra), "Einzelne Bilder drucken" nur in Deluxe.

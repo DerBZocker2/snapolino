@@ -780,7 +780,8 @@ button:hover { background: var(--accent-dark); }
     transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.package-card:has(input:checked) {
+.package-card:has(input:checked),
+.package-card.selected {
     border-color: var(--accent);
     background: rgba(216, 27, 95, 0.06);
 }

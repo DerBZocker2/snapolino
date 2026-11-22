@@ -37,7 +37,7 @@ if ($file === '' || $apiKey === '') {
 
 // Nur einfache Dateinamen erlauben, keine Pfadbestandteile.
 if (basename($file) !== $file || !preg_match('/^[A-Za-z0-9_\-]+\.png$/', $file)) {
-    frame_error(400, 'Ungueltiger Dateiname');
+    frame_error(400, 'Ungültiger Dateiname');
 }
 
 $stmt = db()->prepare('SELECT id, api_key FROM boxes WHERE api_key = ?');

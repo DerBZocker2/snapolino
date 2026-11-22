@@ -217,7 +217,7 @@ function validate_custom_design_upload(?array $file): ?string
         return 'Bitte eine Datei auswählen.';
     }
     if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
-        return 'Die Datei ist zu groß fuer den Server (siehe upload_max_filesize in php.ini).';
+        return 'Die Datei ist zu groß für den Server (siehe upload_max_filesize in php.ini).';
     }
     if ($file['error'] !== UPLOAD_ERR_OK) {
         return 'Der Upload ist fehlgeschlagen. Bitte die Datei erneut auswählen.';
@@ -231,7 +231,7 @@ function validate_custom_design_upload(?array $file): ?string
     }
     $ratio = $info[0] / $info[1];
     if ($ratio < 1.35 || $ratio > 1.7) {
-        return 'Das Bild sollte im Querformat mit Seitenverhaeltnis 3:2 sein (wie ' . $info[0] . '×' . $info[1] . ' passt nicht), damit es zum 10x15cm-Ausdruck passt.';
+        return 'Das Bild sollte im Querformat mit Seitenverhältnis 3:2 sein (wie ' . $info[0] . '×' . $info[1] . ' passt nicht), damit es zum 10x15cm-Ausdruck passt.';
     }
     return null;
 }

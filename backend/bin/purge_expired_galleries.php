@@ -53,4 +53,4 @@ foreach ($bookingIds as $bookingId) {
 
 $bookingCount = count($bookingIds);
 echo "Galerie-Aufbewahrungsfrist: {$retentionDays} Tage nach Eventdatum.\n";
-echo "{$deletedPhotos} Foto(s) aus {$bookingCount} Buchung(en) geloescht.\n";
+echo "{$deletedPhotos} Foto(s) aus {$bookingCount} Buchung(en) gelöscht.\n";

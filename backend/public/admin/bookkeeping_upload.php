@@ -42,7 +42,7 @@ if (isset($_POST['upload'])) {
     check_csrf();
     $file = $_FILES['document'] ?? null;
     if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
-        $errors[] = 'Bitte eine Datei auswaehlen.';
+        $errors[] = 'Bitte eine Datei auswählen.';
     } elseif ($file['error'] !== UPLOAD_ERR_OK) {
         $errors[] = 'Fehler beim Hochladen der Datei.';
     } elseif ($file['size'] > 15 * 1024 * 1024) {
@@ -52,7 +52,7 @@ if (isset($_POST['upload'])) {
         $mime = $finfo->file($file['tmp_name']);
         $allowed = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png'];
         if (!isset($allowed[$mime])) {
-            $errors[] = 'Nur PDF-, JPG- oder PNG-Dateien werden unterstuetzt.';
+            $errors[] = 'Nur PDF-, JPG- oder PNG-Dateien werden unterstützt.';
         } else {
             $storedFilename = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
             $destination = $storageDir . '/' . $storedFilename;
@@ -95,11 +95,11 @@ if (isset($_POST['confirm'])) {
     $extractedText = (string) ($_POST['extracted_text'] ?? '');
 
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $documentDate)) {
-        $errors[] = 'Bitte ein gueltiges Datum angeben.';
+        $errors[] = 'Bitte ein gültiges Datum angeben.';
     }
     $amountCents = null;
     if ($amountRaw === '' || !preg_match('/^\d+(,\d{1,2})?$/', $amountRaw)) {
-        $errors[] = 'Bitte einen gueltigen Betrag angeben (z.B. 19,99).';
+        $errors[] = 'Bitte einen gültigen Betrag angeben (z.B. 19,99).';
     } else {
         $amountCents = bookkeeping_amount_to_cents($amountRaw);
     }

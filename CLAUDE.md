@@ -464,6 +464,18 @@ das Paket, desto mehr Papier/Farbband wird laut Packliste mitgeschickt.
   Platzhalter-Beispiel ein Komma zeigt - vorbestehende, nicht durch Pakete
   verursachte Inkonsistenz in mehreren Admin-Formularen, hier nicht extra
   behoben (ausserhalb des Aufgabenumfangs).
+- **Paket-Karten-Markierung (`buchen.php` Schritt 2) braucht zusaetzlich
+  JS, nicht nur CSS `:has()`.** `.package-card:has(input:checked)` allein
+  markiert beim Umschalten zwischen Paketen zuverlaessig nur in manchen
+  Browser-Engines die neu gewaehlte Karte UND loest gleichzeitig die alte -
+  in anderen (per Playwright/Chromium-Test reproduziert) bleibt die vorher
+  gewaehlte Karte optisch markiert, weil das implizite Abwaehlen der
+  anderen Radios in derselben Gruppe keine zuverlaessige Style-Neuberechnung
+  fuer `:has()` ausloest. Ein kleines Inline-`<script>` haelt deshalb
+  zusaetzlich eine `.selected`-Klasse per `change`-Listener synchron
+  (`site.css` hat dieselbe Hervorhebung dafuer doppelt unter
+  `:has(input:checked), .selected` definiert) - die CSS-Loesung bleibt als
+  Fallback bestehen, ist aber nicht mehr die einzige Quelle der Wahrheit.
 
 ## Buchungssystem
 Kunden buchen öffentlich unter `/buchen.php`, ein 5-Schritte-Assistent
