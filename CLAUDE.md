@@ -588,6 +588,24 @@ entfaellt die Versand-Spalte (kein Versand mehr relevant). Die
 Status-Filter-Tabs zeigen zusaetzlich die Anzahl je Status. Der Kundenname
 ist direkt zur Detailseite verlinkt (wie auf `dashboard.php`).
 
+**Laengst abgeschlossene vergangene Buchungen werden standardmaessig
+ausgeblendet**, damit die Liste nicht endlos mit Altlasten zuwaechst - eine
+Buchung gilt dafuer nur dann als "abgeschlossen", wenn ihr Eventdatum in
+der Vergangenheit liegt UND zusaetzlich entweder `abgelehnt`/`storniert`
+ist oder `bestaetigt` mit bereits zurueckgegebener Box (`box_id IS NULL`,
+siehe "Zuordnung aufheben" unter Boxen). Eine vergangene, nie entschiedene
+Anfrage (`angefragt`) oder eine vergangene bestaetigte Buchung, deren Box
+noch nicht zurueckgegeben wurde, bleiben also sichtbar - da ist noch etwas
+zu tun. Ein Link **"Vergangene anzeigen (N)"** (nur sichtbar, wenn
+tatsaechlich etwas ausgeblendet ist) schaltet die Filterung testierweise
+ab (`?vergangene=1`, bleibt beim Wechsel der Status-Tabs erhalten) - die
+Daten werden dadurch nie geloescht, nur auf Wunsch eingeblendet. Die
+Status-Tab-Zahlen zaehlen konsistent dazu nur das gerade Sichtbare (ohne
+ausgeblendete vergangene Buchungen, solange "Vergangene anzeigen" nicht
+aktiv ist). `bookings_export.php` (CSV-Export) ist davon bewusst
+**nicht** betroffen - der Export ist fuer Buchhaltung/Archivierung
+gedacht, da darf nichts stillschweigend fehlen.
+
 Im Panel unter **Kalender** (`admin/calendar.php`) zeigt eine
 Monats-Rasteransicht (Montag als Wochenstart, wie der Kalender in
 `buchen.php`) auf einen Blick, was diesen Monat ansteht - Ergaenzung zur

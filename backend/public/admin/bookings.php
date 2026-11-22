@@ -41,26 +41,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $statusFilter = (string) ($_GET['status'] ?? '');
+$showPast = isset($_GET['vergangene']);
+
+// Eine vergangene Buchung ist nur noch "zu tun", wenn entweder die Anfrage
+// nie entschieden wurde (angefragt - sollte eigentlich nicht mehr
+// vorkommen, aber falls doch, muss sie trotzdem noch abgelehnt werden)
+// oder die Box noch nicht wieder freigegeben ist (box_id gesetzt - siehe
+// "Zuordnung aufheben" unter Boxen). Eine bestaetigte Buchung mit
+// zurueckgegebener Box sowie eine abgelehnte/stornierte Buchung bringen
+// nach Ablauf des Eventdatums keinen weiteren Handlungsbedarf mehr - die
+// Liste soll nicht endlos mit laengst abgeschlossenen Buchungen zuwachsen.
+$pastDoneCondition = "event_date < CURDATE() AND (status IN ('abgelehnt', 'storniert')
+    OR (status = 'bestaetigt' AND box_id IS NULL))";
+
+$whereClauses = [];
+$params = [];
 if ($statusFilter !== '' && in_array($statusFilter, BOOKING_STATUSES, true)) {
-    $stmt = db()->prepare(
-        "SELECT * FROM bookings WHERE status = ?
-         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
-    );
-    $stmt->execute([$statusFilter]);
-} else {
-    $stmt = db()->query(
-        "SELECT * FROM bookings
-         ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
-    );
+    $whereClauses[] = 'status = ?';
+    $params[] = $statusFilter;
 }
+if (!$showPast) {
+    $whereClauses[] = "NOT ($pastDoneCondition)";
+}
+$where = $whereClauses ? ('WHERE ' . implode(' AND ', $whereClauses)) : '';
+
+$stmt = db()->prepare(
+    "SELECT * FROM bookings $where
+     ORDER BY FIELD(status, 'angefragt', 'bestaetigt', 'abgelehnt', 'storniert'), event_date"
+);
+$stmt->execute($params);
 $bookings = $stmt->fetchAll();
 
-// Anzahl je Status fuer die Filter-Tabs, damit man auf einen Blick sieht,
-// wo gerade etwas zu tun ist (z.B. offene Anfragen), ohne erst zu filtern.
+// Anzahl je Status fuer die Filter-Tabs - zaehlt nur das, was auch
+// tatsaechlich sichtbar ist (also ebenfalls ohne laengst abgeschlossene
+// vergangene Buchungen, sofern "Vergangene anzeigen" nicht aktiv ist),
+// damit die Zahl neben jedem Tab zur tatsaechlich angezeigten Liste passt.
 $statusCounts = array_fill_keys(BOOKING_STATUSES, 0);
-foreach (db()->query('SELECT status, COUNT(*) AS cnt FROM bookings GROUP BY status')->fetchAll() as $row) {
+$countSql = 'SELECT status, COUNT(*) AS cnt FROM bookings' . ($showPast ? '' : " WHERE NOT ($pastDoneCondition)") . ' GROUP BY status';
+foreach (db()->query($countSql)->fetchAll() as $row) {
     $statusCounts[$row['status']] = (int) $row['cnt'];
 }
+
+$hiddenPastCount = $showPast ? 0 : (int) db()->query("SELECT COUNT(*) FROM bookings WHERE $pastDoneCondition")->fetchColumn();
 
 $boxes = db()->query('SELECT id, name FROM boxes ORDER BY name')->fetchAll();
 
@@ -69,20 +91,42 @@ $layoutStmt = db()->prepare(
 );
 
 $today = new DateTimeImmutable('today');
+
+// Baut die Tab-/Export-Links so, dass ein aktives "Vergangene anzeigen"
+// beim Wechsel des Status-Tabs erhalten bleibt, statt dass man es nach
+// jedem Tab-Klick erneut anklicken muss.
+function bookings_tab_url(string $status, bool $showPast): string
+{
+    $params = [];
+    if ($status !== '') {
+        $params['status'] = $status;
+    }
+    if ($showPast) {
+        $params['vergangene'] = '1';
+    }
+    return 'bookings.php' . ($params ? '?' . http_build_query($params) : '');
+}
 ?>
 
 <section class="panel">
     <div class="inline-form" style="margin-bottom:16px;justify-content:space-between;">
         <div class="inline-form" style="margin-bottom:0;">
-            <a href="bookings.php" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">
+            <a href="<?= bookings_tab_url('', $showPast) ?>" class="button-secondary <?= $statusFilter === '' ? 'active' : '' ?>">
                 Alle (<?= array_sum($statusCounts) ?>)
             </a>
             <?php foreach (BOOKING_STATUSES as $status): ?>
-                <a href="bookings.php?status=<?= urlencode($status) ?>"
+                <a href="<?= bookings_tab_url($status, $showPast) ?>"
                    class="button-secondary <?= $statusFilter === $status ? 'active' : '' ?>">
                     <?= htmlspecialchars(booking_status_label($status), ENT_QUOTES) ?> (<?= $statusCounts[$status] ?>)
                 </a>
             <?php endforeach; ?>
+            <?php if ($showPast): ?>
+                <a href="<?= bookings_tab_url($statusFilter, false) ?>" class="button-secondary">Vergangene ausblenden</a>
+            <?php elseif ($hiddenPastCount > 0): ?>
+                <a href="<?= bookings_tab_url($statusFilter, true) ?>" class="button-secondary" title="Abgeschlossene vergangene Buchungen (zurückgegebene Box, abgelehnt/storniert) sind sonst ausgeblendet">
+                    Vergangene anzeigen (<?= $hiddenPastCount ?>)
+                </a>
+            <?php endif; ?>
         </div>
         <div class="inline-form" style="margin-bottom:0;">
             <a href="bookings_export.php<?= $statusFilter !== '' ? '?status=' . urlencode($statusFilter) : '' ?>" class="button-secondary">Als CSV exportieren</a>
