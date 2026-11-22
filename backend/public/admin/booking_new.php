@@ -30,6 +30,7 @@ foreach ($allLayouts as $l) {
     }
 }
 $activeExtras = fetch_active_extras();
+$activePackages = fetch_active_packages();
 
 $errors = [];
 $review = null;
@@ -40,6 +41,7 @@ $email = trim((string) ($_POST['email'] ?? ''));
 $phone = trim((string) ($_POST['phone'] ?? ''));
 $eventDate = trim((string) ($_POST['event_date'] ?? ''));
 $couponCode = strtoupper(trim((string) ($_POST['coupon_code'] ?? '')));
+$packageId = (int) ($_POST['package_id'] ?? 0) ?: null;
 $layoutIds = array_map('intval', $_POST['layout_ids'] ?? ($defaultLayout ? [(int) $defaultLayout['id']] : []));
 $extraSelections = [];
 foreach ($activeExtras as $extra) {
@@ -72,9 +74,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
     if (!$layoutIds || !$defaultLayout) {
         $errors[] = 'Bitte mindestens ein Layout auswählen.';
     }
+    if (!$packageId || !fetch_package($packageId)) {
+        $errors[] = 'Bitte ein Paket auswählen.';
+    }
 
     if (!$errors) {
-        $pricing = calc_booking_pricing($layoutIds, $extraSelections, $couponCode ?: null, $email);
+        $pricing = calc_booking_pricing($layoutIds, $extraSelections, $couponCode ?: null, $email, null, $packageId);
 
         if ($formAction === 'review') {
             $review = [
@@ -100,8 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
                     'INSERT INTO bookings
                      (edit_token, customer_pin, customer_name, customer_email, customer_account_id, customer_phone,
                       event_date, status, coupon_code, discount_cents, returning_discount_cents,
-                      promotion_discount_cents, applied_promotions_json, total_price_cents, admin_note)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                      promotion_discount_cents, applied_promotions_json, total_price_cents, package_id, admin_note)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 );
                 $stmt->execute([
                     $editToken,
@@ -118,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
                     $mode === 'free' ? 0 : $pricing['promotion_discount_cents'],
                     $mode === 'free' ? null : applied_promotions_json($pricing),
                     $mode === 'free' ? 0 : $pricing['total'],
+                    $packageId,
                     'Von einem Admin direkt im Panel angelegt.',
                 ]);
                 $newBookingId = (int) db()->lastInsertId();
@@ -195,7 +201,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
         <?php endif; ?>
         <p><strong><?= htmlspecialchars(trim($firstName . ' ' . $lastName), ENT_QUOTES) ?></strong>
             (<?= htmlspecialchars($email, ENT_QUOTES) ?><?= $phone !== '' ? ', ' . htmlspecialchars($phone, ENT_QUOTES) : '' ?>)
-            &middot; Event am <?= htmlspecialchars((new DateTimeImmutable($eventDate))->format('d.m.Y'), ENT_QUOTES) ?></p>
+            &middot; Event am <?= htmlspecialchars((new DateTimeImmutable($eventDate))->format('d.m.Y'), ENT_QUOTES) ?>
+            &middot; Paket: <strong><?= htmlspecialchars((string) (fetch_package($packageId)['name'] ?? '—'), ENT_QUOTES) ?></strong></p>
 
         <table style="max-width:420px;">
             <tr><td>Zwischensumme</td><td class="nowrap"><?= money_from_cents($review['pricing']['subtotal']) ?></td></tr>
@@ -222,6 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
             <input type="hidden" name="phone" value="<?= htmlspecialchars($phone, ENT_QUOTES) ?>">
             <input type="hidden" name="event_date" value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
             <input type="hidden" name="coupon_code" value="<?= htmlspecialchars($couponCode, ENT_QUOTES) ?>">
+            <input type="hidden" name="package_id" value="<?= (int) $packageId ?>">
             <?php foreach ($layoutIds as $lid): ?>
                 <input type="hidden" name="layout_ids[]" value="<?= (int) $lid ?>">
             <?php endforeach; ?>
@@ -255,6 +263,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($formAction === 'review' || $formA
             </div>
             <label>Eventdatum *<input type="date" name="event_date" value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>" required></label>
             <label>Gutscheincode (optional)<input type="text" name="coupon_code" value="<?= htmlspecialchars($couponCode, ENT_QUOTES) ?>" style="text-transform:uppercase;"></label>
+
+            <label>Paket *
+                <select name="package_id" required>
+                    <option value="">Bitte wählen</option>
+                    <?php foreach ($activePackages as $pkg): ?>
+                        <option value="<?= (int) $pkg['id'] ?>" <?= $packageId === (int) $pkg['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($pkg['name'], ENT_QUOTES) ?> (<?= money_from_cents((int) $pkg['price_cents']) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
 
             <h3 style="margin-top:20px;">Layouts</h3>
             <div class="grid3">

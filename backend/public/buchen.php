@@ -129,6 +129,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $lastName = trim((string) ($_POST['last_name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $eventDate = trim((string) ($_POST['event_date'] ?? ''));
+    $packageId = (int) ($_POST['package_id'] ?? 0) ?: null;
 
     // $fieldErrors ordnet zusaetzlich zur allgemeinen $errors-Liste jedes
     // Validierungsproblem genau dem betroffenen Formularfeld zu (siehe
@@ -159,15 +160,18 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$defaultLayout) {
         $errors[] = 'Es ist aktuell kein Standardlayout hinterlegt, bitte kontaktiere uns direkt.';
     }
+    if (!$packageId || !fetch_package($packageId)) {
+        $errors[] = 'Bitte ein Paket auswählen.';
+    }
 
     if (!$errors) {
         $newToken = random_key(24);
         $accountId = find_or_create_customer_account($email, trim($firstName . ' ' . $lastName));
         $stmt = db()->prepare(
-            'INSERT INTO bookings (edit_token, customer_pin, customer_name, customer_email, customer_account_id, event_date, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO bookings (edit_token, customer_pin, customer_name, customer_email, customer_account_id, event_date, package_id, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$newToken, generate_customer_pin(), trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, 'angefragt']);
+        $stmt->execute([$newToken, generate_customer_pin(), trim($firstName . ' ' . $lastName), $email, $accountId, $eventDate, $packageId, 'angefragt']);
         $newBookingId = (int) db()->lastInsertId();
 
         $stmt = db()->prepare('INSERT INTO booking_layouts (booking_id, layout_id) VALUES (?, ?)');
@@ -298,7 +302,8 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $extraSelections,
             $couponCode !== '' ? $couponCode : null,
             (string) $booking['customer_email'],
-            (int) $booking['id']
+            (int) $booking['id'],
+            $booking['package_id'] !== null ? (int) $booking['package_id'] : null
         );
 
         if ($couponCode !== '' && !$pricing['coupon']) {
@@ -352,7 +357,8 @@ if ($step === 5 && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $extraSelections,
                 (string) ($booking['coupon_code'] ?? '') ?: null,
                 (string) $booking['customer_email'],
-                (int) $booking['id']
+                (int) $booking['id'],
+                $booking['package_id'] !== null ? (int) $booking['package_id'] : null
             );
 
             $stmt = db()->prepare(
@@ -502,22 +508,42 @@ require __DIR__ . '/_site_header.php';
             $firstName = (string) ($firstName ?? '');
             $lastName = (string) ($lastName ?? '');
             $email = (string) ($email ?? '');
+            $packageId = (int) ($packageId ?? 0);
+            $activePackages = fetch_active_packages();
+            if (!$packageId && $activePackages) {
+                $packageId = (int) $activePackages[0]['id'];
+            }
             ?>
             <div class="date-banner">
                 📅 <?= htmlspecialchars((new DateTimeImmutable($eventDate))->format('d.m.Y'), ENT_QUOTES) ?>
                 <a href="buchen.php?step=1">Ändern</a>
             </div>
-            <div class="panel-box" style="max-width:480px;margin:0 auto;">
+            <div class="panel-box" style="max-width:720px;margin:0 auto;">
                 <h3>✍️ Deinen Termin anfragen</h3>
-                <p class="muted">Gib deine Kontaktdaten ein, um deinen Wunschtermin anzufragen - im nächsten Schritt wählst du Design und Extras.</p>
-                <p class="price-line">
-                    <?= money_from_cents(base_price_cents()) ?>
-                    <span class="muted"><?= htmlspecialchars(base_price_label(), ENT_QUOTES) ?></span>
-                </p>
+                <p class="muted">Wähle dein Paket und gib deine Kontaktdaten ein, um deinen Wunschtermin anzufragen - im nächsten Schritt wählst du Design und Extras.</p>
+
                 <form method="post" action="buchen.php?step=2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="event_date" value="<?= htmlspecialchars($eventDate, ENT_QUOTES) ?>">
                     <input type="text" name="website" class="honeypot" tabindex="-1" autocomplete="off">
+
+                    <div class="package-picker">
+                        <?php foreach ($activePackages as $pkg): ?>
+                            <label class="package-card <?= $packageId === (int) $pkg['id'] ? 'selected' : '' ?>">
+                                <input type="radio" name="package_id" value="<?= (int) $pkg['id'] ?>"
+                                    <?= $packageId === (int) $pkg['id'] ? 'checked' : '' ?> required>
+                                <span class="package-card-name"><?= htmlspecialchars($pkg['name'], ENT_QUOTES) ?></span>
+                                <span class="package-card-price"><?= money_from_cents((int) $pkg['price_cents']) ?></span>
+                                <?php if ($pkg['description']): ?>
+                                    <span class="package-card-desc"><?= htmlspecialchars($pkg['description'], ENT_QUOTES) ?></span>
+                                <?php endif; ?>
+                            </label>
+                        <?php endforeach; ?>
+                        <?php if (!$activePackages): ?>
+                            <p class="error">Aktuell ist kein Paket verfügbar - bitte kontaktiere uns direkt.</p>
+                        <?php endif; ?>
+                    </div>
+
                     <div class="grid2">
                         <label>Vorname *
                             <input type="text" name="first_name" required autocomplete="given-name"
@@ -1518,6 +1544,7 @@ require __DIR__ . '/_site_header.php';
                 }
             }
             $baseTotal = base_price_cents() + $layoutSurcharge;
+            $includedExtraIds = package_included_extra_ids($booking['package_id'] !== null ? (int) $booking['package_id'] : null);
             ?>
             <div class="panel-box" style="max-width:600px;margin:0 auto;">
                 <h3>✨ Möchtest du dein Erlebnis aufwerten?</h3>
@@ -1526,13 +1553,18 @@ require __DIR__ . '/_site_header.php';
                     <?= csrf_field() ?>
                     <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
                     <?php foreach ($activeExtras as $extra): ?>
-                        <?php $qty = $chosenExtras[$extra['id']] ?? 0; ?>
-                        <div class="extra-row" data-price="<?= (int) $extra['price_cents'] ?>">
+                        <?php
+                        $qty = $chosenExtras[$extra['id']] ?? 0;
+                        $isIncluded = in_array((int) $extra['id'], $includedExtraIds, true);
+                        ?>
+                        <div class="extra-row<?= $isIncluded ? ' extra-row-included' : '' ?>" data-price="<?= (int) $extra['price_cents'] ?>" <?= $isIncluded ? 'data-included="1"' : '' ?>>
                             <div class="extra-info">
                                 <span class="extra-icon"><?= htmlspecialchars((string) $extra['icon'], ENT_QUOTES) ?></span>
                                 <div>
                                     <strong><?= htmlspecialchars($extra['name'], ENT_QUOTES) ?></strong>
-                                    <?php if (isset($promotedExtraIds[(int) $extra['id']])): ?>
+                                    <?php if ($isIncluded): ?>
+                                        <span class="promo-tag">Im Paket inklusive</span>
+                                    <?php elseif (isset($promotedExtraIds[(int) $extra['id']])): ?>
                                         <span class="promo-tag">Aktion</span>
                                     <?php endif; ?>
                                     <?php if ($extra['description']): ?>
@@ -1541,16 +1573,21 @@ require __DIR__ . '/_site_header.php';
                                 </div>
                             </div>
                             <div class="extra-control">
-                                <span class="extra-price"><?= ($extra['price_cents'] >= 0 ? '+' : '') . money_from_cents((int) $extra['price_cents']) ?><?= $extra['unit_label'] ? ' / ' . htmlspecialchars($extra['unit_label'], ENT_QUOTES) : '' ?></span>
+                                <?php if ($isIncluded): ?>
+                                    <span class="extra-price">im Paket inklusive</span>
+                                <?php else: ?>
+                                    <span class="extra-price"><?= ($extra['price_cents'] >= 0 ? '+' : '') . money_from_cents((int) $extra['price_cents']) ?><?= $extra['unit_label'] ? ' / ' . htmlspecialchars($extra['unit_label'], ENT_QUOTES) : '' ?></span>
+                                <?php endif; ?>
                                 <?php if ($extra['type'] === 'quantity'): ?>
+                                    <?php $qtyDisplay = $isIncluded ? max(1, (int) $qty) : $qty; ?>
                                     <div class="qty-stepper">
-                                        <button type="button" class="qty-minus">−</button>
-                                        <input type="number" name="extra_qty[<?= (int) $extra['id'] ?>]" value="<?= (int) $qty ?>" min="0" <?= $extra['max_quantity'] ? 'max="' . (int) $extra['max_quantity'] . '"' : '' ?> readonly>
-                                        <button type="button" class="qty-plus">+</button>
+                                        <button type="button" class="qty-minus" <?= $isIncluded ? 'disabled' : '' ?>>−</button>
+                                        <input type="number" <?= $isIncluded ? '' : 'name="extra_qty[' . (int) $extra['id'] . ']"' ?> value="<?= (int) $qtyDisplay ?>" min="0" <?= $extra['max_quantity'] ? 'max="' . (int) $extra['max_quantity'] . '"' : '' ?> readonly <?= $isIncluded ? 'disabled' : '' ?>>
+                                        <button type="button" class="qty-plus" <?= $isIncluded ? 'disabled' : '' ?>>+</button>
                                     </div>
                                 <?php else: ?>
                                     <label class="switch">
-                                        <input type="checkbox" name="extra_qty[<?= (int) $extra['id'] ?>]" value="1" <?= $qty > 0 ? 'checked' : '' ?>>
+                                        <input type="checkbox" <?= $isIncluded ? '' : 'name="extra_qty[' . (int) $extra['id'] . ']"' ?> value="1" <?= ($isIncluded || $qty > 0) ? 'checked' : '' ?> <?= $isIncluded ? 'disabled' : '' ?>>
                                         <span class="slider"></span>
                                     </label>
                                 <?php endif; ?>
@@ -1578,6 +1615,7 @@ require __DIR__ . '/_site_header.php';
                 function recalc() {
                     var total = base;
                     form.querySelectorAll('.extra-row').forEach(function (row) {
+                        if (row.getAttribute('data-included') === '1') return;
                         var price = parseInt(row.getAttribute('data-price'), 10);
                         var checkbox = row.querySelector('input[type=checkbox]');
                         var numberInput = row.querySelector('input[type=number]');
@@ -1634,11 +1672,16 @@ require __DIR__ . '/_site_header.php';
                 $chosenExtras,
                 (string) ($booking['coupon_code'] ?? '') ?: null,
                 (string) $booking['customer_email'],
-                (int) $booking['id']
+                (int) $booking['id'],
+                $booking['package_id'] !== null ? (int) $booking['package_id'] : null
             );
             $discount = $pricing['discount_cents'];
             $returningDiscount = $pricing['returning_discount_cents'];
             $total = $pricing['total'];
+            $bookingPackage = fetch_package($booking['package_id'] !== null ? (int) $booking['package_id'] : null);
+            $packageLabel = $bookingPackage ? $bookingPackage['name'] : (base_price_label() ?: 'Fotobox-Miete');
+            $packagePriceCents = $bookingPackage ? (int) $bookingPackage['price_cents'] : base_price_cents();
+            $includedExtraIds = package_included_extra_ids($booking['package_id'] !== null ? (int) $booking['package_id'] : null);
 
             $event = new DateTimeImmutable($booking['event_date']);
             [$shipStart] = booking_block_range($booking['event_date']);
@@ -1748,12 +1791,19 @@ require __DIR__ . '/_site_header.php';
                             </div>
                             <?php if ($chosenExtraRows): ?>
                                 <?php foreach ($chosenExtraRows as $extraRow): ?>
-                                    <?php $qty = $chosenExtras[$extraRow['id']]; ?>
+                                    <?php
+                                    $qty = $chosenExtras[$extraRow['id']];
+                                    $isIncluded = in_array((int) $extraRow['id'], $includedExtraIds, true);
+                                    ?>
                                     <div>✓ <?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?>
-                                        <?php if (isset($promotedExtraIds[(int) $extraRow['id']])): ?>
+                                        <?php if ($isIncluded): ?>
+                                            <span class="promo-tag">Im Paket inklusive</span>
+                                        <?php elseif (isset($promotedExtraIds[(int) $extraRow['id']])): ?>
                                             <span class="promo-tag">Aktion</span>
                                         <?php endif; ?>
-                                        <span class="muted-text">(<?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?>)</span>
+                                        <?php if (!$isIncluded): ?>
+                                            <span class="muted-text">(<?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?>)</span>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
@@ -1790,14 +1840,17 @@ require __DIR__ . '/_site_header.php';
 
                         <div class="price-box">
                             <h4>Preisübersicht</h4>
-                            <div class="price-row"><span><?= htmlspecialchars(base_price_label() ?: 'Fotobox-Miete', ENT_QUOTES) ?></span><span><?= money_from_cents(base_price_cents()) ?></span></div>
+                            <div class="price-row"><span><?= htmlspecialchars($packageLabel, ENT_QUOTES) ?></span><span><?= money_from_cents($packagePriceCents) ?></span></div>
                             <?php if ($layoutSurchargeSum > 0): ?>
                                 <div class="price-row"><span>Zusatzformate</span><span>+<?= money_from_cents($layoutSurchargeSum) ?></span></div>
                             <?php endif; ?>
                             <?php foreach ($chosenExtraRows as $extraRow): ?>
-                                <?php $qty = $chosenExtras[$extraRow['id']]; ?>
-                                <div class="price-row"><span><?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?></span>
-                                    <span><?= $extraRow['price_cents'] >= 0 ? '+' : '' ?><?= money_from_cents((int) $extraRow['price_cents'] * $qty) ?></span></div>
+                                <?php
+                                $qty = $chosenExtras[$extraRow['id']];
+                                $isIncluded = in_array((int) $extraRow['id'], $includedExtraIds, true);
+                                ?>
+                                <div class="price-row"><span><?= htmlspecialchars($extraRow['name'], ENT_QUOTES) ?><?= $qty > 1 ? ' (' . $qty . 'x)' : '' ?><?= $isIncluded ? ' (im Paket inklusive)' : '' ?></span>
+                                    <span><?= $isIncluded ? money_from_cents(0) : (($extraRow['price_cents'] >= 0 ? '+' : '') . money_from_cents((int) $extraRow['price_cents'] * $qty)) ?></span></div>
                             <?php endforeach; ?>
                             <?php foreach ($pricing['promotions'] as $applied): ?>
                                 <div class="price-row" style="color:#1f9d55;"><span>Rabattaktion: <?= htmlspecialchars($applied['promotion']['name'], ENT_QUOTES) ?></span><span>&minus;<?= money_from_cents($applied['discount_cents']) ?></span></div>

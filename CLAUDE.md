@@ -377,6 +377,94 @@ im Panel angezeigt).
   ist keine Sache des Mailinhalts, sondern des Postfachs/der Domain -
   siehe Offene Punkte.
 
+## Pakete
+Ersetzen seit Migration `0035_packages.sql` den frueheren einzigen globalen
+Basispreis (`settings.base_price_cents`/`base_price_label`) fuer **neue**
+Buchungen: der Kunde waehlt in Schritt 2 des Buchungsassistenten genau
+**ein** Paket (`packages`-Tabelle, `bookings.package_id`), das den
+Gesamtpreis bestimmt - zusaetzliche Extras (siehe "Extras" oben) bleiben
+daneben weiterhin einzeln dazubuchbar, nur eben nicht mehr der Basispreis
+selbst. Im Panel unter **Pakete** (`admin/packages.php`/`package_form.php`,
+eigener Sidebar-Punkt im Katalog-Bereich, Icon `layers`) legt der Admin sie
+frei an/bearbeitet sie: Name, Beschreibung, Preis, **Packliste**
+(`supplies_note`, reiner Freitext wie "1x Fotopapier (108 Blatt) + 1x
+Farbband" - rein informativ fuers Einpacken vor dem Versand, keine
+Lagerbestandsverwaltung), Sortierreihenfolge, aktiv/inaktiv, sowie eine
+Checkliste **welche bestehenden Extras in diesem Paket kostenlos
+enthalten sind** (`package_extras`-Zuordnungstabelle, analog zu
+`promotion_extras` bei den Rabattaktionen - es gibt bewusst **kein**
+eigenes Paket-Feature-Flag wie `includes_gallery`, sondern das bestehende
+Extras-System wird einfach kostenlos mitgebunden, das deckt sowohl
+"Online-Galerie inklusive" als auch "bis zu 3 Extra-Ausdrucke inklusive"
+identisch ab).
+
+Mitgelieferter Standard-Vorschlag (frei im Panel anpassbar, auch in Name/
+Preis/Inhalt): **Basic** (nur Sofortdruck der Collage, kein Extra
+inklusive), **Premium** (zusaetzlich Online-Galerie inklusive) und
+**Deluxe** (zusaetzlich auch "Einzelne Bilder drucken" inklusive, Gaeste
+duerfen ihr Foto also noch bis zu `MAX_INDIVIDUAL_PRINT_COPIES` mal extra
+ausdrucken lassen - es gibt dafuer **kein** gesondertes "unbegrenzt
+drucken", die Grenze bleibt dieselbe feste Konstante wie bisher). Je hoeher
+das Paket, desto mehr Papier/Farbband wird laut Packliste mitgeschickt.
+
+- **Bestehende Buchungen bleiben unberuehrt**: `bookings.package_id` ist
+  `NULL`able, jede Preis-/Anzeigefunktion (`calc_booking_total()`,
+  `calc_booking_pricing()`, `booking_invoice_items()`, die Preisteaser auf
+  `index.php`/`faq.php`) faellt ohne Paket automatisch auf den alten
+  globalen Basispreis zurueck (`base_price_cents()`/`base_price_label()`) -
+  keine rueckwirkende Neuberechnung/Migration alter Buchungen noetig.
+  `index.php`/`faq.php` zeigen als "ab"-Preis inzwischen den guenstigsten
+  **aktiven** Paketpreis (`cheapest_active_package()`) statt des alten
+  Basispreises, fallen aber ebenso auf den alten Wert zurueck, falls aus
+  irgendeinem Grund kein aktives Paket existiert.
+- **`effective_booking_extras(int $bookingId): array`** (`includes/
+  functions.php`) ist die gemeinsame Quelle fuer "welche Extras gelten fuer
+  diese Buchung" - mischt tatsaechlich gekaufte `booking_extras`-Zeilen mit
+  den ueber das Paket kostenlos inkludierten (`package_included_extra_ids()`,
+  Flag `included_free`). Genutzt von `api.php` (liefert der Box damit auch
+  nur-im-Paket-inkludierte Extras im `extras`-Feld mit, nicht nur
+  tatsaechlich gekaufte) sowie als Vorbild fuer die Buchungsassistent-
+  Anzeige in Schritt 4/5.
+- **Schritt 4 (Extras, `buchen.php`)**: ein ueber das Paket kostenloses
+  Extra erscheint weiterhin in der Liste (Transparenz, der Kunde soll
+  sehen was er schon hat), aber als deaktivierte, bereits angehaeklete
+  Karte ohne Namens-`name`-Attribut am Eingabefeld (`.extra-row-included`,
+  Badge "Im Paket inklusive" statt Preis) - ohne `name` wird das Feld vom
+  Browser gar nicht erst mitgesendet, es entsteht also bewusst **keine**
+  `booking_extras`-Zeile dafuer (dieselbe inklusive-aber-nie-gekauft-Logik
+  wie beim Admin-Pfad in `booking_new.php`). `effective_booking_extras()`
+  sorgt trotzdem dafuer, dass es ueberall sonst (Box, Rechnung) als
+  inkludiert gilt. Die Live-Preisberechnung per JS (`recalc()`) ignoriert
+  Zeilen mit `data-included="1"` komplett.
+- **Schritt 5 (Zusammenfassung)**: die Preisuebersicht zeigt den
+  Paketnamen+-preis als erste Zeile statt des alten Basispreis-Labels; ein
+  tatsaechlich gekauftes UND zufaellig paketinkludiertes Extra (kommt z.B.
+  vor, wenn ein Admin es nachtraeglich in `booking_extras` eintraegt) wird
+  mit 0 EUR und dem Zusatz "(im Paket inklusive)" angezeigt statt doppelt
+  zu berechnen.
+- **`booking_invoice_items()`** (Stripe-Rechnung/Checkout) folgt derselben
+  Logik: Paket als erste Position statt Basispreis-Label, ein gekauftes aber
+  paketinkludiertes Extra als eigene Position mit 0 EUR und demselben
+  "(im Paket inklusive)"-Zusatz - fuer Transparenz auf der tatsaechlichen
+  Stripe-Rechnung, auch wenn es nichts kostet.
+- **Admin-Buchungsanlage/-bearbeitung** (`admin/booking_new.php`,
+  `admin/booking_detail.php`): beide verlangen jetzt ein Pflichtfeld
+  "Paket" (Dropdown aus `fetch_active_packages()`) genau wie Layouts/
+  Extras, `calc_booking_pricing()` erhaelt die Paket-ID als zusaetzliches
+  Argument. Eine Aenderung des Pakets einer bereits **bestaetigten**
+  Buchung laeuft ueber denselben bestehenden Mechanismus wie eine
+  Layout-/Extra-Aenderung (sofort bei "kostenlos uebernehmen", sonst erst
+  nach Zahlungseingang ueber `pending_changes_json`/
+  `mark_addon_charge_paid()`, siehe Buchungssystem unten) - `package_id`
+  wird dafuer an allen betroffenen Stellen (Pending-Array, JSON, finale
+  `UPDATE`) mitgefuehrt.
+- Preis-Eingabefeld (`price_euro`) im Paket-Formular folgt derselben
+  Konvention wie bei Extras/Rabattaktionen: `is_numeric()`-Pruefung
+  verlangt einen Punkt als Dezimaltrennzeichen (`269.00`), auch wenn das
+  Platzhalter-Beispiel ein Komma zeigt - vorbestehende, nicht durch Pakete
+  verursachte Inkonsistenz in mehreren Admin-Formularen, hier nicht extra
+  behoben (ausserhalb des Aufgabenumfangs).
+
 ## Buchungssystem
 Kunden buchen öffentlich unter `/buchen.php`, ein 5-Schritte-Assistent
 (Datum → Kontaktdaten → Design → Extras → Zusammenfassung, siehe
@@ -1271,6 +1359,19 @@ Online-Galerie hoch - komplett unabhaengig vom lokalen Speichern/Drucken,
 das immer funktioniert, auch ganz ohne Internet (Offline-First bleibt
 dadurch unangetastet).
 
+- **Nur bei gebuchter/im Paket inkludierter Online-Galerie.** Das Extra
+  "Online-Galerie" (siehe Pakete oben) entscheidet, ob ueberhaupt
+  hochgeladen wird - main.py berechnet dafuer beim Start
+  `self.gallery_enabled = has_extra(cloudsync.get_extras(),
+  EXTRA_ONLINE_GALLERY)` (derselbe `has_extra()`-Helfer wie fuer
+  "Einzelne Bilder drucken", siehe Ablauf oben). `finish_session()`
+  uebergibt `GalleryUploadWorker.submit()` dafuer bewusst `None` statt der
+  echten Buchungs-ID, wenn `self.gallery_enabled` falsch ist - das nutzt
+  den bereits vorhandenen No-op-Schutz in `GalleryUploadWorker.submit()`
+  (`if not booking_id: return`) als einfachsten Hebel, statt eine
+  zusaetzliche Bedingung tiefer im Upload-Code einzubauen. Vorher lief der
+  Upload fuer **jede** Buchung, unabhaengig davon ob/wie das Extra gebucht
+  war - ein Bug, der mit der Einfuehrung der Pakete mitbehoben wurde.
 - **Box-Seite** (`gallery.py`, `GalleryUploadWorker`): eigener QThread,
   parallel zu `OutputWorker`. `finish_session()` (main.py) uebergibt ihm
   eine Kopie (`.copy()`, da parallel zum Speichern in einem zweiten Thread

@@ -757,6 +757,57 @@ button:hover { background: var(--accent-dark); }
     margin: 8px 0 20px;
 }
 
+/* Paket-Auswahl (buchen.php Schritt 2) - ersetzt den vorherigen einzelnen
+   Preis-Teaser. Markierung der ausgewaehlten Karte per :has(), kein JS
+   noetig - die Radiobuttons selbst bleiben als Fallback normal bedienbar,
+   falls :has() in einem alten Browser fehlt. */
+.package-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 16px 0 20px;
+}
+
+.package-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.package-card:has(input:checked) {
+    border-color: var(--accent);
+    background: rgba(216, 27, 95, 0.06);
+}
+
+.package-card input[type=radio] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.package-card-name {
+    font-weight: 700;
+    font-size: 17px;
+}
+
+.package-card-price {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 18px;
+}
+
+.package-card-desc {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
 .grid2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -784,6 +835,9 @@ button:hover { background: var(--accent-dark); }
 }
 
 .extra-price { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+.extra-row-included { opacity: 0.75; }
+.extra-row-included .extra-price { font-weight: 600; }
 
 .qty-stepper {
     display: flex;

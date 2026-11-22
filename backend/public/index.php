@@ -12,8 +12,9 @@ $pageDescription = 'Fotobox mieten mit Sofortdruck: individuelle Rahmen-Designs,
 $activeNav = 'home';
 
 try {
-    $priceCents = base_price_cents();
-    $priceLabel = base_price_label();
+    $cheapestPackage = cheapest_active_package();
+    $priceCents = $cheapestPackage ? (int) $cheapestPackage['price_cents'] : base_price_cents();
+    $priceLabel = $cheapestPackage ? $cheapestPackage['name'] : base_price_label();
     $presetCount = count(fetch_all_layouts());
     $testimonials = fetch_active_testimonials();
 } catch (PDOException $e) {

@@ -189,6 +189,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     message                TEXT NULL,
     admin_note             TEXT NULL,
     total_price_cents      INT UNSIGNED NULL,
+    -- Gewaehltes Preis-Paket (Migration 0035) - NULL bei Buchungen von
+    -- vor dieser Migration, deren Preis weiterhin ueber den alten
+    -- globalen Basispreis (settings.base_price_cents) berechnet wird.
+    package_id              INT UNSIGNED NULL,
     wants_quote            TINYINT(1) NOT NULL DEFAULT 0,
     agb_accepted_at        DATETIME NULL,
     edit_unlocked_by_admin TINYINT(1) NOT NULL DEFAULT 0,
@@ -311,6 +315,34 @@ CREATE TABLE IF NOT EXISTS extras (
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Preis-Pakete statt eines einzelnen Basispreises (Migration 0035) - Kunde
+-- waehlt genau ein Paket im Buchungsassistenten, siehe "Pakete" in
+-- CLAUDE.md. package_extras markiert, welche Extras in einem Paket
+-- kostenlos inklusive sind (z.B. Online-Galerie im Premium-Paket).
+CREATE TABLE IF NOT EXISTS packages (
+    id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name             VARCHAR(100) NOT NULL,
+    description      VARCHAR(255) NULL,
+    price_cents      INT UNSIGNED NOT NULL,
+    -- Rein informativer Hinweistext fuers Verpacken, keine Bestandsverwaltung.
+    supplies_note    VARCHAR(255) NULL,
+    is_active        TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order       INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS package_extras (
+    package_id INT UNSIGNED NOT NULL,
+    extra_id   INT UNSIGNED NOT NULL,
+    PRIMARY KEY (package_id, extra_id),
+    FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE,
+    FOREIGN KEY (extra_id) REFERENCES extras(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- bookings.package_id referenziert packages, das aber erst hier (nach der
+-- bookings-Tabelle) im Schema steht - FK deshalb per ALTER statt inline.
+ALTER TABLE bookings ADD FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE SET NULL;
 
 -- Rabattaktionen (Migration 0029): anders als Gutscheine kein Code noetig,
 -- sondern automatisch angewendet, solange aktiv und im Gueltigkeitszeitraum -
@@ -454,6 +486,23 @@ INSERT INTO extras (name, description, icon, price_cents, type, unit_label, sort
     ('Online-Galerie', 'Online verfuegbar sobald die Fotobox zurueck ist - nicht live waehrend der Party', '🌐', 2000, 'toggle', NULL, 50),
     ('Live aufs Smartphone', 'Fotos direkt aufs Handy per QR-Code - sofort teilbar', '📱', 2900, 'toggle', NULL, 60),
     ('Ohne Druck', 'Fotobox ohne Druckfunktion - guenstiger, falls nur digitale Fotos gewuenscht sind', '♻️', -5000, 'toggle', NULL, 70);
+
+-- Drei Beispielpakete, Name/Preis/Inhalt ueber das Panel unter Pakete
+-- frei anpassbar.
+INSERT INTO packages (name, description, price_cents, supplies_note, sort_order) VALUES
+    ('Basic', 'Fotobox mit Sofortdruck - die Collage wird einmal gedruckt.', 21900, '1x Fotopapier (108 Blatt) + 1x Farbband', 10),
+    ('Premium', 'Wie Basic, zusaetzlich die Online-Galerie zum Nachbestellen/Teilen der Fotos nach dem Event.', 26900, '1x Fotopapier (108 Blatt) + 1x Farbband', 20),
+    ('Deluxe', 'Wie Premium, zusaetzlich duerfen Gaeste ihr Foto am Ende noch bis zu 3x extra ausdrucken lassen.', 32900, '2x Fotopapier (108 Blatt) + 2x Farbband', 30);
+
+-- Online-Galerie in Premium und Deluxe kostenlos inkludieren (bleibt fuer
+-- Basic ein separat zubuchbares Extra), "Einzelne Bilder drucken" nur in Deluxe.
+INSERT INTO package_extras (package_id, extra_id)
+SELECT p.id, e.id FROM packages p, extras e
+WHERE p.name IN ('Premium', 'Deluxe') AND e.name = 'Online-Galerie';
+
+INSERT INTO package_extras (package_id, extra_id)
+SELECT p.id, e.id FROM packages p, extras e
+WHERE p.name = 'Deluxe' AND e.name = 'Einzelne Bilder drucken';
 
 -- Standardlayout: 4 Bilder als 2x2-Collage auf 10x15cm quer (1800x1200 px,
 -- ca. 300dpi). Vier verschiedene Foto-Anordnungen (grid/hero/strip/stack,

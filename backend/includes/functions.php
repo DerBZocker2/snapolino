@@ -798,6 +798,53 @@ function fetch_all_extras(): array
     return db()->query('SELECT * FROM extras ORDER BY sort_order, name')->fetchAll();
 }
 
+// ---------- Pakete ----------
+
+// Preis-Pakete (Migration 0035) ersetzen den frueheren einzelnen
+// Basispreis - der Kunde waehlt im Buchungsassistenten genau eines.
+function fetch_active_packages(): array
+{
+    return db()->query('SELECT * FROM packages WHERE is_active = 1 ORDER BY sort_order, price_cents')->fetchAll();
+}
+
+function fetch_all_packages(): array
+{
+    return db()->query('SELECT * FROM packages ORDER BY sort_order, price_cents')->fetchAll();
+}
+
+function fetch_package(?int $id): ?array
+{
+    if (!$id) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM packages WHERE id = ?');
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+// Guenstigstes aktives Paket - fuer den "ab X EUR"-Preisteaser auf
+// Startseite/FAQ, seit es nicht mehr nur einen einzelnen Basispreis gibt.
+function cheapest_active_package(): ?array
+{
+    $row = db()->query('SELECT * FROM packages WHERE is_active = 1 ORDER BY price_cents ASC, sort_order ASC LIMIT 1')->fetch();
+    return $row ?: null;
+}
+
+// Extra-IDs, die in diesem Paket kostenlos inklusive sind (z.B. die
+// Online-Galerie im Premium-Paket) - ueberall, wo der Preis berechnet
+// wird, wird ihr Betrag auf 0 gesetzt, statt sie unbuchbar zu machen
+// (der Kunde sieht sie weiterhin als Position, nur ohne Aufpreis).
+function package_included_extra_ids(?int $packageId): array
+{
+    if (!$packageId) {
+        return [];
+    }
+    $stmt = db()->prepare('SELECT extra_id FROM package_extras WHERE package_id = ?');
+    $stmt->execute([$packageId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
 // ---------- Kundenbewertungen ----------
 
 // Fuer die Startseite - nur echte, vom Admin freigeschaltete Bewertungen.
@@ -830,13 +877,48 @@ function booking_extra_selections(int $bookingId): array
     return $result;
 }
 
+// Alle fuer eine Buchung tatsaechlich wirksamen Extras - gekaufte
+// (booking_extras) zusammengefuehrt mit den im gewaehlten Paket kostenlos
+// inkludierten (package_extras), die der Kunde nicht separat ankreuzen
+// musste. [extra_id => ['quantity' => int, 'included_free' => bool]].
+// Grundlage fuer die Anzeige im Buchungsassistenten/Admin-Panel sowie fuer
+// die an die Box gelieferte Extra-Liste (api.php) - z.B. erkennt main.py
+// so auch eine nur ueber das Paket enthaltene Online-Galerie, ohne dass
+// sie als eigener booking_extras-Datensatz existiert.
+function effective_booking_extras(int $bookingId): array
+{
+    $stmt = db()->prepare('SELECT package_id FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $packageId = (int) $stmt->fetchColumn() ?: null;
+
+    $result = [];
+    foreach (booking_extra_selections($bookingId) as $extraId => $quantity) {
+        $result[$extraId] = ['quantity' => $quantity, 'included_free' => false];
+    }
+    foreach (package_included_extra_ids($packageId) as $extraId) {
+        if (isset($result[$extraId])) {
+            $result[$extraId]['included_free'] = true;
+        } else {
+            $result[$extraId] = ['quantity' => 1, 'included_free' => true];
+        }
+    }
+    return $result;
+}
+
 // [extra_id => Gesamtbetrag in Cent] fuer eine Auswahl (Menge * Preis) -
 // Basis sowohl fuer calc_booking_total() als auch fuer Rabattaktionen, die
 // nur einzelne Extras betreffen (siehe promotion_discount_for_selection()).
-function extra_selection_amounts(array $extraSelections): array
+// $freeExtraIds (package_included_extra_ids()): diese Extras sind im
+// gewaehlten Paket kostenlos inklusive, tragen also 0 zur Summe bei, auch
+// wenn sie ausgewaehlt sind.
+function extra_selection_amounts(array $extraSelections, array $freeExtraIds = []): array
 {
     $amounts = [];
     foreach ($extraSelections as $extraId => $quantity) {
+        if (in_array((int) $extraId, $freeExtraIds, true)) {
+            $amounts[(int) $extraId] = 0;
+            continue;
+        }
         $stmt = db()->prepare('SELECT price_cents FROM extras WHERE id = ? AND is_active = 1');
         $stmt->execute([(int) $extraId]);
         $price = $stmt->fetchColumn();
@@ -847,13 +929,17 @@ function extra_selection_amounts(array $extraSelections): array
     return $amounts;
 }
 
-// Gesamtpreis: Basispreis + Aufpreis der gewuenschten Layouts + gewaehlte
-// Extras (Menge * Preis, Extra-Preise duerfen negativ sein). Wird beim
-// finalen Absenden serverseitig neu berechnet, nie der Client-Wert
-// uebernommen. $extraSelections: [extra_id => quantity].
-function calc_booking_total(array $layoutIds, array $extraSelections): int
+// Gesamtpreis: Paketpreis + Aufpreis der gewuenschten Layouts + gewaehlte
+// Extras (Menge * Preis, Extra-Preise duerfen negativ sein, im Paket
+// inkludierte Extras zaehlen mit 0). Wird beim finalen Absenden
+// serverseitig neu berechnet, nie der Client-Wert uebernommen.
+// $extraSelections: [extra_id => quantity]. $packageId null/unbekannt
+// (z.B. Buchungen von vor Migration 0035) faellt auf den alten globalen
+// Basispreis zurueck.
+function calc_booking_total(array $layoutIds, array $extraSelections, ?int $packageId = null): int
 {
-    $total = base_price_cents();
+    $package = fetch_package($packageId);
+    $total = $package ? (int) $package['price_cents'] : base_price_cents();
 
     if ($layoutIds) {
         $placeholders = implode(',', array_fill(0, count($layoutIds), '?'));
@@ -862,19 +948,24 @@ function calc_booking_total(array $layoutIds, array $extraSelections): int
         $total += (int) $stmt->fetchColumn();
     }
 
-    $total += array_sum(extra_selection_amounts($extraSelections));
+    $total += array_sum(extra_selection_amounts($extraSelections, package_included_extra_ids($packageId)));
 
     return max(0, $total);
 }
 
-// Itemisierte Positionen einer Buchung (Basispreis, Layout-Aufpreise,
+// Itemisierte Positionen einer Buchung (Paketpreis, Layout-Aufpreise,
 // Extras) - Grundlage sowohl fuer die Rechnung als auch fuer die
 // Stripe-Checkout-Zeilen. Preise koennen negativ sein (Rabatt-Extras).
 function booking_invoice_items(int $bookingId): array
 {
+    $stmt = db()->prepare('SELECT package_id FROM bookings WHERE id = ?');
+    $stmt->execute([$bookingId]);
+    $packageId = (int) $stmt->fetchColumn() ?: null;
+    $package = fetch_package($packageId);
+
     $items = [[
-        'name' => base_price_label() ?: 'Fotobox-Miete',
-        'unit_amount_cents' => base_price_cents(),
+        'name' => $package ? (string) $package['name'] : (base_price_label() ?: 'Fotobox-Miete'),
+        'unit_amount_cents' => $package ? (int) $package['price_cents'] : base_price_cents(),
         'quantity' => 1,
     ]];
 
@@ -892,16 +983,19 @@ function booking_invoice_items(int $bookingId): array
         }
     }
 
+    $freeExtraIds = package_included_extra_ids($packageId);
     $extraSelections = booking_extra_selections($bookingId);
     if ($extraSelections) {
         $placeholders = implode(',', array_fill(0, count($extraSelections), '?'));
         $stmt = db()->prepare("SELECT id, name, price_cents FROM extras WHERE id IN ($placeholders)");
         $stmt->execute(array_map('intval', array_keys($extraSelections)));
         foreach ($stmt->fetchAll() as $row) {
+            $extraId = (int) $row['id'];
+            $isFree = in_array($extraId, $freeExtraIds, true);
             $items[] = [
-                'name' => $row['name'],
-                'unit_amount_cents' => (int) $row['price_cents'],
-                'quantity' => max(1, $extraSelections[(int) $row['id']]),
+                'name' => $row['name'] . ($isFree ? ' (im Paket inklusive)' : ''),
+                'unit_amount_cents' => $isFree ? 0 : (int) $row['price_cents'],
+                'quantity' => max(1, $extraSelections[$extraId]),
             ];
         }
     }
@@ -1147,12 +1241,14 @@ function calc_booking_pricing(
     array $extraSelections,
     ?string $couponCode,
     string $customerEmail = '',
-    ?int $excludeBookingId = null
+    ?int $excludeBookingId = null,
+    ?int $packageId = null
 ): array {
-    $subtotal = calc_booking_total($layoutIds, $extraSelections);
+    $subtotal = calc_booking_total($layoutIds, $extraSelections, $packageId);
 
-    $extraAmounts = extra_selection_amounts($extraSelections);
-    $appliedPromotions = applicable_promotions_for_selection(base_price_cents(), $extraAmounts);
+    $package = fetch_package($packageId);
+    $extraAmounts = extra_selection_amounts($extraSelections, package_included_extra_ids($packageId));
+    $appliedPromotions = applicable_promotions_for_selection($package ? (int) $package['price_cents'] : base_price_cents(), $extraAmounts);
     $promotionDiscount = array_sum(array_column($appliedPromotions, 'discount_cents'));
 
     $coupon = $couponCode ? find_active_coupon($couponCode) : null;

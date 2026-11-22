@@ -38,6 +38,7 @@ PAGE_COLLAGE = 5
 PAGE_LOCKED = 6
 
 EXTRA_INDIVIDUAL_PRINTS = "einzelne bilder drucken"
+EXTRA_ONLINE_GALLERY = "online-galerie"
 MAX_INDIVIDUAL_PRINT_COPIES = 3
 REVIEW_THUMB_SIZE = 220  # Kachelgroesse in der Gesamtuebersicht, siehe _refresh_review_thumbs()
 CAROUSEL_PREVIEW_SIZE = (560, 373)  # grosse Vorschau im Rahmen-Karussell, siehe _update_carousel_view()
@@ -139,15 +140,25 @@ def pil_to_pixmap(img, max_w, max_h):
     )
 
 
-def extras_flags(extras):
-    """Prueft, ob das fest verdrahtete Extra "Einzelne Bilder drucken"
-    gebucht wurde (Namensabgleich, siehe backend/README.md) - erlaubt dann
-    am Ende der Session ein Foto fuer einen Zusatzdruck auszuwaehlen und
-    bis zu MAX_INDIVIDUAL_PRINT_COPIES mal einzeln zu drucken."""
+def has_extra(extras, extra_name):
+    """Prueft per Namensabgleich, ob ein fest verdrahtetes Extra in dieser
+    Liste steckt (siehe backend/README.md) - die Liste kommt von
+    cloudsync.get_extras(), das sowohl tatsaechlich gekaufte als auch nur
+    ueber ein Paket kostenlos inkludierte Extras enthaelt
+    (effective_booking_extras() in includes/functions.php)."""
     for extra in extras:
-        if str(extra.get("name", "")).strip().lower() == EXTRA_INDIVIDUAL_PRINTS:
+        if str(extra.get("name", "")).strip().lower() == extra_name:
             return True
     return False
+
+
+def extras_flags(extras):
+    """Prueft, ob das fest verdrahtete Extra "Einzelne Bilder drucken"
+    gebucht wurde (oder im gewaehlten Paket kostenlos inkludiert ist) -
+    erlaubt dann am Ende der Session ein Foto fuer einen Zusatzdruck
+    auszuwaehlen und bis zu MAX_INDIVIDUAL_PRINT_COPIES mal einzeln zu
+    drucken."""
+    return has_extra(extras, EXTRA_INDIVIDUAL_PRINTS)
 
 
 def return_lock_active(booking):
@@ -304,6 +315,13 @@ class Fotobox(QWidget):
         self.collage_result = None
 
         self.allow_individual_print = extras_flags(cloudsync.get_extras())
+        # Vorher wurde JEDE Buchung automatisch in die Online-Galerie
+        # hochgeladen, unabhaengig davon, ob das gleichnamige (kostenpflichtige)
+        # Extra ueberhaupt gebucht war - ein Widerspruch zu AGB/FAQ, die es
+        # ausdruecklich als optional beschreiben. Jetzt an denselben
+        # Namensabgleich gekoppelt wie EXTRA_INDIVIDUAL_PRINTS; "inklusive"
+        # durch ein Paket zaehlt ueber effective_booking_extras() genauso.
+        self.gallery_enabled = has_extra(cloudsync.get_extras(), EXTRA_ONLINE_GALLERY)
         self.selected_print_index = None
         self.print_copies = 1
 
@@ -1013,9 +1031,12 @@ class Fotobox(QWidget):
         # Fuer die automatische Online-Galerie (siehe gallery.py) unabhaengig
         # vom Speichern/Drucken hochladen - welche Buchung das ist, steht im
         # zuletzt synchronisierten Cloud-Stand (leer, wenn noch nie erfolgreich
-        # synchronisiert oder aktuell keine Buchung hinterlegt ist).
+        # synchronisiert oder aktuell keine Buchung hinterlegt ist). Nur falls
+        # das Extra "Online-Galerie" gebucht/im Paket inklusive ist
+        # (self.gallery_enabled) - GalleryUploadWorker.submit() ohne
+        # booking_id ist bereits ein sicherer No-Op (siehe gallery.py).
         booking = cloudsync.get_booking()
-        gallery_booking_id = booking.get("id") if booking else None
+        gallery_booking_id = booking.get("id") if booking and self.gallery_enabled else None
 
         individual_images = []
         for i, frame in enumerate(self.slot_frames):

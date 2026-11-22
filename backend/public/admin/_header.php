@@ -59,6 +59,7 @@ function nav_icon(string $name): string
         'gear' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.1 7.1 0 0 0 0-2l2-1.5-2-3.5-2.3.9a7 7 0 0 0-1.7-1L15 3h-4l-.4 2.4a7 7 0 0 0-1.7 1l-2.3-.9-2 3.5L6.6 11a7.1 7.1 0 0 0 0 2l-2 1.5 2 3.5 2.3-.9a7 7 0 0 0 1.7 1L10.5 21h4l.4-2.4a7 7 0 0 0 1.7-1l2.3.9 2-3.5L19.4 13z"/>',
         'search' => '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
         'coins' => '<ellipse cx="9" cy="7" rx="6" ry="3.5"/><path d="M3 7v4c0 1.9 2.7 3.5 6 3.5s6-1.6 6-3.5V7"/><path d="M3 11v4c0 1.9 2.7 3.5 6 3.5s6-1.6 6-3.5v-4"/><path d="M15 9.5c2.9.3 5 1.6 5 3.2v4c0 1.7-2.4 3.1-5.5 3.3"/>',
+        'layers' => '<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/>',
     ];
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
@@ -121,6 +122,9 @@ function nav_icon(string $name): string
             </a>
 
             <div class="sidebar-group-label">Katalog</div>
+            <a class="<?= nav_class(['packages.php', 'package_form.php'], $currentPage) ?>" href="packages.php">
+                <?= nav_icon('layers') ?> Pakete
+            </a>
             <a class="<?= nav_class(['layouts.php', 'layout_form.php'], $currentPage) ?>" href="layouts.php">
                 <?= nav_icon('grid') ?> Layouts
             </a>

@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'edit_booking' || $action === 'resolve_addon') {
         $newEventDate = trim((string) ($_POST['event_date'] ?? $booking['event_date']));
+        $newPackageId = (int) ($_POST['package_id'] ?? 0) ?: null;
         $newLayoutIds = array_map('intval', $_POST['layout_ids'] ?? []);
         $activeExtras = fetch_active_extras();
         $newExtraSelections = [];
@@ -99,13 +100,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $editError = 'Ungültiges Eventdatum.';
         } elseif (!$newLayoutIds) {
             $editError = 'Bitte mindestens ein Layout auswählen.';
+        } elseif (!$newPackageId || !fetch_package($newPackageId)) {
+            $editError = 'Bitte ein Paket auswählen.';
         } else {
             $pricing = calc_booking_pricing(
                 $newLayoutIds,
                 $newExtraSelections,
                 (string) ($booking['coupon_code'] ?? '') ?: null,
                 (string) $booking['customer_email'],
-                $bookingId
+                $bookingId,
+                $newPackageId
             );
             $currentTotal = (int) ($booking['total_price_cents'] ?? 0);
             $delta = $pricing['total'] - $currentTotal;
@@ -119,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($needsConfirmation && $action === 'edit_booking') {
                 $pendingEdit = [
                     'event_date' => $newEventDate,
+                    'package_id' => $newPackageId,
                     'layout_ids' => $newLayoutIds,
                     'extra_selections' => $newExtraSelections,
                     'delta' => $delta,
@@ -137,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $description = 'Nachträgliche Änderung an deiner Buchung vom ' . $booking['event_date'];
                     $pendingChangesJson = json_encode([
                         'event_date' => $newEventDate,
+                        'package_id' => $newPackageId,
                         'layout_ids' => $newLayoutIds,
                         'extra_selections' => $newExtraSelections,
                         'total_price_cents' => $pricing['total'],
@@ -170,10 +176,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     db()->beginTransaction();
                     db()->prepare(
-                        'UPDATE bookings SET event_date = ?, total_price_cents = ?, discount_cents = ?,
+                        'UPDATE bookings SET event_date = ?, package_id = ?, total_price_cents = ?, discount_cents = ?,
                          returning_discount_cents = ?, promotion_discount_cents = ?, applied_promotions_json = ? WHERE id = ?'
                     )->execute([
                         $newEventDate,
+                        $newPackageId,
                         $pricing['total'],
                         $pricing['discount_cents'],
                         $pricing['returning_discount_cents'],
@@ -267,8 +274,10 @@ foreach ($otherBookings as $ob) {
 // bestaetigenden Aenderung die vorgeschlagenen statt der gespeicherten
 // Werte verwenden.
 $formEventDate = $pendingEdit['event_date'] ?? $booking['event_date'];
+$formPackageId = $pendingEdit['package_id'] ?? (int) ($booking['package_id'] ?? 0);
 $formLayoutIds = $pendingEdit['layout_ids'] ?? $currentLayoutIds;
 $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
+$activePackages = fetch_active_packages();
 ?>
 
 <p><a href="bookings.php">&larr; zurück zu den Buchungen</a></p>
@@ -345,6 +354,17 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
                 <span class="muted-text">entspricht der Rechnungsadresse</span>
             <?php else: ?>
                 <?= htmlspecialchars(implode("\n", booking_shipping_address_lines($booking)), ENT_QUOTES) ?>
+            <?php endif; ?>
+        </td></tr>
+        <tr><th>Paket</th><td>
+            <?php $bookingPackage = fetch_package($booking['package_id'] !== null ? (int) $booking['package_id'] : null); ?>
+            <?php if ($bookingPackage): ?>
+                <?= htmlspecialchars($bookingPackage['name'], ENT_QUOTES) ?> (<?= money_from_cents((int) $bookingPackage['price_cents']) ?>)
+                <?php if ($bookingPackage['supplies_note']): ?>
+                    <br><span class="muted-text">Packliste: <?= htmlspecialchars($bookingPackage['supplies_note'], ENT_QUOTES) ?></span>
+                <?php endif; ?>
+            <?php else: ?>
+                <span class="muted-text">— (Buchung von vor der Einführung der Pakete, alter Basispreis)</span>
             <?php endif; ?>
         </td></tr>
         <tr><th>Gewünschte Layouts</th><td>
@@ -605,6 +625,7 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
             <input type="hidden" name="booking_id" value="<?= (int) $booking['id'] ?>">
             <input type="hidden" name="form_action" value="resolve_addon">
             <input type="hidden" name="event_date" value="<?= htmlspecialchars($pendingEdit['event_date'], ENT_QUOTES) ?>">
+            <input type="hidden" name="package_id" value="<?= (int) $pendingEdit['package_id'] ?>">
             <?php foreach ($pendingEdit['layout_ids'] as $lid): ?>
                 <input type="hidden" name="layout_ids[]" value="<?= (int) $lid ?>">
             <?php endforeach; ?>
@@ -631,6 +652,16 @@ $formExtraSelections = $pendingEdit['extra_selections'] ?? $currentExtras;
 
             <label>Eventdatum
                 <input type="date" name="event_date" value="<?= htmlspecialchars($formEventDate, ENT_QUOTES) ?>" required>
+            </label>
+
+            <label>Paket
+                <select name="package_id" required>
+                    <?php foreach ($activePackages as $pkg): ?>
+                        <option value="<?= (int) $pkg['id'] ?>" <?= $formPackageId === (int) $pkg['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($pkg['name'], ENT_QUOTES) ?> (<?= money_from_cents((int) $pkg['price_cents']) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </label>
 
             <h3 style="margin-top:20px;">Layouts</h3>

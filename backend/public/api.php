@@ -91,15 +91,19 @@ if ($currentBooking) {
         'customer_pin' => $currentBooking['customer_pin'],
     ];
 
-    $stmt = db()->prepare(
-        'SELECT e.name, be.quantity FROM booking_extras be
-         INNER JOIN extras e ON e.id = be.extra_id WHERE be.booking_id = ?'
-    );
-    $stmt->execute([$currentBooking['id']]);
-    $extrasData = array_map(
-        static fn (array $r): array => ['name' => $r['name'], 'quantity' => (int) $r['quantity']],
-        $stmt->fetchAll()
-    );
+    // effective_booking_extras() statt eines reinen booking_extras-Joins,
+    // damit auch Extras, die nur kostenlos ueber das gewaehlte Paket
+    // inkludiert sind (z.B. Online-Galerie), hier auftauchen - main.py
+    // erkennt sie ueber denselben Namensabgleich wie gekaufte Extras.
+    $extrasData = [];
+    foreach (effective_booking_extras((int) $currentBooking['id']) as $extraId => $info) {
+        $stmt = db()->prepare('SELECT name FROM extras WHERE id = ?');
+        $stmt->execute([$extraId]);
+        $name = $stmt->fetchColumn();
+        if ($name !== false) {
+            $extrasData[] = ['name' => $name, 'quantity' => (int) $info['quantity']];
+        }
+    }
 }
 
 $cfg = backend_config();

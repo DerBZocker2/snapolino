@@ -14,8 +14,9 @@ $pageDescription = 'Antworten zu Ablauf, Kosten, Technik und Design rund um die 
 $activeNav = 'faq';
 
 try {
-    $priceCents = base_price_cents();
-    $priceLabel = base_price_label();
+    $cheapestPackage = cheapest_active_package();
+    $priceCents = $cheapestPackage ? (int) $cheapestPackage['price_cents'] : base_price_cents();
+    $priceLabel = $cheapestPackage ? $cheapestPackage['name'] : base_price_label();
     $retentionDays = gallery_retention_days();
     $returningDiscount = returning_customer_discount_percent();
     $referralDiscount = referral_discount_percent();
